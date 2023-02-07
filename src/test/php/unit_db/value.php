@@ -2,8 +2,8 @@
 
 /*
 
-  test/unit_db/value.php - database unit testing of the value functions
-  ---------------------
+    test/unit_db/value.php - database unit testing of the value functions
+    ----------------------
 
 
     This file is part of zukunft.com - calc with words
@@ -30,16 +30,62 @@
 
 */
 
-function run_value_unit_db_tests(testing $t)
+use api\phrase_group_api;
+use api\triple_api;
+use api\value_api;
+use api\word_api;
+
+class value_unit_db_tests
 {
 
-    $t->header('Unit database tests of the value class (src/main/php/model/value/value.php)');
+    function run(testing $t): void
+    {
 
-    $t->subheader('Frontend API tests');
+        global $usr;
 
-    $phr_grp = $t->add_phrase_group(array(word_link::TN_READ_NAME),phrase_group::TN_READ);
-    $val = $t->load_value_by_phr_grp($phr_grp);
-    $t->assert_api($val);
+        // init
+        $t->name = 'value->';
+
+        $t->header('Unit database tests of the value class (src/main/php/model/value/value.php)');
+
+        $t->subheader('Value load tests');
+
+        $test_name = 'load a value by phrase group';
+        $phr_lst = new phrase_list($usr);
+        $phr_lst->load_by_names(
+            array(word_api::TN_CH, word_api::TN_INHABITANTS, word_api::TN_MIO, word_api::TN_2020)
+        );
+        $val = new value($usr);
+        $val->load_by_grp($phr_lst->get_grp());
+        $result = $val->number();
+        $target = value_api::TV_CH_INHABITANTS_2020_IN_MIO;
+        $t->assert($test_name, $result, $target);
+
+        /*
+        $test_name = 'load the latest value by phrase group';
+        $phr_lst->ex_time();
+        $val = new value($usr);
+        $val->grp = $phr_lst->get_grp();
+        $val->load_obj_vars();
+        $result = $val->number();
+        $target = value_api::TV_CH_INHABITANTS_2020_IN_MIO;
+        $t->assert($test_name, $result, $target);
+        */
+
+        $t->subheader('Frontend API tests');
+
+        $val = new value($usr);
+        $val->load_by_id(1, value::class);
+        $val->load_objects();
+        $api_val = $val->api_obj();
+        $t->assert($t->name . 'api->id', $api_val->id, $val->id());
+        $t->assert($t->name . 'api->number', $api_val->number(), $val->number());
+
+
+        $phr_grp = $t->add_phrase_group(array(triple_api::TN_READ_NAME), phrase_group_api::TN_READ);
+        $val = $t->load_value_by_phr_grp($phr_grp);
+        $t->assert_api_exp($val);
+    }
 
 }
 

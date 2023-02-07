@@ -2,8 +2,8 @@
 
 /*
 
-    api\user_config.php - the minimal user configuration for the frontend API
-    -------------------
+    api/user/user_config.php - the minimal user configuration for the frontend API
+    ------------------------
 
 
     This file is part of zukunft.com - calc with words
@@ -35,6 +35,13 @@ namespace api;
 class user_config
 {
 
+    /**
+     * @return string with the date format as requested by the user
+     */
+    public function date_time_format(): string
+    {
+        return 'd-m-Y H:i';
+    }
 
 }
 

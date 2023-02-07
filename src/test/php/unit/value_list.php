@@ -2,8 +2,8 @@
 
 /*
 
-  test/unit/value_list.php - unit testing of the VALUE LIST functions
-  ------------------------
+    test/unit/value_list.php - unit testing of the VALUE LIST functions
+    ------------------------
   
 
     This file is part of zukunft.com - calc with words
@@ -47,11 +47,12 @@ class value_list_unit_tests
         global $usr;
 
         // init
+        $lib = new library();
         $db_con = new sql_db();
         $t->name = 'value_list->';
         $t->resource_path = 'db/value/';
         $json_file = 'unit/value/travel_scoring_value_list.json';
-        $usr->id = 1;
+        $usr->set_id(1);
 
         $t->header('Unit tests of the value list class (src/main/php/model/value/value_list.php)');
 
@@ -64,19 +65,19 @@ class value_list_unit_tests
 
         // sql to load a list of value by the word id
         $wrd = new word($usr);
-        $wrd->id = 1;
+        $wrd->set_id(1);
         $val_lst = new value_list($usr);
         $val_lst->phr = $wrd->phrase();
         $created_sql = $val_lst->load_sql($db_con)->sql;
         $expected_sql = $t->file('db/value/value_list_by_word_id.sql');
-        $t->assert('value_list->load_sql by phrase id', $t->trim($created_sql), $t->trim($expected_sql));
+        $t->assert('value_list->load_sql by phrase id', $lib->trim($created_sql), $lib->trim($expected_sql));
 
         // sql to load a list of value by the phrase ids
         $val_lst = new value_list($usr);
         $val_lst->phr_lst = (new phrase_list_unit_tests)->get_phrase_list();
         $created_sql = $val_lst->load_by_phr_lst_sql($db_con);
         $expected_sql = $t->file('db/value/value_list_by_triple_id_list.sql');
-        $t->assert('value_list->load_by_phr_lst_sql by group and time', $t->trim($created_sql), $t->trim($expected_sql));
+        $t->assert('value_list->load_by_phr_lst_sql by group and time', $lib->trim($created_sql), $lib->trim($expected_sql));
 
         // ... and check if the prepared sql name is unique
         $t->assert_sql_name_unique($val_lst->load_by_phr_lst_sql($db_con, true));
@@ -85,12 +86,12 @@ class value_list_unit_tests
         $db_con->db_type = sql_db::MYSQL;
         $created_sql = $val_lst->load_by_phr_lst_sql($db_con);
         $expected_sql = $t->file('db/value/value_list_by_triple_id_list_mysql.sql');
-        $t->assert('value_list->load_by_phr_lst_sql by group and time for MySQL', $t->trim($created_sql), $t->trim($expected_sql));
+        $t->assert('value_list->load_by_phr_lst_sql by group and time for MySQL', $lib->trim($created_sql), $lib->trim($expected_sql));
 
 
         // sql to load a list of value by the phrase id
         $phr = new phrase($usr);
-        $phr->id = 1;
+        $phr->set_id(1);
         $qp = $this->assert_by_phr_sql($phr, sql_db::POSTGRES);
         $this->assert_by_phr_sql($phr, sql_db::MYSQL);
         $this->test->assert_sql_name_unique($qp->name);
@@ -114,6 +115,8 @@ class value_list_unit_tests
     {
         global $usr;
 
+        $lib = new library();
+
         $lst = new value_list($usr);
         $db_con = new sql_db();
         $db_con->db_type = $dialect;
@@ -125,8 +128,8 @@ class value_list_unit_tests
         $expected_sql = $this->test->file(self::PATH . $qp->name . $dialect_ext . self::FILE_EXT);
         $this->test->assert(
             self::TEST_NAME . $qp->name . $dialect,
-            $this->test->trim($qp->sql),
-            $this->test->trim($expected_sql)
+            $lib->trim($qp->sql),
+            $lib->trim($expected_sql)
         );
         return $qp;
     }

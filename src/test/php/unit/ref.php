@@ -30,53 +30,78 @@
 
 */
 
+use api\source_api;
+
 class ref_unit_tests
 {
-    function run(testing $t)
+    function run(testing $t): void
     {
 
         global $usr;
 
-        // init
+        // init for reference
         $db_con = new sql_db();
         $t->name = 'ref->';
         $t->resource_path = 'db/ref/';
         $json_file = 'unit/ref/wikipedia.json';
-        $usr->id = 1;
+        $usr->set_id(1);
 
-        $t->header('Unit tests of the Ref class (src/main/php/model/ref/ref.php)');
+        $t->header('Unit tests of the reference class (src/main/php/model/ref/ref.php)');
+
+        $t->subheader('SQL user sandbox statement tests');
+        $ref = new ref($usr);
+        $t->assert_load_sql_id($db_con, $ref);
+
+        $t->subheader('API unit tests');
+        $ref = $t->dummy_reference();
+        $t->assert_api($ref);
 
         $t->subheader('Im- and Export tests');
-
         $t->assert_json(new ref($usr), $json_file);
 
+        $t->subheader('SQL statement tests');
+        // sql to load the ref types
+        $ref_type_list = new ref_type_list();
+        $t->assert_load_sql_all($db_con, $ref_type_list, sql_db::TBL_REF_TYPE);
 
+
+        // init for source
+        $t->name = 'source->';
         $t->resource_path = 'db/ref/';
+        $json_file = 'unit/ref/bipm.json';
+
         $t->header('Unit tests of the source class (src/main/php/model/ref/source.php)');
 
+        $t->subheader('SQL user sandbox statement tests');
+        $src = new source($usr);
+        $t->assert_load_sql_id($db_con, $src);
+        $t->assert_load_sql_name($db_con, $src);
+        $t->assert_load_sql_code_id($db_con, $src);
+
+        $t->subheader('API unit tests');
+        $src = $t->dummy_source();
+        $t->assert_api_msg($db_con, $src);
+
+        $t->subheader('Im- and Export tests');
+        $t->assert_json(new source($usr), $json_file);
 
         $t->subheader('SQL statement tests');
-
         // sql to load a source by id
         $src = new source($usr);
-        $src->id = 4;
-        $t->assert_load_sql($db_con, $src);
+        $src->set_id(4);
         $t->assert_load_standard_sql($db_con, $src);
-
-        // sql to load a source by code id
-        $src = new source($usr);
-        $src->code_id = source::TN_READ;
-        $t->assert_load_sql($db_con, $src);
 
         // sql to load a source by name
         $src = new source($usr);
-        $src->name = source::TN_READ;
-        $t->assert_load_sql($db_con, $src);
+        $src->set_name(source_api::TN_READ);
         $t->assert_load_standard_sql($db_con, $src);
+        $src->set_id(5);
+        $t->assert_not_changed_sql($db_con, $src);
+        $t->assert_user_config_sql($db_con, $src);
 
-        // sql to load the ref types
-        $ref_type_list = new ref_type_list();
-        $t->assert_load_sql($db_con, $ref_type_list, DB_TYPE_REF_TYPE);
+        // sql to load the source types
+        $source_type_list = new source_type_list();
+        $t->assert_load_sql_all($db_con, $source_type_list, sql_db::TBL_SOURCE_TYPE);
 
     }
 

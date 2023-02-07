@@ -37,7 +37,7 @@ namespace html;
 class html_base
 {
 
-    const IMG_LOGO = "https://www.zukunft.com/images/ZUKUNFT_logo.svg";
+    const IMG_LOGO = "/src/main/resources/images/ZUKUNFT_logo.svg";
 
     const SIZE_FULL = 'full';
     const SIZE_HALF = 'half';
@@ -88,13 +88,13 @@ class html_base
             // include the bootstrap JavaScript plugins
             $result .= '  <script src="https://www.zukunft.com/lib_external/bootstrap/4.1.3/js/bootstrap.js"></script>';
             // adjust the styles where needed
-            $result .= '  <link rel="stylesheet" type="text/css" href="../../../../style/style_bs.css" />';
+            $result .= '  <link rel="stylesheet" type="text/css" href="/src/main/resources/style/style_bs.css" />';
             // load the icon font
             $result .= '  <link rel="stylesheet" href="https://www.zukunft.com/lib_external/fontawesome/css/all.css">';
             $result .= '  <script defer src="https://www.zukunft.com/lib_external/fontawesome/js/all.js"></script>';
         } else {
             // use a simple stylesheet without Javascript
-            $result .= '  <link rel="stylesheet" type="text/css" href="../../../../style/style.css" />';
+            $result .= '  <link rel="stylesheet" type="text/css" href="/src/main/resources/style/style.css" />';
         }
         $result .= '</head>';
         if (UI_USE_BOOTSTRAP) {
@@ -128,12 +128,12 @@ class html_base
         if (UI_USE_BOOTSTRAP) {
             // include the bootstrap stylesheets
             $result .= '  <link rel="stylesheet" href="https://www.zukunft.com/lib_external/bootstrap/4.3.1/css/bootstrap.css">';
-            $result .= '  <link rel="stylesheet" type="text/css" href="../../../../style/style_bs.css" />';
+            $result .= '  <link rel="stylesheet" type="text/css" href="/src/main/resources/style/style_bs.css" />';
             // load the icon font
             $result .= '  <link rel="stylesheet" href="https://www.zukunft.com/lib_external/fontawesome/css/all.css">';
         } else {
             // use a simple stylesheet without Javascript
-            $result .= '  <link rel="stylesheet" type="text/css" href="../../../../style/style.css" />';
+            $result .= '  <link rel="stylesheet" type="text/css" href="/src/main/resources/style/style.css" />';
         }
         $result .= '</head>';
         if (UI_USE_BOOTSTRAP) {
@@ -219,18 +219,18 @@ class html_base
      *
      * @param string $obj_name the object that is requested e.g. a view
      * @param int $id the id of the parameter e.g. 1 for math const
-     * @param string $back the back trace calls to return to the original url and for undo
+     * @param string|null $back the back trace calls to return to the original url and for undo
      * @param string $par_name the parameter objects e.g. a phrase
      * @param string $id_ext an additional id parameter e.g. used to link and unlink two objects
      * @return string the created url
      */
     function url(string $obj_name,
                  int $id = 0,
-                 string $back = '',
+                 ?string $back = '',
                  string $par_name = '',
                  string $id_ext = ''): string
     {
-        $result = api::PATH . $obj_name . api::EXT;
+        $result = api::PATH_FIXED . $obj_name . api::EXT;
         if ($id <> 0) {
             if ($par_name != '') {
                 $result .= '?' . $par_name . '=' . $id;
@@ -314,6 +314,20 @@ class html_base
     }
 
     /**
+     * create a header column text for each string of the given array
+     * @param array $header_cols array of the text or link that should be shown
+     * @return string the html code of the table header cell
+     */
+    function th_row(array $header_cols): string
+    {
+        $header_text = '';
+        foreach ($header_cols as $col_name) {
+            $header_text .= $this->th($col_name);
+        }
+        return $header_text;
+    }
+
+    /**
      * show the html code as a table row
      * @param string $row_text the text or link that should be shown
      * @return string the html code of the table row
@@ -325,12 +339,13 @@ class html_base
 
     /**
      * show a text of link within a table cell
-     * @param string $cell_text the text or link that should be shown
+     * @param string|null $cell_text the text or link that should be shown or null to return an empty cell
      * @param int $intent the number of spaces on the left (or right e.g. for arabic) inside the table cell
      * @return string the html code of the table cell
      */
-    function td(string $cell_text, int $intent = 0): string
+    function td(?string $cell_text = '', int $intent = 0): string
     {
+        // just for formatting the html code
         while ($intent > 0) {
             $cell_text .= '&nbsp;';
             $intent = $intent - 1;
@@ -346,14 +361,11 @@ class html_base
      */
     function tbl(string $tbl_rows, string $tbl_style = self::SIZE_FULL): string
     {
-        switch ($tbl_style) {
-            case self::SIZE_FULL:
-                return $this->tbl_start() . $tbl_rows . $this->tbl_end();
-            case self::SIZE_HALF:
-                return $this->tbl_start_half() . $tbl_rows . $this->tbl_end();
-            case self::STYLE_BORDERLESS:
-                return $this->tbl_start_hist() . $tbl_rows . $this->tbl_end();
-        }
+        return match ($tbl_style) {
+            self::SIZE_HALF => $this->tbl_start_half() . $tbl_rows . $this->tbl_end(),
+            self::STYLE_BORDERLESS => $this->tbl_start_hist() . $tbl_rows . $this->tbl_end(),
+            default => $this->tbl_start() . $tbl_rows . $this->tbl_end(),
+        };
     }
 
     private function tbl_start(): string
@@ -410,10 +422,16 @@ class html_base
 
     /**
      * create the html code to display a table
+     * @param string $form_name the unique name of the html form
      * @param string $tbl_rows the html code of all rows including the header rows
      * @return string the table html code
      */
-    function form(string $form_name, string $tbl_rows, string $submit_name = '', string $back = '', string $del_call = ''): string
+    function form(
+        string $form_name,
+        string $tbl_rows,
+        string $submit_name = '',
+        string $back = '',
+        string $del_call = ''): string
     {
         return $this->form_start($form_name) . $tbl_rows . $this->form_end($submit_name, $back, $del_call);
     }
@@ -460,7 +478,12 @@ class html_base
     {
         // switch on post forms for private values
         // return '<form action="'.$form_name.'.php" method="post" id="'.$form_name.'">';
-        return '<form action="' . $form_name . '.php" id="' . $form_name . '">';
+        if ($form_name == 'user_edit') {
+            $script_name = 'user';
+        } else {
+            $script_name = $form_name;
+        }
+        return '<form action="/http/' . $script_name . '.php" id="' . $form_name . '">';
     }
 
     /**
@@ -477,7 +500,7 @@ class html_base
     /**
      * end a html form
      */
-    function form_end($submit_name, $back, $del_call = ''): string
+    function form_end(string $submit_name, string $back, $del_call = ''): string
     {
         $result = '';
         if (UI_USE_BOOTSTRAP) {
@@ -532,7 +555,7 @@ class html_base
         $result .= 'zukunft.com AG also supports the ';
         $result .= $this->ref("https://github.com/zukunft/tream", "Open Source", "github.com link") . ' Portfolio Management System<br><br>';
         $result .= '<a href="https://tream.biz/p4a/applications/tream/" title="TREAM demo">';
-        $result .= '<img src="https://www.zukunft.com/images/TREAM_logo.jpg" alt="TREAM" style="height: 20%;">';
+        $result .= '<img src="/src/main/resources/images/TREAM_logo.jpg" alt="TREAM" style="height: 20%;">';
         $result .= '</a><br><br>';
         $result .= '</div>   ';
         $result .= $this->footer(true);
@@ -566,31 +589,49 @@ class html_base
     }
 
     /**
+     * converts object class name to an edit php script name
+     *
+     */
+    public function edit_url(string $class): string
+    {
+        return $class . api::UPDATE . api::EXT;
+    }
+
+    /**
      * display a list that can be sorted using the fixed field "order_nbr"
      * $sql_result - list of the query results
+     *
+     * @param array $item_lst a list of objects that have at least an id and a name
      */
-    function list_sort($sql_result, $id_field, $text_field, $script_name, $script_parameter)
+    function list_sort(
+        array  $item_lst,
+        string $class,
+        string $script_parameter,
+        string $back = ''): string
     {
         $result = '';
 
         $row_nbr = 0;
-        $num_rows = mysqli_num_rows($sql_result);
-        while ($entry = mysqli_fetch_array($sql_result, MySQLi_ASSOC)) {
+        $num_rows = count($item_lst);
+        foreach ($item_lst as $key =>  $item) {
             // list of all possible view entries
             $row_nbr = $row_nbr + 1;
-            $edit_script = zu_id_to_edit($id_field);
-            $result .= '<a href="/http/' . $edit_script . '?id=' . $entry[$id_field] . '&back=' . $script_parameter . '">' . $entry[$text_field] . '</a> ';
+            $edit_script = $this->edit_url($class);
+            $url = $this->url($edit_script, $key, $back);
+            $result .= $this->ref($url, $item);
             if ($row_nbr > 1) {
-                $result .= '<a href="/http/' . $script_name . '?id=' . $script_parameter . '&move_up=' . $entry[$id_field] . '">up</a>';
+                $url = $this->url($edit_script, $key, $back, '&move_up=' . $key);
+                $result .= $this->ref($url, 'up');
             }
             if ($row_nbr > 1 and $row_nbr < $num_rows) {
                 $result .= '/';
             }
             if ($row_nbr < $num_rows) {
-                $result .= '<a href="/http/' . $script_name . '?id=' . $script_parameter . '&move_down=' . $entry[$id_field] . '">down</a>';
+                $url = $this->url($edit_script, $key, $back, '&move_down=' . $key);
+                $result .= $this->ref($url, 'down');
             }
             $result .= ' ';
-            $result .= \html\btn_del('Delete ' . $text_field, $script_name . '?id=' . $script_parameter . '&del=' . $entry[$id_field]);
+            $result .= \html\btn_del('Delete ' . $class, $class . '?id=' . $script_parameter . '&del=' . $key);
             $result .= '<br>';
         }
 
@@ -605,22 +646,23 @@ class html_base
      * similar to the table function, which is used for values and formula results
      *
      * @param array $item_lst a list of objects that have at least an id and a name
-     * @param string the class name of the array entries
+     * @param string $class the object that is requested e.g. a view
+     * @param string $back the target for the back / ctrl-z function
      * @returns string with the html code to display the list
      */
-    function list(array $item_lst, string $item_type, string $back = ''): string
+    function list(array $item_lst, string $class, string $back = ''): string
     {
         $result = "";
 
         foreach ($item_lst as $item) {
             if ($item->id != null) {
-                $url = $this->url($item_type . api::UPDATE, $item->id, $back);
+                $url = $this->url($class . api::UPDATE, $item->id, $back);
                 $result .= $this->ref($url, $item->name);
                 $result .= '<br>';
             }
         }
-        $url_add = $this->url($item_type . api::CREATE, 0, $back);
-        $result .= (new button('Add ' . $item_type, $url_add))->add();
+        $url_add = $this->url($class . api::CREATE, 0, $back);
+        $result .= (new button('Add ' . $class, $url_add))->add();
         $result .= '<br>';
 
         return $result;

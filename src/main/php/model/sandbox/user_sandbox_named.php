@@ -32,14 +32,38 @@
 
 */
 
+use api\formula_api;
+use api\phrase_api;
+use api\source_api;
+use api\view_api;
+use api\view_cmp_api;
+use api\word_api;
+
 class user_sandbox_named extends user_sandbox
 {
+
     /*
      * database link
      */
 
     // object specific database and JSON object field names
     const FLD_NAME = 'name';
+    const FLD_DESCRIPTION = 'description';
+
+
+    /*
+     * object vars
+     */
+
+    // database fields only used for objects that have a name
+    protected string $name = '';        // simply the object name, which cannot be empty if it is a named object
+    public ?string $description = null; // the object description that is shown as a mouseover explain to the user
+    //                                     if description is NULL the database value should not be updated
+
+
+    /*
+     * construct and map
+     */
 
     /**
      * reset the search values of this object
@@ -49,12 +73,80 @@ class user_sandbox_named extends user_sandbox
     {
         parent::reset();
 
-        $this->name = '';
+        $this->set_name('');
+        $this->description = null;
     }
 
     /*
-     * casting objects
+     * set and get
      */
+
+    /**
+     * set the most used object vars with one set statement
+     * @param int $id mainly for test creation the database id of the named user sandbox object
+     * @param string $name mainly for test creation the name of the named user sandbox object
+     * @param string $type_code_id the code id of the predefined object type only used by some child objects
+     */
+    public function set(int $id = 0, string $name = '', string $type_code_id = ''): void
+    {
+        parent::set_id($id);
+
+        if ($name != '') {
+            $this->set_name($name);
+        }
+    }
+
+    /**
+     * set the name of this named user sandbox object
+     * set and get of the name is needed to use the same function for phrase or term
+     *
+     * @param string $name the name of this named user sandbox object e.g. word set in the related object
+     * @return void
+     */
+    public function set_name(string $name): void
+    {
+        $this->name = $name;
+    }
+
+    /**
+     * get the name of the word object
+     *
+     * @return string the name from the object e.g. word using the same function as the phrase and term
+     */
+    public function name(): string
+    {
+        return $this->name;
+    }
+
+
+    /*
+     * cast
+     */
+
+    /**
+     * get the term corresponding to this word or formula name
+     * so in this case, if a formula or verb with the same name already exists, get it
+     * @return term
+     */
+    function term(): term
+    {
+        $trm = new term($this->user());
+        $trm->set_id($this->id());
+        $trm->obj = $this;
+        return $trm;
+    }
+
+    /**
+     * get the term corresponding to this word or formula name
+     * so in this case, if a formula or verb with the same name already exists, get it
+     * @return term
+     */
+    function get_term(): term
+    {
+        $trm = new term($this->user());
+        $trm->load_by_name($this->name());
+        return $trm;
+    }
 
     /**
      * @param object $api_obj frontend API objects that should be filled with unique object name
@@ -63,36 +155,28 @@ class user_sandbox_named extends user_sandbox
     {
         parent::fill_api_obj($api_obj);
 
-        $api_obj->set_name($this->name);
-    }
-
-    /**
-     * TODO deprecate
-     * @return object frontend API object filled with unique object name
-     */
-    function fill_min_obj(object $min_obj): object
-    {
-        parent::fill_min_obj($min_obj);
-
-        $min_obj->set_name($this->name);
-
-        return $min_obj;
+        $api_obj->set_name($this->name());
+        $api_obj->description = $this->description;
     }
 
     /**
      * fill a similar object that is extended with display interface functions
      * TODO base on the api object and deprecate
      *
-     * @return object the object fill with all user sandbox value
+     * @param object $dsp_obj the object that should be filled with all user sandbox value
      */
-    function fill_dsp_obj(object $dsp_obj): object
+    function fill_dsp_obj(object $dsp_obj): void
     {
         parent::fill_dsp_obj($dsp_obj);
 
         $dsp_obj->set_name($this->name());
-
-        return $dsp_obj;
+        $dsp_obj->description = $this->description;
     }
+
+
+    /*
+     * loading
+     */
 
     /**
      * create the SQL to load the single default value always by the id or name
@@ -100,25 +184,25 @@ class user_sandbox_named extends user_sandbox
      * @param string $class the name of the child class from where the call has been triggered
      * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
      */
-    function load_standard_sql(sql_db $db_con, string $class): sql_par
+    function load_standard_sql(sql_db $db_con, string $class = self::class): sql_par
     {
         $qp = new sql_par($class, true);
         if ($this->id != 0) {
             $qp->name .= 'id';
-        } elseif ($this->name != '') {
+        } elseif ($this->name() != '') {
             $qp->name .= 'name';
         } else {
             log_err('Either the id or name must be set to get a named user sandbox object');
         }
 
         $db_con->set_name($qp->name);
-        $db_con->set_usr($this->usr->id);
+        $db_con->set_usr($this->user()->id);
         if ($this->id != 0) {
             $db_con->add_par(sql_db::PAR_INT, $this->id);
-            $qp->sql = $db_con->select_by_id();
+            $qp->sql = $db_con->select_by_set_id();
         } else {
             $db_con->add_par(sql_db::PAR_TEXT, $this->name);
-            $qp->sql = $db_con->select_by_name();
+            $qp->sql = $db_con->select_by_set_name();
         }
         $qp->par = $db_con->get_par();
 
@@ -136,53 +220,103 @@ class user_sandbox_named extends user_sandbox
         global $db_con;
         $result = false;
 
-        if ($this->id == 0 and $this->name == '') {
+        if ($this->id == 0 and $this->name() == '') {
             log_err('The ' . $class . ' id or name must be set to load ' . $class, $class . '->load_standard');
         } else {
             $db_row = $db_con->get1($qp);
-            $result = $this->row_mapper($db_row, false);
+            $result = $this->row_mapper($db_row, true);
         }
         return $result;
     }
 
     /**
-     * return best possible identification for this object mainly used for debugging
+     * create an SQL statement to retrieve a term by name from the database
+     *
+     * @param sql_db $db_con the db connection object as a function parameter for unit testing
+     * @param string $name the name of the term and the related word, triple, formula or verb
+     * @param string $class the name of the child class from where the call has been triggered
+     * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
+     */
+    function load_sql_by_name(sql_db $db_con, string $name, string $class): sql_par
+    {
+        $qp = $this->load_sql($db_con, 'name', $class);
+        $db_con->set_where_name($name, $this->name_field());
+        $qp->sql = $db_con->select_by_set_id();
+        $qp->par = $db_con->get_par();
+
+        return $qp;
+    }
+
+    /**
+     * load a named user sandbox object by name
+     * @param string $name the name of the word, triple, formula, verb, view or view component
+     * @param string $class the name of the child class from where the call has been triggered
+     * @return int the id of the object found and zero if nothing is found
+     */
+    function load_by_name(string $name, string $class = self::class): int
+    {
+        global $db_con;
+
+        log_debug($name);
+        $qp = $this->load_sql_by_name($db_con, $name, $class);
+        return parent::load($qp);
+    }
+
+    /**
+     * dummy function that should always be overwritten by the child object
+     * @return string
+     */
+    function name_field(): string
+    {
+        return '';
+    }
+
+
+    /*
+     * debug
+     */
+
+    /**
+     * @return string the best possible identification for this object mainly used for debugging
      */
     function dsp_id(): string
     {
         $result = '';
-        if ($this->name <> '') {
-            $result .= '"' . $this->name . '"';
+        if ($this->name() <> '') {
+            $result .= '"' . $this->name() . '"';
             if ($this->id > 0) {
                 $result .= ' (' . $this->id . ')';
             }
         } else {
             $result .= $this->id;
         }
-        if (isset($this->usr)) {
-            $result .= ' for user ' . $this->usr->id . ' (' . $this->usr->name . ')';
+        if ($this->user()->is_set()) {
+            $result .= ' for user ' . $this->user()->id() . ' (' . $this->user()->name . ')';
         }
         return $result;
     }
+
+    /*
+     * save
+     */
 
     /**
      * set the log entry parameter for a new named object
      * for all not named objects like links, this function is overwritten
      * e.g. that the user can see "added formula 'scale millions' to word 'mio'"
      */
-    function log_add(): user_log_named
+    function log_add(): change_log_named
     {
-        log_debug($this->obj_name . '->log_add ' . $this->dsp_id());
+        log_debug($this->dsp_id());
 
-        $log = new user_log_named;
-        $log->field = $this->obj_name . '_name';
-        $log->old_value = '';
-        $log->new_value = $this->name;
-
-        $log->usr = $this->usr;
-        $log->action = 'add';
+        $log = new change_log_named;
         // TODO add the table exceptions from sql_db
-        $log->table = $this->obj_name . 's';
+        $log->action = change_log_action::ADD;
+        $log->set_table($this->obj_name . 's');
+        $log->set_field($this->obj_name . '_name');
+        $log->usr = $this->user();
+        $log->old_value = '';
+        $log->new_value = $this->name();
         $log->row_id = 0;
         $log->add();
 
@@ -191,20 +325,20 @@ class user_sandbox_named extends user_sandbox
 
     /**
      * set the log entry parameter to delete a object
-     * @returns user_log_link with the object presets e.g. th object name
+     * @returns change_log_link with the object presets e.g. th object name
      */
-    function log_del(): user_log_named
+    function log_del(): change_log_named
     {
-        log_debug($this->obj_name . '->log_del ' . $this->dsp_id());
+        log_debug($this->dsp_id());
 
-        $log = new user_log_named;
-        $log->field = $this->obj_name . '_name';
-        $log->old_value = $this->name;
+        $log = new change_log_named;
+        $log->usr = $this->user();
+        $log->action = change_log_action::DELETE;
+        $log->set_table($this->obj_name . 's');
+        $log->set_field($this->obj_name . '_name');
+        $log->old_value = $this->name();
         $log->new_value = '';
 
-        $log->usr = $this->usr;
-        $log->action = 'del';
-        $log->table = $this->obj_name . 's';
         $log->row_id = $this->id;
         $log->add();
 
@@ -223,34 +357,34 @@ class user_sandbox_named extends user_sandbox
         $result = '';
         if (!$usr->is_system()) {
             if ($this->obj_type == user_sandbox::TYPE_NAMED) {
-                if ($this->obj_name == DB_TYPE_WORD) {
-                    if (in_array($this->name, word::RESERVED_WORDS)) {
+                if ($this->obj_name == sql_db::TBL_WORD) {
+                    if (in_array($this->name, word_api::RESERVED_WORDS)) {
                         // the admin user needs to add the read test word during initial load
-                        if ($usr->is_admin() and $this->name != word::TN_READ) {
-                            $result = '"' . $this->name . '" is a reserved name for system testing. Please use another name';
+                        if ($usr->is_admin() and $this->name() != word_api::TN_READ) {
+                            $result = '"' . $this->name() . '" is a reserved name for system testing. Please use another name';
                         }
                     }
-                } elseif ($this->obj_name == DB_TYPE_PHRASE) {
-                    if (in_array($this->name, phrase::RESERVED_PHRASES)) {
-                        $result = '"' . $this->name . '" is a reserved phrase name for system testing. Please use another name';
+                } elseif ($this->obj_name == sql_db::TBL_PHRASE) {
+                    if (in_array($this->name, phrase_api::RESERVED_PHRASES)) {
+                        $result = '"' . $this->name() . '" is a reserved phrase name for system testing. Please use another name';
                     }
-                } elseif ($this->obj_name == DB_TYPE_FORMULA) {
-                    if (in_array($this->name, formula::RESERVED_FORMULAS)) {
-                        $result = '"' . $this->name . '" is a reserved formula name for system testing. Please use another name';
+                } elseif ($this->obj_name == sql_db::TBL_FORMULA) {
+                    if (in_array($this->name, formula_api::RESERVED_FORMULAS)) {
+                        $result = '"' . $this->name() . '" is a reserved formula name for system testing. Please use another name';
                     }
-                } elseif ($this->obj_name == DB_TYPE_VIEW) {
-                    if (in_array($this->name, view::RESERVED_VIEWS)) {
-                        $result = '"' . $this->name . '" is a reserved view name for system testing. Please use another name';
+                } elseif ($this->obj_name == sql_db::TBL_VIEW) {
+                    if (in_array($this->name, view_api::RESERVED_VIEWS)) {
+                        $result = '"' . $this->name() . '" is a reserved view name for system testing. Please use another name';
                     }
-                } elseif ($this->obj_name == DB_TYPE_VIEW_COMPONENT) {
-                    if (in_array($this->name, view_cmp::RESERVED_VIEW_COMPONENTS)) {
-                        $result = '"' . $this->name . '" is a reserved view component name for system testing. Please use another name';
+                } elseif ($this->obj_name == sql_db::TBL_VIEW_COMPONENT) {
+                    if (in_array($this->name, view_cmp_api::RESERVED_VIEW_COMPONENTS)) {
+                        $result = '"' . $this->name() . '" is a reserved view component name for system testing. Please use another name';
                     }
-                } elseif ($this->obj_name == DB_TYPE_SOURCE) {
-                    if (in_array($this->name, source::RESERVED_SOURCES)) {
+                } elseif ($this->obj_name == sql_db::TBL_SOURCE) {
+                    if (in_array($this->name, source_api::RESERVED_SOURCES)) {
                         // the admin user needs to add the read test source during initial load
-                        if ($usr->is_admin() and $this->name != source::TN_READ) {
-                            $result = '"' . $this->name . '" is a reserved source name for system testing. Please use another name';
+                        if ($usr->is_admin() and $this->name() != source_api::TN_READ) {
+                            $result = '"' . $this->name() . '" is a reserved source name for system testing. Please use another name';
                         }
                     }
                 }
@@ -269,24 +403,24 @@ class user_sandbox_named extends user_sandbox
      */
     function add(): user_message
     {
-        log_debug($this->obj_name . '->add ' . $this->dsp_id());
+        log_debug($this->dsp_id());
 
         global $db_con;
         $result = new user_message();
 
         // log the insert attempt first
         $log = $this->log_add();
-        if ($log->id > 0) {
+        if ($log->id() > 0) {
 
             // insert the new object and save the object key
             // TODO check that always before a db action is called the db type is set correctly
             $db_con->set_type($this->obj_name);
-            $db_con->set_usr($this->usr->id);
-            $this->id = $db_con->insert(array($this->obj_name . '_name', "user_id"), array($this->name, $this->usr->id));
+            $db_con->set_usr($this->user()->id);
+            $this->id = $db_con->insert(array($this->obj_name . '_name', "user_id"), array($this->name, $this->user()->id));
 
             // save the object fields if saving the key was successful
             if ($this->id > 0) {
-                log_debug($this->obj_name . '->add ' . $this->obj_type . ' ' . $this->dsp_id() . ' has been added');
+                log_debug($this->obj_type . ' ' . $this->dsp_id() . ' has been added');
                 // update the id in the log
                 if (!$log->add_ref($this->id)) {
                     $result->add_message('Updating the reference in the log failed');
@@ -297,8 +431,8 @@ class user_sandbox_named extends user_sandbox
                     // create an empty db_rec element to force saving of all set fields
                     $db_rec = clone $this;
                     $db_rec->reset();
-                    $db_rec->name = $this->name;
-                    $db_rec->usr = $this->usr;
+                    $db_rec->name = $this->name();
+                    $db_rec->set_user($this->user());
                     $std_rec = clone $db_rec;
                     // save the object fields
                     $result->add_message($this->save_fields($db_con, $db_rec, $std_rec));
@@ -321,14 +455,14 @@ class user_sandbox_named extends user_sandbox
     function is_id_updated(user_sandbox $db_rec): bool
     {
         $result = False;
-        log_debug($this->obj_name . '->is_id_updated ' . $this->dsp_id());
+        log_debug($this->dsp_id());
 
-        log_debug($this->obj_name . '->is_id_updated compare name ' . $db_rec->name . ' with ' . $this->name);
-        if ($db_rec->name <> $this->name) {
+        log_debug('compare name ' . $db_rec->name() . ' with ' . $this->name());
+        if ($db_rec->name() <> $this->name()) {
             $result = True;
         }
 
-        log_debug($this->obj_name . '->is_id_updated -> (' . zu_dsp_bool($result) . ')');
+        log_debug(zu_dsp_bool($result));
         return $result;
     }
 
@@ -337,7 +471,46 @@ class user_sandbox_named extends user_sandbox
      */
     function msg_id_already_used(): string
     {
-        return 'A ' . $this->obj_name . ' with the name "' . $this->name . '" already exists. Please use another name.';
+        return 'A ' . $this->obj_name . ' with the name "' . $this->name() . '" already exists. Please use another name.';
+    }
+
+    /**
+     * set the update parameters for the word description
+     * @param sql_db $db_con the database connection that can be either the real database connection or a simulation used for testing
+     * @param user_sandbox_named $db_rec the database record before the saving
+     * @param user_sandbox_named $std_rec the database record defined as standard because it is used by most users
+     * @return string if not empty the message that should be shown to the user
+     */
+    function save_field_description(sql_db $db_con, user_sandbox_named $db_rec, user_sandbox_named $std_rec): string
+    {
+        $result = '';
+        // if the description is not set, don't overwrite any db entry
+        if ($this->description <> Null) {
+            if ($this->description <> $db_rec->description) {
+                $log = $this->log_upd();
+                $log->old_value = $db_rec->description;
+                $log->new_value = $this->description;
+                $log->std_value = $std_rec->description;
+                $log->row_id = $this->id;
+                $log->set_field(self::FLD_DESCRIPTION);
+                $result = $this->save_field_do($db_con, $log);
+            }
+        }
+        return $result;
+    }
+
+    /**
+     * save all updated source fields excluding the name, because already done when adding a source
+     * @param sql_db $db_con the database connection that can be either the real database connection or a simulation used for testing
+     * @param user_sandbox_named $db_rec the database record before the saving
+     * @param user_sandbox_named $std_rec the database record defined as standard because it is used by most users
+     * @return string if not empty the message that should be shown to the user
+     */
+    function save_fields_named(sql_db $db_con, user_sandbox_named $db_rec, user_sandbox_named $std_rec): string
+    {
+        $result = $this->save_field_description($db_con, $db_rec, $std_rec);
+        $result .= $this->save_field_excluded($db_con, $db_rec, $std_rec);
+        return $result;
     }
 
     /**
@@ -352,29 +525,29 @@ class user_sandbox_named extends user_sandbox
     function save_id_fields(sql_db $db_con, user_sandbox $db_rec, user_sandbox $std_rec): string
     {
         $result = '';
-        log_debug($this->obj_name . '->save_id_fields ' . $this->dsp_id());
+        log_debug($this->dsp_id());
 
         if ($this->is_id_updated($db_rec)) {
-            log_debug($this->obj_name . '->save_id_fields to ' . $this->dsp_id() . ' from ' . $db_rec->dsp_id() . ' (standard ' . $std_rec->dsp_id() . ')');
+            log_debug('to ' . $this->dsp_id() . ' from ' . $db_rec->dsp_id() . ' (standard ' . $std_rec->dsp_id() . ')');
 
             $log = $this->log_upd_field();
-            $log->old_value = $db_rec->name;
-            $log->new_value = $this->name;
-            $log->std_value = $std_rec->name;
-            $log->field = $this->obj_name . '_name';
+            $log->old_value = $db_rec->name();
+            $log->new_value = $this->name();
+            $log->std_value = $std_rec->name();
+            $log->set_field($this->obj_name . '_name');
 
             $log->row_id = $this->id;
             if ($log->add()) {
                 $db_con->set_type($this->obj_name);
-                $db_con->set_usr($this->usr->id);
+                $db_con->set_usr($this->user()->id);
                 if (!$db_con->update($this->id,
                     array($this->obj_name . '_name'),
                     array($this->name))) {
-                    $result .= 'update of name to ' . $this->name . 'failed';
+                    $result .= 'update of name to ' . $this->name() . 'failed';
                 }
             }
         }
-        log_debug($this->obj_name . '->save_id_fields for ' . $this->dsp_id() . ' done');
+        log_debug('for ' . $this->dsp_id() . ' done');
         return $result;
     }
 
@@ -407,8 +580,8 @@ class user_sandbox_named extends user_sandbox
                 $result = $this->is_same_std($obj_to_check);
             } else {
                 // create a synthetic unique index over words, phrase, verbs and formulas
-                if ($this->obj_name == DB_TYPE_WORD or $this->obj_name == DB_TYPE_PHRASE or $this->obj_name == DB_TYPE_FORMULA or $this->obj_name == DB_TYPE_VERB) {
-                    if ($this->name == $obj_to_check->name) {
+                if ($this->obj_name == sql_db::TBL_WORD or $this->obj_name == sql_db::TBL_PHRASE or $this->obj_name == sql_db::TBL_FORMULA or $this->obj_name == sql_db::TBL_VERB) {
+                    if ($this->name == $obj_to_check->name()) {
                         $result = true;
                     }
                 }
@@ -426,49 +599,70 @@ class user_sandbox_named extends user_sandbox
      *      but a word with the same name already exists, a term with the word "millions" is returned
      *      in this case the calling function should suggest the user to name the formula "scale millions"
      *      to prevent confusion when writing a formula where all words, phrases, verbs and formulas should be unique
-     * @return user_sandbox a filled object that has the same name
+     * @return user_sandbox|null a filled object that has the same name
+     *                            or null if nothing similar has been found
      */
-    function get_similar(): user_sandbox
+    function get_similar(): ?user_sandbox
     {
-        $result = new user_sandbox_named($this->usr);
+        $result = new user_sandbox_named($this->user());
 
         // check potential duplicate by name
         // for words and formulas it needs to be checked if a term (word, verb or formula) with the same name already exist
         // for verbs the check is inside the verbs class because verbs are not part of the user sandbox
-        if ($this->obj_name == DB_TYPE_WORD or $this->obj_name == DB_TYPE_FORMULA) {
-            $similar_trm = $this->term();
-            if ($similar_trm != null) {
-                if ($similar_trm->obj != null) {
-                    $result = $similar_trm->obj;
-                    if (!$this->is_similar_named($result)) {
-                        log_err($this->dsp_id() . ' is supposed to be similar to ' . $result->dsp_id() . ', but it seems not');
-                    }
+        if ($this->obj_name == sql_db::TBL_WORD
+            or $this->obj_name == sql_db::TBL_TRIPLE
+            or $this->obj_name == sql_db::TBL_FORMULA) {
+            $similar_trm = $this->get_term();
+            if ($similar_trm->id_obj() > 0) {
+                $result = $similar_trm->obj;
+                if (!$this->is_similar_named($result)) {
+                    log_err($this->dsp_id() . ' is supposed to be similar to ' . $result->dsp_id() . ', but it seems not');
                 }
             }
         } else {
             // used for view, view_component, source, ...
             $db_chk = clone $this;
             $db_chk->reset();
-            $db_chk->usr = $this->usr;
-            $db_chk->name = $this->name;
+            $db_chk->set_user($this->user());
+            $db_chk->name = $this->name();
             // check with the standard namespace
             if ($db_chk->load_standard()) {
                 if ($db_chk->id > 0) {
-                    log_debug($this->obj_name . '->get_similar "' . $this->dsp_id() . '" has the same name is the already existing "' . $db_chk->dsp_id() . '" of the standard namespace');
+                    log_debug($this->dsp_id() . ' has the same name is the already existing "' . $db_chk->dsp_id() . '" of the standard namespace');
                     $result = $db_chk;
                 }
             }
             // check with the user namespace
-            $db_chk->usr = $this->usr;
-            if ($db_chk->load()) {
-                if ($db_chk->id > 0) {
-                    log_debug($this->obj_name . '->get_similar "' . $this->dsp_id() . '" has the same name is the already existing "' . $db_chk->dsp_id() . '" of the user namespace');
-                    $result = $db_chk;
+            $db_chk->set_user($this->user());
+            if ($this->obj_name == sql_db::TBL_WORD
+                or $this->obj_name == sql_db::TBL_SOURCE
+                or $this->obj_name == sql_db::TBL_VIEW) {
+                if ($this->name() != '') {
+                    if ($db_chk->load_by_name($this->name())) {
+                        if ($db_chk->id() > 0) {
+                            log_debug($this->dsp_id() . ' has the same name is the already existing "' . $db_chk->dsp_id() . '" of the user namespace');
+                            $result = $db_chk;
+                        }
+                    }
+                } else {
+                    log_err('The name must be set to check if a similar object exists');
+                }
+            } else {
+                // for all other objects still use the deprecated load_obj_vars method
+                if ($db_chk->load_obj_vars()) {
+                    if ($db_chk->id > 0) {
+                        log_debug($this->dsp_id() . ' has the same name is the already existing "' . $db_chk->dsp_id() . '" of the user namespace');
+                        $result = $db_chk;
+                    }
                 }
             }
         }
 
-        return $result;
+        if ($result->id() != 0) {
+            return $result;
+        } else {
+            return null;
+        }
     }
 
 }

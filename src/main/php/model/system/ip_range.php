@@ -57,9 +57,9 @@ class ip_range
     public bool $active = false;
 
     // in memory only fields
-    public ?user $usr = null;             // just needed for logging the changes
+    private ?user $usr = null;             // just needed for logging the changes
 
-    function reset()
+    function reset(): void
     {
         $this->id = null;
         $this->from = '';
@@ -67,11 +67,12 @@ class ip_range
         $this->reason = null;
         $this->active = false;
 
-        $this->usr = null;
+        $this->set_user(null);
     }
 
-    function row_mapper(array $db_row)
+    function row_mapper(array $db_row): bool
     {
+        $result = true;
         if ($db_row != null) {
             if ($db_row[self::FLD_ID] > 0) {
                 $this->id = $db_row[self::FLD_ID];
@@ -80,52 +81,91 @@ class ip_range
                 $this->reason = $db_row[self::FLD_REASON];
                 $this->active = $db_row[self::FLD_ACTIVE];
             } else {
+                $result = false;
                 $this->id = 0;
             }
         } else {
+            $result = false;
             $this->id = 0;
         }
+        return $result;
     }
+
+    /*
+     * get and set
+     */
+
+    /**
+     * set the user of the ip range if needed
+     *
+     * @param user|null $usr the person who wants to use the ip range
+     * @return void
+     */
+    function set_user(?user $usr): void
+    {
+        $this->usr = $usr;
+    }
+
+    /**
+     * @returns int the protected id of the ip range
+     */
+    public function id(): int
+    {
+        return $this->id;
+    }
+
+    /**
+     * @return user|null the person who uses the ip range and null if for all users
+     */
+    function user(): ?user
+    {
+        return $this->usr;
+    }
+
+    /*
+     * loading
+     */
 
     /**
      * create an SQL statement to retrieve the ip range from the database
      *
      * @param sql_db $db_con the db connection object as a function parameter for unit testing
-     * @param bool $get_name to create the SQL statement name for the predefined SQL within the same function to avoid duplicating if in case of more than on where type
-     * @return string the SQL statement base on the parameters set in $this
+     * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
      */
-    function load_sql(sql_db $db_con, bool $get_name = false): string
+    function load_sql(sql_db $db_con): sql_par
     {
-        $sql_name = self::class . '_by_';
+        $db_con->set_type(sql_db::TBL_IP);
+        $qp = new sql_par(self::class);
+        $qp->name = self::class . '_by_';
         $sql_where = '';
         if ($this->id != 0) {
-            $sql_name .= 'id';
-            $sql_where .= self::FLD_ID . ' = ' . $this->id;
+            $qp->name .= 'id';
+            $db_con->add_par(sql_db::PAR_INT, $this->id);
+            $sql_where .= self::FLD_ID . ' = ' . $db_con->par_name();
         } elseif ($this->from != '' and $this->to != '') {
-            $sql_name .= 'range';
-            $sql_where .= self::FLD_FROM . " = '" . $this->from . "' and " . self::FLD_TO . " = '" . $this->to . "'";
+            $qp->name .= 'range';
+            $db_con->add_par(sql_db::PAR_TEXT, $this->from);
+            $sql_where .= self::FLD_FROM . " = " . $db_con->par_name();
+            $db_con->add_par(sql_db::PAR_TEXT, $this->to);
+            $sql_where .= " and " . self::FLD_TO . " = " . $db_con->par_name();
         } else {
-            $sql_name = '';
+            $qp->name = '';
             log_err("Either the database ID (" . $this->id .
                 ") or the ip range (" . $this->dsp_id() .
                 ") must be set to load an ip range.", self::class . '->load_sql');
         }
 
         $sql = '';
-        if ($sql_name != '') {
-            $db_con->set_type(DB_TYPE_IP);
-            $db_con->set_usr($this->usr->id);
+        if ($qp->name != '') {
+            $db_con->set_name($qp->name);
+            $db_con->set_usr($this->user()->id());
             $db_con->set_fields(self::FLD_NAMES);
             $db_con->set_where_text($sql_where);
-            $sql = $db_con->select_by_id();
+            $qp->sql = $db_con->select_by_set_id();
+            $qp->par = $db_con->get_par();
         }
 
-        if ($get_name) {
-            $result = $sql_name;
-        } else {
-            $result = $sql;
-        }
-        return $result;
+        return $qp;
     }
 
     /**
@@ -138,26 +178,37 @@ class ip_range
         global $db_con;
         $result = false;
 
-        $sql = $this->load_sql($db_con);
+        $qp = $this->load_sql($db_con);
 
-        if ($sql <> '') {
-            $db_row = $db_con->get1_old($sql);
-            $this->row_mapper($db_row);
+        if ($qp->sql <> '') {
+            $db_row = $db_con->get1($qp);
+            $result = $this->row_mapper($db_row);
         }
 
         return $result;
     }
+
+    function load_by_id(int $id): bool
+    {
+        $this->reset();
+        $this->id = $id;
+        return $this->load();
+    }
+
+    /*
+     * im- and export
+     */
 
     /**
      * import an ip range from an imported json object
      *
      * @param array $json_obj an array with the data of the json object
      * @param bool $do_save can be set to false for unit testing
-     * @return bool an empty string if the import has been successfully saved to the database or the message that should be shown to the user
+     * @return user_message the status of the import and if needed the error messages that should be shown to the user
      */
-    function import_obj(array $json_obj, bool $do_save = true): bool
+    function import_obj(array $json_obj, bool $do_save = true): user_message
     {
-        $result = false;
+        $result = new user_message();
 
         // reset of object not needed, because the calling function has just created the object
         foreach ($json_obj as $key => $value) {
@@ -174,10 +225,8 @@ class ip_range
                 $this->active = $value;
             }
         }
-        if ($do_save) {
-            if ($this->save() == '') {
-                $result = true;
-            }
+        if ($result->is_ok() and $do_save) {
+            $result->add_message($this->save());
         }
 
         return $result;
@@ -224,6 +273,25 @@ class ip_range
     }
 
     /**
+     * check if an ip address is within this range
+     *
+     * @param string $ip_addr the ip address to check
+     * @return bool true if the given ip address is within the ip range
+     */
+    public function includes(string $ip_addr): bool
+    {
+        $result = false;
+        if (ip2long(trim($this->from)) <= ip2long(trim($ip_addr))
+            && ip2long(trim($ip_addr)) <= ip2long(trim($this->to))) {
+            log_debug(' ip ' . $ip_addr . ' (' . ip2long(trim($ip_addr)) . ') is in range between ' .
+                $this->from . ' (' . ip2long(trim($this->from)) . ') and  ' .
+                $this->to . ' (' . ip2long(trim($this->to)) . ')');
+            $result = true;
+        }
+        return $result;
+    }
+
+    /**
      * actually update a formula field in the main database record
      * @param sql_db $db_con
      * @param $log
@@ -233,9 +301,9 @@ class ip_range
     {
         $result = '';
         if ($log->add()) {
-            $db_con->set_type(DB_TYPE_IP);
-            if (!$db_con->update($this->id, $log->field, $log->new_value)) {
-                $result .= 'updating ' . $log->field . ' to ' . $log->new_value . ' for ' . self::OBJ_NAME . ' ' . $this->dsp_id() . ' failed';
+            $db_con->set_type(sql_db::TBL_IP);
+            if (!$db_con->update($this->id, $log->field(), $log->new_value)) {
+                $result .= 'updating ' . $log->field() . ' to ' . $log->new_value . ' for ' . self::OBJ_NAME . ' ' . $this->dsp_id() . ' failed';
             }
 
         }
@@ -257,7 +325,7 @@ class ip_range
             $log->new_value = $this->reason;
             $log->std_value = $db_rec->reason;
             $log->row_id = $this->id;
-            $log->field = self::FLD_REASON;
+            $log->set_field(self::FLD_REASON);
             $result .= $this->save_field_do($db_con, $log);
         }
         return $result;
@@ -278,7 +346,7 @@ class ip_range
             $log->new_value = $this->active;
             $log->std_value = $db_rec->active;
             $log->row_id = $this->id;
-            $log->field = self::FLD_ACTIVE;
+            $log->set_field(self::FLD_ACTIVE);
             $result .= $this->save_field_do($db_con, $log);
         }
         return $result;
@@ -287,17 +355,17 @@ class ip_range
     /**
      * set the log entry parameter for a new ip range
      *
-     * @return user_log_named
+     * @return change_log_named
      */
-    function log_add(): user_log_named
+    function log_add(): change_log_named
     {
-        log_debug(self::class . '->log_add ' . $this->dsp_id());
+        log_debug('->log_add ' . $this->dsp_id());
 
-        $log = new user_log_named;
-        $log->usr = $this->usr;
-        $log->action = 'add';
-        $log->table = DB_TYPE_IP;
-        $log->field = $this->name();
+        $log = new change_log_named;
+        $log->usr = $this->user();
+        $log->action = change_log_action::ADD;
+        $log->set_table(sql_db::TBL_IP);
+        $log->set_field(self::FLD_FROM . '_' . self::FLD_TO);
         $log->row_id = 0;
         $log->add();
 
@@ -305,13 +373,13 @@ class ip_range
     }
 
     // set the main log entry parameters for updating one verb field
-    private function log_upd(): user_log_named
+    private function log_upd(): change_log_named
     {
-        log_debug(self::class . '->log_upd ' . $this->dsp_id());
-        $log = new user_log_named;
-        $log->usr = $this->usr;
-        $log->action = user_log::ACTION_UPDATE;
-        $log->table = DB_TYPE_IP;
+        log_debug('->log_upd ' . $this->dsp_id());
+        $log = new change_log_named;
+        $log->usr = $this->user();
+        $log->action = change_log_action::UPDATE;
+        $log->set_table(sql_db::TBL_IP);
 
         return $log;
     }
@@ -336,10 +404,10 @@ class ip_range
 
         // log the insert attempt first
         $log = $this->log_add();
-        if ($log->id > 0) {
+        if ($log->id() > 0) {
             // insert the new ip range
-            $db_con->set_type(DB_TYPE_IP);
-            $db_con->set_usr($this->usr->id);
+            $db_con->set_type(sql_db::TBL_IP);
+            $db_con->set_usr($this->user()->id());
 
             $this->id = $db_con->insert(
                 array(self::FLD_FROM, self::FLD_TO, self::FLD_REASON, self::FLD_ACTIVE),
@@ -373,10 +441,10 @@ class ip_range
         $db_chk->id = $this->id;
         $db_chk->from = $this->from;
         $db_chk->to = $this->to;
-        $db_chk->usr = $this->usr;
+        $db_chk->set_user($this->user());
         $db_chk->load();
         if ($db_chk->id > 0) {
-            log_debug(self::class . '->get_similar an ' . $this->dsp_id() . ' already exists');
+            log_debug('->get_similar an ' . $this->dsp_id() . ' already exists');
             $result = $db_chk;
         }
 
@@ -395,13 +463,13 @@ class ip_range
         $result = '';
 
         // build the database object because this is needed anyway
-        $db_con->set_usr($this->usr->id);
-        $db_con->set_type(DB_TYPE_IP);
+        $db_con->set_usr($this->user()->id());
+        $db_con->set_type(sql_db::TBL_IP);
 
         // check if the external reference is supposed to be added
         if ($this->id <= 0) {
             // check possible duplicates before adding
-            log_debug(self::class . '->save check possible duplicates before adding ' . $this->dsp_id());
+            log_debug('->save check possible duplicates before adding ' . $this->dsp_id());
             $similar = $this->get_similar();
             if (isset($similar)) {
                 if ($similar->id <> 0) {
@@ -414,14 +482,14 @@ class ip_range
         if ($this->id <= 0) {
             $result .= $this->add();
         } else {
-            log_debug(self::class . '->save update');
+            log_debug('->save update');
 
             // read the database values to be able to check if something has been changed;
             // done first, because it needs to be done for user and general object values
             $db_rec = clone $this;
             $db_rec->reset();
             $db_rec->id = $this->id;
-            $db_rec->usr = $this->usr;
+            $db_rec->set_user($this->user());
             if ($db_rec->load()) {
                 $result .= $this->save_fields($db_con, $db_rec);
             }

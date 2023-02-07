@@ -34,21 +34,21 @@ global $db_con;
 
 class user_sandbox_unit_tests
 {
-    function run(testing $t)
+    function run(testing $t): void
     {
 
         global $usr;
         global $sql_names;
 
+        $lib = new library();
+
         $t->subheader('Test user sandbox functions that does not need a database connection');
 
         // test if two sources are supposed to be the same
         $src1 = new source($usr);
-        $src1->id = 1;
-        $src1->name = TS_IPCC_AR6_SYNTHESIS;
+        $src1->set(1, TS_IPCC_AR6_SYNTHESIS);
         $src2 = new source($usr);
-        $src2->id = 2;
-        $src2->name = TS_IPCC_AR6_SYNTHESIS;
+        $src2->set(2, TS_IPCC_AR6_SYNTHESIS);
         $target = true;
         $result = $src1->is_same($src2);
         $t->dsp("are two sources supposed to be the same", $target, $result);
@@ -60,20 +60,20 @@ class user_sandbox_unit_tests
 
         // a source can have the same name as a word
         $wrd1 = new word($usr);
-        $wrd1->id = 1;
-        $wrd1->name = TS_IPCC_AR6_SYNTHESIS;
+        $wrd1->set_id( 1);
+        $wrd1->set_name(TS_IPCC_AR6_SYNTHESIS);
         $src2 = new source($usr);
-        $src2->id = 2;
-        $src2->name = TS_IPCC_AR6_SYNTHESIS;
+        $src2->set_id( 2);
+        $src2->set_name(TS_IPCC_AR6_SYNTHESIS);
         $target = false;
         $result = $wrd1->is_same($src2);
         $t->dsp("a source is not the same as a word even if they have the same name", $target, $result);
 
         // but a formula should not have the same name as a word
         $wrd = new word($usr);
-        $wrd->name = TW_MIO;
+        $wrd->set_name(TW_MIO);
         $frm = new formula($usr);
-        $frm->name = TW_MIO;
+        $frm->set_name(TW_MIO);
         $target = true;
         $result = $wrd->is_similar($frm);
         $t->dsp("a formula should not have the same name as a word", $target, $result);
@@ -154,6 +154,7 @@ class user_sandbox_unit_tests
         $result = $db_con->sf($text);
         $t->dsp(", sf: " . $text . "", $target, $result);
 
+
         $t->subheader('Test the version control');
 
         prg_version_is_newer_test($t);
@@ -168,84 +169,91 @@ class user_sandbox_unit_tests
 
         // test a simple SQL user select query for PostgreSQL by name
         $db_con->db_type = sql_db::POSTGRES;
-        $db_con->set_type(DB_TYPE_USER);
+        $db_con->set_type(sql_db::TBL_USER);
+        $db_con->set_name('formula_link_std_by_id');
         $db_con->set_usr(SYSTEM_USER_ID);
         $db_con->set_where_std(null, 'Test User');
-        $created_sql = $db_con->select_by_id();
-        $expected_sql = "SELECT user_id, user_name FROM users WHERE user_name = 'Test User';";
-        $t->dsp('PostgreSQL select max', $t->trim($expected_sql), $t->trim($created_sql));
+        $created_sql = $db_con->select_by_set_id();
+        $expected_sql = $t->file('db/formula/formula_link_by_id.sql');
+        $expected_sql = "PREPARE formula_link_std_by_id (text) AS SELECT user_id, user_name FROM users WHERE user_name = $1;";
+        $t->dsp('PostgreSQL select max', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         // ... same for MySQL
         $db_con->db_type = sql_db::MYSQL;
-        $db_con->set_type(DB_TYPE_USER);
+        $db_con->set_type(sql_db::TBL_USER);
+        $db_con->set_name('formula_link_std_by_id_mysql');
         $db_con->set_usr(SYSTEM_USER_ID);
         $db_con->set_where_std(null, 'Test User');
-        $created_sql = $db_con->select_by_id();
-        $expected_sql = "SELECT user_id, user_name FROM users WHERE user_name = 'Test User';";
-        $t->dsp('MySQL select max', $t->trim($expected_sql), $t->trim($created_sql));
+        $created_sql = $db_con->select_by_set_id();
+        $expected_sql = "PREPARE formula_link_std_by_id_mysql FROM 'SELECT user_id,  user_name FROM users WHERE user_name = ?';";
+        $t->dsp('MySQL select max', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         // test a simple SQL max select creation for PostgreSQL without where
         $db_con->db_type = sql_db::POSTGRES;
-        $db_con->set_type(DB_TYPE_VALUE);
+        $db_con->set_type(sql_db::TBL_VALUE);
         $db_con->set_fields(array('MAX(value_id) AS max_id'));
-        $created_sql = $db_con->select_by_id(false);
+        $created_sql = $db_con->select_by_set_id(false);
         $expected_sql = "SELECT MAX(value_id) AS max_id FROM values;";
-        $t->dsp('PostgreSQL select max', $t->trim($expected_sql), $t->trim($created_sql));
+        $t->dsp('PostgreSQL select max', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         // ... same for MySQL
         $db_con->db_type = sql_db::MYSQL;
-        $db_con->set_type(DB_TYPE_VALUE);
+        $db_con->set_type(sql_db::TBL_VALUE);
         $db_con->set_fields(array('MAX(value_id) AS max_id'));
-        $created_sql = $db_con->select_by_id(false);
+        $created_sql = $db_con->select_by_set_id(false);
         $sql_avoid_code_check_prefix = "SELECT";
         $expected_sql = $sql_avoid_code_check_prefix . " MAX(value_id) AS max_id FROM `values`;";
-        $t->dsp('MySQL select max', $t->trim($expected_sql), $t->trim($created_sql));
+        $t->dsp('MySQL select max', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         // test a simple SQL select creation for PostgreSQL without the standard id and name identification
         $db_con->db_type = sql_db::POSTGRES;
-        $db_con->set_type(DB_TYPE_CONFIG);
+        $db_con->set_type(sql_db::TBL_CONFIG);
         $db_con->set_fields(array('value'));
-        $db_con->where(array(sql_db::FLD_CODE_ID), array(CFG_VERSION_DB));
-        $created_sql = $db_con->select_by_id(false);
+        $db_con->where(array(sql_db::FLD_CODE_ID), array(config::VERSION_DB));
+        $created_sql = $db_con->select_by_set_id(false);
         $expected_sql = "SELECT value FROM config WHERE code_id = 'version_database';";
-        $t->dsp('non id PostgreSQL select', $t->trim($expected_sql), $t->trim($created_sql));
+        $t->dsp('non id PostgreSQL select', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         // ... same for MySQL
         $db_con->db_type = sql_db::MYSQL;
-        $db_con->set_type(DB_TYPE_CONFIG);
+        $db_con->set_type(sql_db::TBL_CONFIG);
         $db_con->set_fields(array('value'));
-        $db_con->where(array(sql_db::FLD_CODE_ID), array(CFG_VERSION_DB));
-        $created_sql = $db_con->select_by_id(false);
+        $db_con->where(array(sql_db::FLD_CODE_ID), array(config::VERSION_DB));
+        $created_sql = $db_con->select_by_set_id(false);
         $expected_sql = "SELECT `value` FROM config WHERE code_id = 'version_database';";
-        $t->dsp('non id MySQL select', $t->trim($expected_sql), $t->trim($created_sql));
+        $t->dsp('non id MySQL select', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         // test a simple SQL select creation for PostgreSQL with the standard id and name identification
         $db_con->db_type = sql_db::POSTGRES;
-        $db_con->set_type(DB_TYPE_SOURCE_TYPE);
+        $db_con->set_type(sql_db::TBL_SOURCE_TYPE);
+        $db_con->set_name('source_type_by_id');
         $db_con->set_where_std(2);
-        $created_sql = $db_con->select_by_id();
-        $expected_sql = "SELECT source_type_id, source_type_name
+        $created_sql = $db_con->select_by_set_id();
+        $expected_sql = "PREPARE source_type_by_id (int) AS 
+              SELECT source_type_id,  type_name 
                 FROM source_types
-               WHERE source_type_id = 2;";
-        $t->dsp('PostgreSQL select based on id', $t->trim($expected_sql), $t->trim($created_sql));
+               WHERE source_type_id = $1;";
+        $t->dsp('PostgreSQL select based on id', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         // ... same for MySQL
         $db_con->db_type = sql_db::MYSQL;
-        $db_con->set_type(DB_TYPE_SOURCE_TYPE);
+        $db_con->set_type(sql_db::TBL_SOURCE_TYPE);
+        $db_con->set_name('source_type_by_id');
         $db_con->set_where_std(2);
-        $created_sql = $db_con->select_by_id();
-        $expected_sql = "SELECT source_type_id, source_type_name
+        $created_sql = $db_con->select_by_set_id();
+        $expected_sql = "PREPARE source_type_by_id FROM
+             'SELECT source_type_id, type_name
                 FROM source_types
-               WHERE source_type_id = 2;";
-        $t->dsp('MySQL select based on id', $t->trim($expected_sql), $t->trim($created_sql));
+               WHERE source_type_id = ?';";
+        $t->dsp('MySQL select based on id', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         // test a simple SQL select of the user defined word for PostgreSQL by the id
         $db_con->db_type = sql_db::POSTGRES;
-        $db_con->set_type(DB_TYPE_WORD, true);
+        $db_con->set_type(sql_db::TBL_WORD, true);
         $db_con->set_usr(1);
         $db_con->set_fields(array('plural', sql_db::FLD_DESCRIPTION, 'word_type_id', 'view_id'));
         $db_con->set_where_std(1);
-        $created_sql = $db_con->select_by_id();
+        $created_sql = $db_con->select_by_set_id();
         $expected_sql = 'SELECT word_id,
                      word_name,
                      plural,
@@ -253,17 +261,17 @@ class user_sandbox_unit_tests
                      word_type_id,
                      view_id
                 FROM user_words
-               WHERE word_id = 1 
-                 AND user_id = 1;';
-        $t->dsp('PostgreSQL user word select based on id', $t->trim($expected_sql), $t->trim($created_sql));
+               WHERE word_id = $1 
+                 AND user_id = $2;';
+        $t->dsp('PostgreSQL user word select based on id', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         // ... same for MySQL
         $db_con->db_type = sql_db::MYSQL;
-        $db_con->set_type(DB_TYPE_WORD, true);
+        $db_con->set_type(sql_db::TBL_WORD, true);
         $db_con->set_usr(1);
         $db_con->set_fields(array('plural', sql_db::FLD_DESCRIPTION, 'word_type_id', 'view_id'));
         $db_con->set_where_std(1);
-        $created_sql = $db_con->select_by_id();
+        $created_sql = $db_con->select_by_set_id();
         $expected_sql = 'SELECT word_id,
                      word_name,
                      plural,
@@ -271,69 +279,69 @@ class user_sandbox_unit_tests
                      word_type_id,
                      view_id
                 FROM user_words
-               WHERE word_id = 1 
-                 AND user_id = 1;';
-        $t->dsp('MySQL user word select based on id', $t->trim($expected_sql), $t->trim($created_sql));
+               WHERE word_id = ? 
+                 AND user_id = ?;';
+        $t->dsp('MySQL user word select based on id', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         // test a very simple SQL select of the user defined word for PostgreSQL by the id
         $db_con->db_type = sql_db::POSTGRES;
-        $db_con->set_type(DB_TYPE_WORD, true);
+        $db_con->set_type(sql_db::TBL_WORD, true);
         $db_con->set_usr(1);
         $db_con->set_where_std(1);
-        $created_sql = $db_con->select_by_id();
+        $created_sql = $db_con->select_by_set_id();
         $expected_sql = 'SELECT word_id,
                      word_name
                 FROM user_words
-               WHERE word_id = 1 
-                 AND user_id = 1;';
-        $t->dsp('PostgreSQL user word id select based on id', $t->trim($expected_sql), $t->trim($created_sql));
+               WHERE word_id = $1 
+                 AND user_id = $2;';
+        $t->dsp('PostgreSQL user word id select based on id', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         // ... same for MySQL
         $db_con->db_type = sql_db::MYSQL;
-        $db_con->set_type(DB_TYPE_WORD, true);
+        $db_con->set_type(sql_db::TBL_WORD, true);
         $db_con->set_usr(1);
         $db_con->set_where_std(1);
-        $created_sql = $db_con->select_by_id();
+        $created_sql = $db_con->select_by_set_id();
         $expected_sql = 'SELECT word_id,
                      word_name
                 FROM user_words
-               WHERE word_id = 1 
-                 AND user_id = 1;';
-        $t->dsp('MySQL user word id select based on id', $t->trim($expected_sql), $t->trim($created_sql));
+               WHERE word_id = ? 
+                 AND user_id = ?;';
+        $t->dsp('MySQL user word id select based on id', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         // test a simple SQL select the formulas linked to a phrase
         $db_con->db_type = sql_db::POSTGRES;
-        $db_con->set_type(DB_TYPE_FORMULA_LINK);
+        $db_con->set_type(sql_db::TBL_FORMULA_LINK);
         $db_con->set_link_fields(formula::FLD_ID, phrase::FLD_ID);
-        $db_con->set_where_link(null, null, 1);
-        $created_sql = $db_con->select_by_id();
+        $db_con->set_where_link_no_fld(0, 0, 1);
+        $created_sql = $db_con->select_by_set_id();
         $expected_sql = 'SELECT 
                         formula_link_id,  
                         formula_id,  
                         phrase_id
                    FROM formula_links
-                  WHERE phrase_id = 1;';
-        $t->dsp('PostgreSQL formulas linked to a phrase select based on phrase id', $t->trim($expected_sql), $t->trim($created_sql));
+                  WHERE phrase_id = $1;';
+        $t->dsp('PostgreSQL formulas linked to a phrase select based on phrase id', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         // ... same for MySQL
         $db_con->db_type = sql_db::MYSQL;
-        $db_con->set_type(DB_TYPE_FORMULA_LINK);
+        $db_con->set_type(sql_db::TBL_FORMULA_LINK);
         $db_con->set_link_fields(formula::FLD_ID, phrase::FLD_ID);
-        $db_con->set_where_link(null, null, 1);
-        $created_sql = $db_con->select_by_id();
+        $db_con->set_where_link_no_fld(0, 0, 1);
+        $created_sql = $db_con->select_by_set_id();
         $expected_sql = 'SELECT 
                     formula_link_id,  
                     formula_id,  
                     phrase_id
                FROM formula_links
-              WHERE phrase_id = 1;';
-        $t->dsp('MySQL formulas linked to a phrase select based on phrase id', $t->trim($expected_sql), $t->trim($created_sql));
+              WHERE phrase_id = ?;';
+        $t->dsp('MySQL formulas linked to a phrase select based on phrase id', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         // test a list of links SQL select creation for PostgreSQL selected by a linked object
         /*
         $db_con->db_type = sql_db::POSTGRES;
-        $db_con->set_type(DB_TYPE_TRIPLE);
-        $db_con->set_join_fields(array(sql_db::FLD_CODE_ID, 'name_plural','name_reverse','name_plural_reverse','formula_name',sql_db::FLD_DESCRIPTION), DB_TYPE_VERB);
+        $db_con->set_type(sql_db::TBL_TRIPLE);
+        $db_con->set_join_fields(array(sql_db::FLD_CODE_ID, 'name_plural','name_reverse','name_plural_reverse','formula_name',sql_db::FLD_DESCRIPTION), sql_db::TBL_VERB);
         $db_con->set_where(2);
         $created_sql = $db_con->select();
         $expected_sql = "SELECT l.verb_id,
@@ -344,12 +352,12 @@ class user_sandbox_unit_tests
                          l.name_plural_reverse,
                          l.formula_name,
                          l.description
-                    FROM word_links s
+                    FROM triples s
                LEFT JOIN verbs ON s.verb_id = l.verb_id
                          ".$sql_where."
                 GROUP BY v.verb_id
                 ORDER BY v.verb_id;";
-        $t->dsp('PostgreSQL select based on id', $t->trim($expected_sql), $t->trim($created_sql));
+        $t->dsp('PostgreSQL select based on id', $lib->trim($expected_sql), $lib->trim($created_sql));
         */
 
         /*
@@ -358,12 +366,12 @@ class user_sandbox_unit_tests
 
         // test a SQL select creation of user sandbox data for PostgreSQL
         $db_con->db_type = sql_db::POSTGRES;
-        $db_con->set_type(DB_TYPE_SOURCE);
+        $db_con->set_type(sql_db::TBL_SOURCE);
         $db_con->set_fields(array(sql_db::FLD_CODE_ID));
-        $db_con->set_usr_fields(array('url', 'comment'));
+        $db_con->set_usr_fields(array(source::FLD_URL, sql_db::FLD_DESCRIPTION));
         $db_con->set_usr_num_fields(array('source_type_id'));
         $db_con->set_where_std(1, '');
-        $created_sql = $db_con->select_by_id();
+        $created_sql = $db_con->select_by_set_id();
         $expected_sql = "SELECT 
                         s.source_id,
                         u.source_id AS user_source_id,
@@ -371,21 +379,21 @@ class user_sandbox_unit_tests
                         s.code_id,
                         CASE WHEN (u.source_name    <> '' IS NOT TRUE) THEN s.source_name    ELSE u.source_name    END AS source_name,
                         CASE WHEN (u.url            <> '' IS NOT TRUE) THEN s.url            ELSE u.url            END AS url,
-                        CASE WHEN (u.comment        <> '' IS NOT TRUE) THEN s.comment        ELSE u.comment        END AS comment,
+                        CASE WHEN (u.description    <> '' IS NOT TRUE) THEN s.description    ELSE u.description    END AS description,
                         CASE WHEN (u.source_type_id IS           NULL) THEN s.source_type_id ELSE u.source_type_id END AS source_type_id
                    FROM sources s 
               LEFT JOIN user_sources u ON s.source_id = u.source_id 
                                       AND u.user_id = 1 
-                  WHERE s.source_id = 1;";
-        $t->dsp('PostgreSQL user sandbox select', $t->trim($expected_sql), $t->trim($created_sql));
+                  WHERE s.source_id = $1;";
+        $t->dsp('PostgreSQL user sandbox select', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         // ... same for search by name
-        $db_con->set_type(DB_TYPE_SOURCE);
+        $db_con->set_type(sql_db::TBL_SOURCE);
         $db_con->set_fields(array(sql_db::FLD_CODE_ID));
-        $db_con->set_usr_fields(array('url', 'comment'));
+        $db_con->set_usr_fields(array(source::FLD_URL, sql_db::FLD_DESCRIPTION));
         $db_con->set_usr_num_fields(array('source_type_id'));
         $db_con->set_where_std(0, 'wikidata');
-        $created_sql = $db_con->select_by_id();
+        $created_sql = $db_con->select_by_set_id();
         $expected_sql = "SELECT
                         s.source_id,
                         u.source_id AS user_source_id,
@@ -393,22 +401,22 @@ class user_sandbox_unit_tests
                         s.code_id,
                         CASE WHEN (u.source_name    <> '' IS NOT TRUE) THEN s.source_name    ELSE u.source_name    END AS source_name,
                         CASE WHEN (u.url            <> '' IS NOT TRUE) THEN s.url            ELSE u.url            END AS url,
-                        CASE WHEN (u.comment        <> '' IS NOT TRUE) THEN s.comment        ELSE u.comment        END AS comment,
+                        CASE WHEN (u.description    <> '' IS NOT TRUE) THEN s.description    ELSE u.description    END AS description,
                         CASE WHEN (u.source_type_id IS           NULL) THEN s.source_type_id ELSE u.source_type_id END AS source_type_id
                    FROM sources s 
               LEFT JOIN user_sources u ON s.source_id = u.source_id 
                                       AND u.user_id = 1 
-                  WHERE (u.source_name = 'wikidata' 
-                     OR (s.source_name = 'wikidata' AND u.source_name IS NULL));";
-        $t->dsp('PostgreSQL user sandbox select by name', $t->trim($expected_sql), $t->trim($created_sql));
+                  WHERE (u.source_name = $1 
+                     OR (s.source_name = $1 AND u.source_name IS NULL));";
+        $t->dsp('PostgreSQL user sandbox select by name', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         // ... same for search by code_id
-        $db_con->set_type(DB_TYPE_SOURCE);
+        $db_con->set_type(sql_db::TBL_SOURCE);
         $db_con->set_fields(array(sql_db::FLD_CODE_ID));
-        $db_con->set_usr_fields(array('url', 'comment'));
+        $db_con->set_usr_fields(array(source::FLD_URL, sql_db::FLD_DESCRIPTION));
         $db_con->set_usr_num_fields(array('source_type_id'));
         $db_con->set_where_std(0, '', 'wikidata');
-        $created_sql = $db_con->select_by_id();
+        $created_sql = $db_con->select_by_set_id();
         $expected_sql = "SELECT " . "
                         s.source_id,
                         u.source_id AS user_source_id,
@@ -416,36 +424,44 @@ class user_sandbox_unit_tests
                         s.code_id,
                         CASE WHEN (u.source_name    <> '' IS NOT TRUE) THEN s.source_name    ELSE u.source_name    END AS source_name,
                         CASE WHEN (u.url            <> '' IS NOT TRUE) THEN s.url            ELSE u.url            END AS url,
-                        CASE WHEN (u.comment        <> '' IS NOT TRUE) THEN s.comment        ELSE u.comment        END AS comment,
+                        CASE WHEN (u.description    <> '' IS NOT TRUE) THEN s.description    ELSE u.description    END AS description,
                         CASE WHEN (u.source_type_id IS           NULL) THEN s.source_type_id ELSE u.source_type_id END AS source_type_id
                    FROM sources s 
               LEFT JOIN user_sources u ON s.source_id = u.source_id 
                                       AND u.user_id = 1 
-                  WHERE s.code_id = 'wikidata' AND s.code_id != NULL;";
-        $t->dsp('PostgreSQL user sandbox select by code_id', $t->trim($expected_sql), $t->trim($created_sql));
+                  WHERE s.code_id = $1 AND s.code_id IS NOT NULL;";
+        $t->dsp('PostgreSQL user sandbox select by code_id', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         // ... same for all users by id
-        $db_con->set_type(DB_TYPE_SOURCE);
-        $db_con->set_fields(array(sql_db::FLD_CODE_ID, 'url', 'comment', 'source_type_id'));
+        $db_con->set_type(sql_db::TBL_SOURCE);
+        $db_con->set_fields(array(sql_db::FLD_CODE_ID, 'url', sql_db::FLD_DESCRIPTION, 'source_type_id'));
         $db_con->set_where_std(1, '');
-        $created_sql = $db_con->select_by_id();
+        $created_sql = $db_con->select_by_set_id();
         $expected_sql = "SELECT
                         source_id,
                         source_name,
                         code_id,
                         url,
-                        comment,
+                        description,
                         source_type_id
                    FROM sources 
-                  WHERE source_id = 1;";
-        $t->dsp('PostgreSQL all user select by id', $t->trim($expected_sql), $t->trim($created_sql));
+                  WHERE source_id = $1;";
+        $t->dsp('PostgreSQL all user select by id', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         // ... similar with joined fields
-        $db_con->set_type(DB_TYPE_FORMULA);
-        $db_con->set_fields(array(sql_db::FLD_USER_ID, 'formula_text', 'resolved_text', sql_db::FLD_DESCRIPTION, 'formula_type_id', 'all_values_needed', 'last_update', user_sandbox::FLD_EXCLUDED));
+        $db_con->set_type(sql_db::TBL_FORMULA);
+        $db_con->set_fields(array(
+            sql_db::FLD_USER_ID,
+            formula::FLD_FORMULA_TEXT,
+            formula::FLD_FORMULA_USER_TEXT,
+            sql_db::FLD_DESCRIPTION,
+            formula::FLD_FORMULA_TYPE,
+            formula::FLD_ALL_NEEDED,
+            formula::FLD_LAST_UPDATE,
+            user_sandbox::FLD_EXCLUDED));
         $db_con->set_join_fields(array(sql_db::FLD_CODE_ID), 'formula_type');
         $db_con->set_where_std(1, '');
-        $created_sql = $db_con->select_by_id();
+        $created_sql = $db_con->select_by_set_id();
         $expected_sql = "SELECT s.formula_id,
                      s.formula_name,
                      s.user_id,
@@ -459,16 +475,19 @@ class user_sandbox_unit_tests
                      l.code_id 
                 FROM formulas s
            LEFT JOIN formula_types l ON s.formula_type_id = l.formula_type_id 
-               WHERE s.formula_id = 1;";
-        $t->dsp('PostgreSQL all user join select by id', $t->trim($expected_sql), $t->trim($created_sql));
+               WHERE s.formula_id = $1;";
+        $t->dsp('PostgreSQL all user join select by id', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         // ... same for user sandbox data (should match with the parameters in formula->load)
-        $db_con->set_type(DB_TYPE_FORMULA);
+        $db_con->set_type(sql_db::TBL_FORMULA);
         $db_con->set_usr_fields(array('formula_text', 'resolved_text', sql_db::FLD_DESCRIPTION));
-        $db_con->set_usr_num_fields(array('formula_type_id', 'all_values_needed', 'last_update'));
+        $db_con->set_usr_num_fields(array(
+            formula::FLD_FORMULA_TYPE,
+            formula::FLD_ALL_NEEDED,
+            formula::FLD_LAST_UPDATE));
         $db_con->set_usr_bool_fields(array(user_sandbox::FLD_EXCLUDED));
         $db_con->set_where_std(1, '');
-        $created_sql = $db_con->select_by_id();
+        $created_sql = $db_con->select_by_set_id();
         $expected_sql = "SELECT s.formula_id,
                        u.formula_id AS user_formula_id,
                        s.user_id,
@@ -483,23 +502,23 @@ class user_sandbox_unit_tests
                   FROM formulas s
              LEFT JOIN user_formulas u ON s.formula_id = u.formula_id 
                                       AND u.user_id = 1 
-               WHERE s.formula_id = 1;";
-        $t->dsp('PostgreSQL user sandbox join select by id', $t->trim($expected_sql), $t->trim($created_sql));
+               WHERE s.formula_id = $1;";
+        $t->dsp('PostgreSQL user sandbox join select by id', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         // ... same for the special case of a table without name e.g. the value table
-        $db_con->set_type(DB_TYPE_VALUE);
-        $db_con->set_fields(array('phrase_group_id', 'time_word_id'));
-        $db_con->set_usr_num_fields(array('word_value', 'source_id', user_sandbox::FLD_PROTECT, 'last_update'));
+        $db_con->set_type(sql_db::TBL_VALUE);
+        $db_con->set_fields(array(phrase_group::FLD_ID));
+        $db_con->set_usr_num_fields(
+            array(value::FLD_VALUE, source::FLD_ID, user_sandbox::FLD_PROTECT, value::FLD_LAST_UPDATE));
         $db_con->set_usr_bool_fields(array(user_sandbox::FLD_EXCLUDED));
         $db_con->set_usr_only_fields(array(user_sandbox::FLD_SHARE));
-        $db_con->set_where_text('s.phrase_group_id = 1');
-        $created_sql = $db_con->select_by_id();
+        $db_con->set_where_text('s.' . phrase_group::FLD_ID . ' = 1');
+        $created_sql = $db_con->select_by_set_id();
         $expected_sql = "SELECT 
                     s.value_id,
                     u.value_id AS user_value_id,
                     s.user_id,
                     s.phrase_group_id,
-                    s.time_word_id,
                     CASE WHEN (u.word_value         IS           NULL) THEN s.word_value           ELSE u.word_value           END AS word_value,
                     CASE WHEN (u.source_id          IS           NULL) THEN s.source_id            ELSE u.source_id            END AS source_id,
                     CASE WHEN (u.protect_id IS           NULL) THEN s.protect_id   ELSE u.protect_id   END AS protect_id,
@@ -510,16 +529,16 @@ class user_sandbox_unit_tests
           LEFT JOIN user_values u ON s.value_id = u.value_id 
                                  AND u.user_id = 1 
               WHERE s.phrase_group_id = 1;";
-        $t->dsp('PostgreSQL user sandbox value select by where text', $t->trim($expected_sql), $t->trim($created_sql));
+        $t->dsp('PostgreSQL user sandbox value select by where text', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         // ... same for a link table
-        $db_con->set_type(DB_TYPE_TRIPLE);
+        $db_con->set_type(sql_db::TBL_TRIPLE);
         $db_con->set_fields(array('from_phrase_id', 'to_phrase_id', verb::FLD_ID, 'word_type_id'));
-        $db_con->set_usr_fields(array(word_link::FLD_NAME, sql_db::FLD_DESCRIPTION, user_sandbox::FLD_EXCLUDED));
-        $db_con->set_where_text('s.word_link_id = 1');
-        $created_sql = $db_con->select_by_id();
-        $expected_sql = "SELECT s.word_link_id,
-                     u.word_link_id AS user_word_link_id,
+        $db_con->set_usr_fields(array(triple::FLD_NAME_GIVEN, sql_db::FLD_DESCRIPTION, user_sandbox::FLD_EXCLUDED));
+        $db_con->set_where_text('s.triple_id = 1');
+        $created_sql = $db_con->select_by_set_id();
+        $expected_sql = "SELECT s.triple_id,
+                     u.triple_id AS user_triple_id,
                      s.user_id,
                      s.from_phrase_id,
                      s.to_phrase_id,
@@ -528,52 +547,52 @@ class user_sandbox_unit_tests
                      CASE WHEN (u.name_given  <> '' IS NOT TRUE) THEN s.name_given  ELSE u.name_given  END AS name_given,
                      CASE WHEN (u.description <> '' IS NOT TRUE) THEN s.description ELSE u.description END AS description,
                      CASE WHEN (u.excluded    <> '' IS NOT TRUE) THEN s.excluded    ELSE u.excluded    END AS excluded
-                FROM word_links s 
-           LEFT JOIN user_word_links u ON s.word_link_id = u.word_link_id 
+                FROM triples s 
+           LEFT JOIN user_triples u ON s.triple_id = u.triple_id 
                                       AND u.user_id = 1 
-               WHERE s.word_link_id = 1;";
-        $t->dsp('PostgreSQL user sandbox link select by where text', $t->trim($expected_sql), $t->trim($created_sql));
+               WHERE s.triple_id = 1;";
+        $t->dsp('PostgreSQL user sandbox link select by where text', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         // test the view load_standard SQL creation
-        $db_con->set_type(DB_TYPE_VIEW);
-        $db_con->set_fields(array('comment', view::FLD_TYPE, user_sandbox::FLD_EXCLUDED));
+        $db_con->set_type(sql_db::TBL_VIEW);
+        $db_con->set_fields(array(user_sandbox_named::FLD_DESCRIPTION, view::FLD_TYPE, user_sandbox::FLD_EXCLUDED));
         $db_con->set_where_std(1);
-        $created_sql = $db_con->select_by_id();
+        $created_sql = $db_con->select_by_set_id();
         $expected_sql = "SELECT view_id,
                      view_name,
-                     comment,
+                     description,
                      view_type_id,
                      excluded
                 FROM views
-               WHERE view_id = 1;";
-        $t->dsp('PostgreSQL view load_standard select by id', $t->trim($expected_sql), $t->trim($created_sql));
+               WHERE view_id = $1;";
+        $t->dsp('PostgreSQL view load_standard select by id', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         // test the view load SQL creation
-        $db_con->set_type(DB_TYPE_VIEW);
-        $db_con->set_usr_fields(array('comment'));
+        $db_con->set_type(sql_db::TBL_VIEW);
+        $db_con->set_usr_fields(array(user_sandbox_named::FLD_DESCRIPTION));
         $db_con->set_usr_num_fields(array(view::FLD_TYPE, user_sandbox::FLD_EXCLUDED));
         $db_con->set_where_std(1);
-        $created_sql = $db_con->select_by_id();
+        $created_sql = $db_con->select_by_set_id();
         $expected_sql = "SELECT 
                         s.view_id, 
                         u.view_id AS user_view_id, 
                         s.user_id, 
-                        CASE WHEN (u.view_name <> '' IS NOT TRUE) THEN s.view_name    ELSE u.view_name    END AS view_name, 
-                        CASE WHEN (u.comment <> ''   IS NOT TRUE) THEN s.comment      ELSE u.comment      END AS comment, 
-                        CASE WHEN (u.view_type_id    IS     NULL) THEN s.view_type_id ELSE u.view_type_id END AS view_type_id, 
-                        CASE WHEN (u.excluded        IS     NULL) THEN s.excluded     ELSE u.excluded     END AS excluded 
+                        CASE WHEN (u.view_name <> ''   IS NOT TRUE) THEN s.view_name    ELSE u.view_name    END AS view_name, 
+                        CASE WHEN (u.description <> '' IS NOT TRUE) THEN s.description  ELSE u.description  END AS description, 
+                        CASE WHEN (u.view_type_id      IS     NULL) THEN s.view_type_id ELSE u.view_type_id END AS view_type_id, 
+                        CASE WHEN (u.excluded          IS     NULL) THEN s.excluded     ELSE u.excluded     END AS excluded 
                    FROM views s 
               LEFT JOIN user_views u ON s.view_id = u.view_id 
                                     AND u.user_id = 1 
-                  WHERE s.view_id = 1;";
-        $t->dsp('PostgreSQL view load select by id', $t->trim($expected_sql), $t->trim($created_sql));
+                  WHERE s.view_id = $1;";
+        $t->dsp('PostgreSQL view load select by id', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         // test the view_component_link load_standard SQL creation
-        $db_con->set_type(DB_TYPE_VIEW_COMPONENT_LINK);
+        $db_con->set_type(sql_db::TBL_VIEW_COMPONENT_LINK);
         $db_con->set_link_fields(view::FLD_ID, 'view_component_id');
         $db_con->set_fields(array('order_nbr', 'position_type', user_sandbox::FLD_EXCLUDED));
-        $db_con->set_where_link(1, 2, 3);
-        $created_sql = $db_con->select_by_id();
+        $db_con->set_where_link_no_fld(1, 2, 3);
+        $created_sql = $db_con->select_by_set_id();
         $expected_sql = "SELECT view_component_link_id,
                      view_id,
                      view_component_id,
@@ -581,15 +600,15 @@ class user_sandbox_unit_tests
                      position_type,
                      excluded
                 FROM view_component_links 
-               WHERE view_component_link_id = 1;";
-        $t->dsp('PostgreSQL view_component_link load_standard select by id', $t->trim($expected_sql), $t->trim($created_sql));
+               WHERE view_component_link_id = $1;";
+        $t->dsp('PostgreSQL view_component_link load_standard select by id', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         // ... same but select by the link ids
-        $db_con->set_type(DB_TYPE_VIEW_COMPONENT_LINK);
+        $db_con->set_type(sql_db::TBL_VIEW_COMPONENT_LINK);
         $db_con->set_link_fields(view::FLD_ID, 'view_component_id');
         $db_con->set_fields(array('order_nbr', 'position_type', user_sandbox::FLD_EXCLUDED));
-        $db_con->set_where_link(0, 2, 3);
-        $created_sql = $db_con->select_by_id();
+        $db_con->set_where_link_no_fld(0, 2, 3);
+        $created_sql = $db_con->select_by_set_id();
         $expected_sql = "SELECT view_component_link_id,
                      view_id,
                      view_component_id,
@@ -597,15 +616,15 @@ class user_sandbox_unit_tests
                      position_type,
                      excluded
                 FROM view_component_links 
-               WHERE view_id = 2 AND view_component_id = 3;";
-        $t->dsp('PostgreSQL view_component_link load_standard select by link ids', $t->trim($expected_sql), $t->trim($created_sql));
+               WHERE view_id = $1 AND view_component_id = $2;";
+        $t->dsp('PostgreSQL view_component_link load_standard select by link ids', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         // test the view_component_link load SQL creation
-        $db_con->set_type(DB_TYPE_VIEW_COMPONENT_LINK);
+        $db_con->set_type(sql_db::TBL_VIEW_COMPONENT_LINK);
         $db_con->set_link_fields(view::FLD_ID, 'view_component_id');
         $db_con->set_usr_num_fields(array('order_nbr', 'position_type', user_sandbox::FLD_EXCLUDED));
-        $db_con->set_where_link(1, 2, 3);
-        $created_sql = $db_con->select_by_id();
+        $db_con->set_where_link_no_fld(1, 2, 3);
+        $created_sql = $db_con->select_by_set_id();
         $expected_sql = "SELECT 
                         s.view_component_link_id, 
                         u.view_component_link_id AS user_view_component_link_id, 
@@ -618,30 +637,30 @@ class user_sandbox_unit_tests
                    FROM view_component_links s 
               LEFT JOIN user_view_component_links u ON s.view_component_link_id = u.view_component_link_id 
                                                    AND u.user_id = 1 
-                  WHERE s.view_component_link_id = 1;";
-        $t->dsp('PostgreSQL view_component_link load select by id', $t->trim($expected_sql), $t->trim($created_sql));
+                  WHERE s.view_component_link_id = $1;";
+        $t->dsp('PostgreSQL view_component_link load select by id', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         // test the formula_link load_standard SQL creation
-        $db_con->set_type(DB_TYPE_FORMULA_LINK);
+        $db_con->set_type(sql_db::TBL_FORMULA_LINK);
         $db_con->set_link_fields(formula::FLD_ID, phrase::FLD_ID);
         $db_con->set_fields(array(formula_link::FLD_TYPE, user_sandbox::FLD_EXCLUDED));
-        $db_con->set_where_link(1);
-        $created_sql = $db_con->select_by_id();
+        $db_con->set_where_link_no_fld(1);
+        $created_sql = $db_con->select_by_set_id();
         $expected_sql = "SELECT formula_link_id,
                      formula_id,
                      phrase_id,
                      link_type_id,
                      excluded
                 FROM formula_links 
-               WHERE formula_link_id = 1;";
-        $t->dsp('PostgreSQL formula_link load_standard select by id', $t->trim($expected_sql), $t->trim($created_sql));
+               WHERE formula_link_id = $1;";
+        $t->dsp('PostgreSQL formula_link load_standard select by id', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         // test the formula_link load SQL creation
-        $db_con->set_type(DB_TYPE_FORMULA_LINK);
+        $db_con->set_type(sql_db::TBL_FORMULA_LINK);
         $db_con->set_link_fields(formula::FLD_ID, phrase::FLD_ID);
         $db_con->set_usr_num_fields(array(formula_link::FLD_TYPE, user_sandbox::FLD_EXCLUDED));
-        $db_con->set_where_link(1);
-        $created_sql = $db_con->select_by_id();
+        $db_con->set_where_link_no_fld(1);
+        $created_sql = $db_con->select_by_set_id();
         $expected_sql = "SELECT 
                         s.formula_link_id, 
                         u.formula_link_id AS user_formula_link_id, 
@@ -653,17 +672,17 @@ class user_sandbox_unit_tests
                    FROM formula_links s 
               LEFT JOIN user_formula_links u ON s.formula_link_id = u.formula_link_id 
                                             AND u.user_id = 1 
-                  WHERE s.formula_link_id = 1;";
-        $t->dsp('PostgreSQL formula_link load select by id', $t->trim($expected_sql), $t->trim($created_sql));
+                  WHERE s.formula_link_id = $1;";
+        $t->dsp('PostgreSQL formula_link load select by id', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         // test the view_component load_standard SQL creation
-        $db_con->set_type(DB_TYPE_VIEW_COMPONENT);
-        $db_con->set_fields(array('comment', 'view_component_type_id', 'word_id_row', 'link_type_id', formula::FLD_ID, 'word_id_col', 'word_id_col2', user_sandbox::FLD_EXCLUDED));
+        $db_con->set_type(sql_db::TBL_VIEW_COMPONENT);
+        $db_con->set_fields(array(user_sandbox_named::FLD_DESCRIPTION, 'view_component_type_id', 'word_id_row', 'link_type_id', formula::FLD_ID, 'word_id_col', 'word_id_col2', user_sandbox::FLD_EXCLUDED));
         $db_con->set_where_std(1);
-        $created_sql = $db_con->select_by_id();
+        $created_sql = $db_con->select_by_set_id();
         $expected_sql = "SELECT view_component_id,
                      view_component_name,
-                     comment,
+                     description,
                      view_component_type_id,
                      word_id_row,
                      link_type_id,
@@ -672,21 +691,21 @@ class user_sandbox_unit_tests
                      word_id_col2,
                      excluded
                 FROM view_components
-               WHERE view_component_id = 1;";
-        $t->dsp('PostgreSQL view_component load_standard select by id', $t->trim($expected_sql), $t->trim($created_sql));
+               WHERE view_component_id = $1;";
+        $t->dsp('PostgreSQL view_component load_standard select by id', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         // test the view_component load SQL creation
-        $db_con->set_type(DB_TYPE_VIEW_COMPONENT);
-        $db_con->set_usr_fields(array('comment'));
+        $db_con->set_type(sql_db::TBL_VIEW_COMPONENT);
+        $db_con->set_usr_fields(array(user_sandbox_named::FLD_DESCRIPTION));
         $db_con->set_usr_num_fields(array('view_component_type_id', 'word_id_row', 'link_type_id', formula::FLD_ID, 'word_id_col', 'word_id_col2', user_sandbox::FLD_EXCLUDED));
         $db_con->set_where_std(1);
-        $created_sql = $db_con->select_by_id();
+        $created_sql = $db_con->select_by_set_id();
         $expected_sql = "SELECT 
                         s.view_component_id,
                         u.view_component_id AS user_view_component_id,  
                         s.user_id,  
                         CASE WHEN (u.view_component_name <> '' IS NOT TRUE) THEN s.view_component_name    ELSE u.view_component_name    END AS view_component_name,  
-                        CASE WHEN (u.comment             <> '' IS NOT TRUE) THEN s.comment                ELSE u.comment                END AS comment,   
+                        CASE WHEN (u.description         <> '' IS NOT TRUE) THEN s.description            ELSE u.description            END AS description,   
                         CASE WHEN (u.view_component_type_id    IS NULL)     THEN s.view_component_type_id ELSE u.view_component_type_id END AS view_component_type_id,  
                         CASE WHEN (u.word_id_row               IS NULL)     THEN s.word_id_row            ELSE u.word_id_row            END AS word_id_row,  
                         CASE WHEN (u.link_type_id              IS NULL)     THEN s.link_type_id           ELSE u.link_type_id           END AS link_type_id,  
@@ -697,37 +716,37 @@ class user_sandbox_unit_tests
                    FROM view_components s 
               LEFT JOIN user_view_components u ON s.view_component_id = u.view_component_id 
                                               AND u.user_id = 1 
-                  WHERE s.view_component_id = 1;";
-        $t->dsp('PostgreSQL view_component load select by id', $t->trim($expected_sql), $t->trim($created_sql));
+                  WHERE s.view_component_id = $1;";
+        $t->dsp('PostgreSQL view_component load select by id', $lib->trim($expected_sql), $lib->trim($created_sql));
 
-        // test the word_link load_standard SQL creation
-        $db_con->set_type(DB_TYPE_TRIPLE);
+        // test the triple load_standard SQL creation
+        $db_con->set_type(sql_db::TBL_TRIPLE);
         $db_con->set_link_fields('from_phrase_id', 'to_phrase_id', verb::FLD_ID);
-        $db_con->set_fields(array(word_link::FLD_NAME, sql_db::FLD_DESCRIPTION, user_sandbox::FLD_EXCLUDED));
-        $db_con->set_where_text('word_link_id = 1');
-        $created_sql = $db_con->select_by_id();
-        $expected_sql = "SELECT word_link_id,
+        $db_con->set_fields(array(triple::FLD_NAME_GIVEN, sql_db::FLD_DESCRIPTION, user_sandbox::FLD_EXCLUDED));
+        $db_con->set_where_text('triple_id = 1');
+        $created_sql = $db_con->select_by_set_id();
+        $expected_sql = "SELECT triple_id,
                      from_phrase_id,
                      to_phrase_id,
                      verb_id,
                      name_given,
                      description,
                      excluded
-                FROM word_links 
-               WHERE word_link_id = 1;";
-        $t->dsp('PostgreSQL word_link load_standard select by id', $t->trim($expected_sql), $t->trim($created_sql));
+                FROM triples 
+               WHERE triple_id = 1;";
+        $t->dsp('PostgreSQL triple load_standard select by id', $lib->trim($expected_sql), $lib->trim($created_sql));
 
-        // test the word_link load SQL creation
-        $db_con->set_type(DB_TYPE_TRIPLE);
+        // test the triple load SQL creation
+        $db_con->set_type(sql_db::TBL_TRIPLE);
         $db_con->set_link_fields('from_phrase_id', 'to_phrase_id', verb::FLD_ID);
         $db_con->set_fields(array('word_type_id'));
-        $db_con->set_usr_fields(array(word_link::FLD_NAME, sql_db::FLD_DESCRIPTION));
+        $db_con->set_usr_fields(array(triple::FLD_NAME_GIVEN, sql_db::FLD_DESCRIPTION));
         $db_con->set_usr_num_fields(array(user_sandbox::FLD_EXCLUDED));
-        $db_con->set_where_text('s.word_link_id = 1');
-        $created_sql = $db_con->select_by_id();
+        $db_con->set_where_text('s.triple_id = 1');
+        $created_sql = $db_con->select_by_set_id();
         $expected_sql = "SELECT 
-                        s.word_link_id, 
-                        u.word_link_id AS user_word_link_id, 
+                        s.triple_id, 
+                        u.triple_id AS user_triple_id, 
                         s.user_id,
                         s.from_phrase_id,
                         s.to_phrase_id,
@@ -736,23 +755,23 @@ class user_sandbox_unit_tests
                         CASE WHEN (u.name_given  <> '' IS NOT TRUE) THEN s.name_given  ELSE u.name_given  END AS name_given, 
                         CASE WHEN (u.description <> '' IS NOT TRUE) THEN s.description ELSE u.description END AS description, 
                         CASE WHEN (u.excluded          IS     NULL) THEN s.excluded    ELSE u.excluded    END AS excluded 
-                   FROM word_links s 
-              LEFT JOIN user_word_links u ON s.word_link_id = u.word_link_id 
+                   FROM triples s 
+              LEFT JOIN user_triples u ON s.triple_id = u.triple_id 
                                          AND u.user_id = 1 
-                  WHERE s.word_link_id = 1;";
-        $t->dsp('PostgreSQL word_link load select by id', $t->trim($expected_sql), $t->trim($created_sql));
+                  WHERE s.triple_id = 1;";
+        $t->dsp('PostgreSQL triple load select by id', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         // test the verb_list load SQL creation
-        $db_con->set_type(DB_TYPE_TRIPLE);
-        $db_con->set_usr_fields(array(word_link::FLD_NAME, sql_db::FLD_DESCRIPTION));
+        $db_con->set_type(sql_db::TBL_TRIPLE);
+        $db_con->set_usr_fields(array(triple::FLD_NAME_GIVEN, sql_db::FLD_DESCRIPTION));
         $db_con->set_usr_num_fields(array(user_sandbox::FLD_EXCLUDED));
-        $db_con->set_join_fields(array(sql_db::FLD_CODE_ID, 'verb_name', 'name_plural', 'name_reverse', 'name_plural_reverse', 'formula_name', sql_db::FLD_DESCRIPTION), DB_TYPE_VERB);
+        $db_con->set_join_fields(array(sql_db::FLD_CODE_ID, 'verb_name', 'name_plural', 'name_reverse', 'name_plural_reverse', 'formula_name', sql_db::FLD_DESCRIPTION), sql_db::TBL_VERB);
         $db_con->set_fields(array(verb::FLD_ID));
         $db_con->set_where_text('s.to_phrase_id = 2');
-        $created_sql = $db_con->select_by_id();
+        $created_sql = $db_con->select_by_set_id();
         $expected_sql = "SELECT 
-                            s.word_link_id, 
-                            u.word_link_id AS user_word_link_id, 
+                            s.triple_id, 
+                            u.triple_id AS user_triple_id, 
                             s.user_id, 
                             s.verb_id, 
                             l.code_id, 
@@ -765,12 +784,12 @@ class user_sandbox_unit_tests
                             CASE WHEN (u.name_given  <> '' IS NOT TRUE) THEN s.name_given  ELSE u.name_given  END AS name_given, 
                             CASE WHEN (u.description <> '' IS NOT TRUE) THEN s.description ELSE u.description END AS description, 
                             CASE WHEN (u.excluded          IS     NULL) THEN s.excluded    ELSE u.excluded    END AS excluded 
-                       FROM word_links s 
-                  LEFT JOIN user_word_links u ON s.word_link_id = u.word_link_id 
+                       FROM triples s 
+                  LEFT JOIN user_triples u ON s.triple_id = u.triple_id 
                                              AND u.user_id = 1 
                   LEFT JOIN verbs l ON s.verb_id = l.verb_id 
                       WHERE s.to_phrase_id = 2;";
-        $t->dsp('PostgreSQL verb_list load', $t->trim($expected_sql), $t->trim($created_sql));
+        $t->dsp('PostgreSQL verb_list load', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         /*
          * Start of the corresponding MySQL tests
@@ -778,12 +797,12 @@ class user_sandbox_unit_tests
 
         // ... and search by id for MySQL
         $db_con->db_type = sql_db::MYSQL;
-        $db_con->set_type(DB_TYPE_SOURCE);
+        $db_con->set_type(sql_db::TBL_SOURCE);
         $db_con->set_fields(array(sql_db::FLD_CODE_ID));
-        $db_con->set_usr_fields(array('url', 'comment'));
+        $db_con->set_usr_fields(array('url', sql_db::FLD_DESCRIPTION));
         $db_con->set_usr_num_fields(array('source_type_id'));
         $db_con->set_where_std(1, '');
-        $created_sql = $db_con->select_by_id();
+        $created_sql = $db_con->select_by_set_id();
         $sql_avoid_code_check_prefix = "SELECT";
         $expected_sql = $sql_avoid_code_check_prefix . " 
                         s.source_id,
@@ -792,21 +811,21 @@ class user_sandbox_unit_tests
                         s.code_id,
                         IF(u.source_name    IS NULL, s.source_name,    u.source_name)    AS source_name,
                         IF(u.`url`          IS NULL, s.`url`,          u.`url`)          AS `url`,
-                        IF(u.comment        IS NULL, s.comment,        u.comment)        AS comment,
+                        IF(u.description    IS NULL, s.description,    u.description)    AS description,
                         IF(u.source_type_id IS NULL, s.source_type_id, u.source_type_id) AS source_type_id
                    FROM sources s 
               LEFT JOIN user_sources u ON s.source_id = u.source_id 
                                       AND u.user_id = 1 
-                  WHERE s.source_id = 1;";
-        $t->dsp('MySQL user sandbox select', $t->trim($expected_sql), $t->trim($created_sql));
+                  WHERE s.source_id = ?;";
+        $t->dsp('MySQL user sandbox select', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         // ... same for search by name
-        $db_con->set_type(DB_TYPE_SOURCE);
+        $db_con->set_type(sql_db::TBL_SOURCE);
         $db_con->set_fields(array(sql_db::FLD_CODE_ID));
-        $db_con->set_usr_fields(array('url', 'comment'));
+        $db_con->set_usr_fields(array('url', sql_db::FLD_DESCRIPTION));
         $db_con->set_usr_num_fields(array('source_type_id'));
         $db_con->set_where_std(0, 'wikidata');
-        $created_sql = $db_con->select_by_id();
+        $created_sql = $db_con->select_by_set_id();
         $sql_avoid_code_check_prefix = "SELECT";
         $expected_sql = $sql_avoid_code_check_prefix . "
                         s.source_id,
@@ -815,22 +834,22 @@ class user_sandbox_unit_tests
                         s.code_id,
                         IF(u.source_name    IS NULL, s.source_name,    u.source_name)    AS source_name,
                         IF(u.`url`          IS NULL, s.`url`,          u.`url`)          AS `url`,
-                        IF(u.comment        IS NULL, s.comment,        u.comment)        AS comment,
+                        IF(u.description    IS NULL, s.description,    u.description)    AS description,
                         IF(u.source_type_id IS NULL, s.source_type_id, u.source_type_id) AS source_type_id
                    FROM sources s 
               LEFT JOIN user_sources u ON s.source_id = u.source_id 
                                       AND u.user_id = 1 
-                  WHERE (u.source_name = 'wikidata' 
-                     OR (s.source_name = 'wikidata' AND u.source_name IS NULL));";
-        $t->dsp('MySQL user sandbox select by name', $t->trim($expected_sql), $t->trim($created_sql));
+                  WHERE (u.source_name = ? 
+                     OR (s.source_name = ? AND u.source_name IS NULL));";
+        $t->dsp('MySQL user sandbox select by name', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         // ... same for search by code_id
-        $db_con->set_type(DB_TYPE_SOURCE);
+        $db_con->set_type(sql_db::TBL_SOURCE);
         $db_con->set_fields(array(sql_db::FLD_CODE_ID));
-        $db_con->set_usr_fields(array('url', 'comment'));
+        $db_con->set_usr_fields(array('url', sql_db::FLD_DESCRIPTION));
         $db_con->set_usr_num_fields(array('source_type_id'));
         $db_con->set_where_std(0, '', 'wikidata');
-        $created_sql = $db_con->select_by_id();
+        $created_sql = $db_con->select_by_set_id();
         $sql_avoid_code_check_prefix = "SELECT";
         $expected_sql = $sql_avoid_code_check_prefix . "
                         s.source_id,
@@ -839,36 +858,44 @@ class user_sandbox_unit_tests
                         s.code_id,
                         IF(u.source_name    IS NULL, s.source_name,    u.source_name)    AS source_name,
                         IF(u.`url`          IS NULL, s.`url`,          u.`url`)          AS `url`,
-                        IF(u.comment        IS NULL, s.comment,        u.comment)        AS comment,
+                        IF(u.description    IS NULL, s.description,    u.description)    AS description,
                         IF(u.source_type_id IS NULL, s.source_type_id, u.source_type_id) AS source_type_id
                    FROM sources s 
               LEFT JOIN user_sources u ON s.source_id = u.source_id 
                                       AND u.user_id = 1 
-                  WHERE s.code_id = 'wikidata';";
-        $t->dsp('MySQL user sandbox select by code_id', $t->trim($expected_sql), $t->trim($created_sql));
+                  WHERE s.code_id = ?;";
+        $t->dsp('MySQL user sandbox select by code_id', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         // ... same for all users by id
-        $db_con->set_type(DB_TYPE_SOURCE);
-        $db_con->set_fields(array(sql_db::FLD_CODE_ID, 'url', 'comment', 'source_type_id'));
+        $db_con->set_type(sql_db::TBL_SOURCE);
+        $db_con->set_fields(array(sql_db::FLD_CODE_ID, 'url', sql_db::FLD_DESCRIPTION, 'source_type_id'));
         $db_con->set_where_std(1, '');
-        $created_sql = $db_con->select_by_id();
+        $created_sql = $db_con->select_by_set_id();
         $expected_sql = "SELECT
                         source_id,
                         source_name,
                         code_id,
                         `url`,
-                        comment,
+                        description,
                         source_type_id
                    FROM sources 
-                  WHERE source_id = 1;";
-        $t->dsp('MySQL all user select by id', $t->trim($expected_sql), $t->trim($created_sql));
+                  WHERE source_id = ?;";
+        $t->dsp('MySQL all user select by id', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         // ... similar with joined fields
-        $db_con->set_type(DB_TYPE_FORMULA);
-        $db_con->set_fields(array(sql_db::FLD_USER_ID, 'formula_text', 'resolved_text', sql_db::FLD_DESCRIPTION, 'formula_type_id', 'all_values_needed', 'last_update', user_sandbox::FLD_EXCLUDED));
+        $db_con->set_type(sql_db::TBL_FORMULA);
+        $db_con->set_fields(array(
+            sql_db::FLD_USER_ID,
+            formula::FLD_FORMULA_TEXT,
+            formula::FLD_FORMULA_USER_TEXT,
+            sql_db::FLD_DESCRIPTION,
+            formula::FLD_FORMULA_TYPE,
+            formula::FLD_ALL_NEEDED,
+            formula::FLD_LAST_UPDATE,
+            user_sandbox::FLD_EXCLUDED));
         $db_con->set_join_fields(array(sql_db::FLD_CODE_ID), 'formula_type');
         $db_con->set_where_std(1, '');
-        $created_sql = $db_con->select_by_id();
+        $created_sql = $db_con->select_by_set_id();
         $expected_sql = "SELECT s.formula_id,
                      s.formula_name,
                      s.user_id,
@@ -882,15 +909,22 @@ class user_sandbox_unit_tests
                      l.code_id
                 FROM formulas s
            LEFT JOIN formula_types l ON s.formula_type_id = l.formula_type_id 
-               WHERE s.formula_id = 1;";
-        $t->dsp('MySQL all user join select by id', $t->trim($expected_sql), $t->trim($created_sql));
+               WHERE s.formula_id = ?;";
+        $t->dsp('MySQL all user join select by id', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         // ... same for user sandbox data
-        $db_con->set_type(DB_TYPE_FORMULA);
-        $db_con->set_usr_fields(array('formula_text', 'resolved_text', sql_db::FLD_DESCRIPTION));
-        $db_con->set_usr_num_fields(array('formula_type_id', 'all_values_needed', 'last_update', user_sandbox::FLD_EXCLUDED));
+        $db_con->set_type(sql_db::TBL_FORMULA);
+        $db_con->set_usr_fields(array(
+            formula::FLD_FORMULA_TEXT,
+            formula::FLD_FORMULA_USER_TEXT,
+            sql_db::FLD_DESCRIPTION));
+        $db_con->set_usr_num_fields(array(
+            formula::FLD_FORMULA_TYPE,
+            formula::FLD_ALL_NEEDED,
+            formula::FLD_LAST_UPDATE,
+            user_sandbox::FLD_EXCLUDED));
         $db_con->set_where_std(1, '');
-        $created_sql = $db_con->select_by_id();
+        $created_sql = $db_con->select_by_set_id();
         $sql_avoid_code_check_prefix = "SELECT";
         $expected_sql = $sql_avoid_code_check_prefix . " 
                         s.formula_id, 
@@ -907,23 +941,27 @@ class user_sandbox_unit_tests
                    FROM formulas s 
               LEFT JOIN user_formulas u ON s.formula_id = u.formula_id 
                                        AND u.user_id = 1 
-                  WHERE s.formula_id = 1;";
-        $t->dsp('MySQL all user join select by id', $t->trim($expected_sql), $t->trim($created_sql));
+                  WHERE s.formula_id = ?;";
+        $t->dsp('MySQL all user join select by id', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         // ... same for the special case of a table without name e.g. the value table
-        $db_con->set_type(DB_TYPE_VALUE);
-        $db_con->set_fields(array('phrase_group_id', 'time_word_id'));
-        $db_con->set_usr_fields(array('word_value', 'source_id', 'last_update', user_sandbox::FLD_PROTECT, user_sandbox::FLD_EXCLUDED));
+        $db_con->set_type(sql_db::TBL_VALUE);
+        $db_con->set_fields(array(phrase_group::FLD_ID));
+        $db_con->set_usr_fields(array(
+            value::FLD_VALUE,
+            source::FLD_ID,
+            value::FLD_LAST_UPDATE,
+            user_sandbox::FLD_PROTECT,
+            user_sandbox::FLD_EXCLUDED));
         $db_con->set_usr_only_fields(array(user_sandbox::FLD_SHARE));
         $db_con->set_where_text('s.phrase_group_id = 1');
-        $created_sql = $db_con->select_by_id();
+        $created_sql = $db_con->select_by_set_id();
         $sql_avoid_code_check_prefix = "SELECT";
         $expected_sql = $sql_avoid_code_check_prefix . " 
                     s.value_id,
                     u.value_id AS user_value_id,
                     s.user_id,
                     s.phrase_group_id,
-                    s.time_word_id,
                     IF(u.word_value         IS NULL, s.word_value,         u.word_value)         AS word_value,
                     IF(u.source_id          IS NULL, s.source_id,          u.source_id)          AS source_id,
                     IF(u.last_update        IS NULL, s.last_update,        u.last_update)        AS last_update,
@@ -934,17 +972,17 @@ class user_sandbox_unit_tests
           LEFT JOIN user_values u ON s.value_id = u.value_id 
                                  AND u.user_id = 1 
               WHERE s.phrase_group_id = 1;";
-        $t->dsp('MySQL user sandbox value select by id', $t->trim($expected_sql), $t->trim($created_sql));
+        $t->dsp('MySQL user sandbox value select by id', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         // ... same for a link table
-        $db_con->set_type(DB_TYPE_TRIPLE);
+        $db_con->set_type(sql_db::TBL_TRIPLE);
         $db_con->set_fields(array('from_phrase_id', 'to_phrase_id', verb::FLD_ID, 'word_type_id'));
-        $db_con->set_usr_fields(array(word_link::FLD_NAME, sql_db::FLD_DESCRIPTION, user_sandbox::FLD_EXCLUDED));
-        $db_con->set_where_text('s.word_link_id = 1');
-        $created_sql = $db_con->select_by_id();
+        $db_con->set_usr_fields(array(triple::FLD_NAME_GIVEN, sql_db::FLD_DESCRIPTION, user_sandbox::FLD_EXCLUDED));
+        $db_con->set_where_text('s.triple_id = 1');
+        $created_sql = $db_con->select_by_set_id();
         $sql_avoid_code_check_prefix = "SELECT";
-        $expected_sql = $sql_avoid_code_check_prefix . " s.word_link_id,
-                     u.word_link_id AS user_word_link_id,
+        $expected_sql = $sql_avoid_code_check_prefix . " s.triple_id,
+                     u.triple_id AS user_triple_id,
                      s.user_id,
                      s.from_phrase_id,
                      s.to_phrase_id,
@@ -953,18 +991,18 @@ class user_sandbox_unit_tests
                      IF(u.name_given  IS NULL, s.name_given,  u.name_given)  AS name_given,
                      IF(u.description IS NULL, s.description, u.description) AS description,
                      IF(u.excluded    IS NULL, s.excluded,    u.excluded)    AS excluded
-                FROM word_links s 
-           LEFT JOIN user_word_links u ON s.word_link_id = u.word_link_id 
+                FROM triples s 
+           LEFT JOIN user_triples u ON s.triple_id = u.triple_id 
                                       AND u.user_id = 1 
-               WHERE s.word_link_id = 1;";
-        $t->dsp('MySQL user sandbox link select by where text', $t->trim($expected_sql), $t->trim($created_sql));
+               WHERE s.triple_id = 1;";
+        $t->dsp('MySQL user sandbox link select by where text', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         // test the view_component_link load_standard SQL creation
-        $db_con->set_type(DB_TYPE_VIEW_COMPONENT_LINK);
+        $db_con->set_type(sql_db::TBL_VIEW_COMPONENT_LINK);
         $db_con->set_link_fields(view::FLD_ID, 'view_component_id');
         $db_con->set_fields(array('order_nbr', 'position_type', user_sandbox::FLD_EXCLUDED));
-        $db_con->set_where_link(1);
-        $created_sql = $db_con->select_by_id();
+        $db_con->set_where_link_no_fld(1);
+        $created_sql = $db_con->select_by_set_id();
         $expected_sql = "SELECT 
                         view_component_link_id,
                         view_id,
@@ -973,15 +1011,15 @@ class user_sandbox_unit_tests
                         position_type,
                         excluded
                    FROM view_component_links 
-                  WHERE view_component_link_id = 1;";
-        $t->dsp('MySQL view_component_link load_standard select by id', $t->trim($expected_sql), $t->trim($created_sql));
+                  WHERE view_component_link_id = ?;";
+        $t->dsp('MySQL view_component_link load_standard select by id', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         // test the view_component_link load SQL creation
-        $db_con->set_type(DB_TYPE_VIEW_COMPONENT_LINK);
+        $db_con->set_type(sql_db::TBL_VIEW_COMPONENT_LINK);
         $db_con->set_link_fields(view::FLD_ID, 'view_component_id');
         $db_con->set_usr_num_fields(array('order_nbr', 'position_type', user_sandbox::FLD_EXCLUDED));
-        $db_con->set_where_link(1, 2, 3);
-        $created_sql = $db_con->select_by_id();
+        $db_con->set_where_link_no_fld(1, 2, 3);
+        $created_sql = $db_con->select_by_set_id();
         $sql_avoid_code_check_prefix = "SELECT";
         $expected_sql = $sql_avoid_code_check_prefix . " 
                         s.view_component_link_id, 
@@ -993,30 +1031,30 @@ class user_sandbox_unit_tests
                    FROM view_component_links s 
               LEFT JOIN user_view_component_links u ON s.view_component_link_id = u.view_component_link_id 
                                                    AND u.user_id = 1 
-                  WHERE s.view_component_link_id = 1;";
-        $t->dsp('MySQL view_component_link load select by id', $t->trim($expected_sql), $t->trim($created_sql));
+                  WHERE s.view_component_link_id = ?;";
+        $t->dsp('MySQL view_component_link load select by id', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         // test the formula_link load_standard SQL creation
-        $db_con->set_type(DB_TYPE_FORMULA_LINK);
+        $db_con->set_type(sql_db::TBL_FORMULA_LINK);
         $db_con->set_link_fields(formula::FLD_ID, phrase::FLD_ID);
         $db_con->set_fields(array(formula_link::FLD_TYPE, user_sandbox::FLD_EXCLUDED));
-        $db_con->set_where_link(1);
-        $created_sql = $db_con->select_by_id();
+        $db_con->set_where_link_no_fld(1);
+        $created_sql = $db_con->select_by_set_id();
         $expected_sql = "SELECT formula_link_id,
                      formula_id,
                      phrase_id,
                      link_type_id,
                      excluded
                 FROM formula_links 
-               WHERE formula_link_id = 1;";
-        $t->dsp('MySQL formula_link load_standard select by id', $t->trim($expected_sql), $t->trim($created_sql));
+               WHERE formula_link_id = ?;";
+        $t->dsp('MySQL formula_link load_standard select by id', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         // test the formula_link load SQL creation
-        $db_con->set_type(DB_TYPE_FORMULA_LINK);
+        $db_con->set_type(sql_db::TBL_FORMULA_LINK);
         $db_con->set_link_fields(formula::FLD_ID, phrase::FLD_ID);
         $db_con->set_usr_num_fields(array(formula_link::FLD_TYPE, user_sandbox::FLD_EXCLUDED));
-        $db_con->set_where_link(1);
-        $created_sql = $db_con->select_by_id();
+        $db_con->set_where_link_no_fld(1);
+        $created_sql = $db_con->select_by_set_id();
         $sql_avoid_code_check_prefix = "SELECT";
         $expected_sql = $sql_avoid_code_check_prefix . " 
                         s.formula_link_id,  
@@ -1029,17 +1067,17 @@ class user_sandbox_unit_tests
                    FROM formula_links s 
               LEFT JOIN user_formula_links u ON s.formula_link_id = u.formula_link_id 
                                             AND u.user_id = 1
-                  WHERE s.formula_link_id = 1;";
-        $t->dsp('MySQL formula_link load select by id', $t->trim($expected_sql), $t->trim($created_sql));
+                  WHERE s.formula_link_id = ?;";
+        $t->dsp('MySQL formula_link load select by id', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         // test the view_component load_standard SQL creation
-        $db_con->set_type(DB_TYPE_VIEW_COMPONENT);
-        $db_con->set_fields(array('comment', 'view_component_type_id', 'word_id_row', 'link_type_id', formula::FLD_ID, 'word_id_col', 'word_id_col2', user_sandbox::FLD_EXCLUDED));
+        $db_con->set_type(sql_db::TBL_VIEW_COMPONENT);
+        $db_con->set_fields(array(user_sandbox_named::FLD_DESCRIPTION, 'view_component_type_id', 'word_id_row', 'link_type_id', formula::FLD_ID, 'word_id_col', 'word_id_col2', user_sandbox::FLD_EXCLUDED));
         $db_con->set_where_std(1);
-        $created_sql = $db_con->select_by_id();
+        $created_sql = $db_con->select_by_set_id();
         $expected_sql = "SELECT view_component_id,
                      view_component_name,
-                     comment,
+                     description,
                      view_component_type_id,
                      word_id_row,
                      link_type_id,
@@ -1048,21 +1086,21 @@ class user_sandbox_unit_tests
                      word_id_col2,
                      excluded
                 FROM view_components
-               WHERE view_component_id = 1;";
-        $t->dsp('MySQL view_component load_standard select by id', $t->trim($expected_sql), $t->trim($created_sql));
+               WHERE view_component_id = ?;";
+        $t->dsp('MySQL view_component load_standard select by id', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         // test the view_component load SQL creation
-        $db_con->set_type(DB_TYPE_VIEW_COMPONENT);
-        $db_con->set_usr_fields(array('comment'));
+        $db_con->set_type(sql_db::TBL_VIEW_COMPONENT);
+        $db_con->set_usr_fields(array(user_sandbox_named::FLD_DESCRIPTION));
         $db_con->set_usr_num_fields(array('view_component_type_id', 'word_id_row', 'link_type_id', formula::FLD_ID, 'word_id_col', 'word_id_col2', user_sandbox::FLD_EXCLUDED));
         $db_con->set_where_std(1);
-        $created_sql = $db_con->select_by_id();
+        $created_sql = $db_con->select_by_set_id();
         $sql_avoid_code_check_prefix = "SELECT";
         $expected_sql = $sql_avoid_code_check_prefix . " s.view_component_id,
                        u.view_component_id AS user_view_component_id,
                        s.user_id,
                        IF(u.view_component_name IS NULL,    s.view_component_name,    u.view_component_name)    AS view_component_name,
-                       IF(u.comment IS NULL,                s.comment,                u.comment)                AS comment,
+                       IF(u.description IS NULL,            s.description,            u.description)            AS description,
                        IF(u.view_component_type_id IS NULL, s.view_component_type_id, u.view_component_type_id) AS view_component_type_id,
                        IF(u.word_id_row IS NULL,            s.word_id_row,            u.word_id_row)            AS word_id_row,
                        IF(u.link_type_id IS NULL,           s.link_type_id,           u.link_type_id)           AS link_type_id,
@@ -1073,17 +1111,17 @@ class user_sandbox_unit_tests
                   FROM view_components s
              LEFT JOIN user_view_components u ON s.view_component_id = u.view_component_id 
                                              AND u.user_id = 1 
-                 WHERE s.view_component_id = 1;";
-        $t->dsp('MySQL view_component load select by id', $t->trim($expected_sql), $t->trim($created_sql));
+                 WHERE s.view_component_id = ?;";
+        $t->dsp('MySQL view_component load select by id', $lib->trim($expected_sql), $lib->trim($created_sql));
 
-        // test the word_link load_standard SQL creation
-        $db_con->set_type(DB_TYPE_TRIPLE);
+        // test the triple load_standard SQL creation
+        $db_con->set_type(sql_db::TBL_TRIPLE);
         $db_con->set_link_fields('from_phrase_id', 'to_phrase_id', verb::FLD_ID);
-        $db_con->set_fields(array(word_link::FLD_NAME, sql_db::FLD_DESCRIPTION, 'word_type_id', user_sandbox::FLD_EXCLUDED));
-        $db_con->set_where_text('word_link_id = 1');
-        $created_sql = $db_con->select_by_id();
+        $db_con->set_fields(array(triple::FLD_NAME_GIVEN, sql_db::FLD_DESCRIPTION, 'word_type_id', user_sandbox::FLD_EXCLUDED));
+        $db_con->set_where_text('triple_id = 1');
+        $created_sql = $db_con->select_by_set_id();
         $expected_sql = "SELECT 
-                        word_link_id,
+                        triple_id,
                         from_phrase_id,
                         to_phrase_id,
                         verb_id,
@@ -1091,22 +1129,22 @@ class user_sandbox_unit_tests
                         description,
                         word_type_id,
                         excluded
-                   FROM word_links 
-                  WHERE word_link_id = 1;";
-        $t->dsp('MySQL word_link load_standard select by id', $t->trim($expected_sql), $t->trim($created_sql));
+                   FROM triples 
+                  WHERE triple_id = 1;";
+        $t->dsp('MySQL triple load_standard select by id', $lib->trim($expected_sql), $lib->trim($created_sql));
 
-        // test the word_link load SQL creation
-        $db_con->set_type(DB_TYPE_TRIPLE);
+        // test the triple load SQL creation
+        $db_con->set_type(sql_db::TBL_TRIPLE);
         $db_con->set_link_fields('from_phrase_id', 'to_phrase_id', verb::FLD_ID);
-        $db_con->set_usr_fields(array(word_link::FLD_NAME, sql_db::FLD_DESCRIPTION));
+        $db_con->set_usr_fields(array(triple::FLD_NAME_GIVEN, sql_db::FLD_DESCRIPTION));
         $db_con->set_fields(array('word_type_id'));
         $db_con->set_usr_num_fields(array(user_sandbox::FLD_EXCLUDED));
-        $db_con->set_where_text('word_link_id = 1');
-        $created_sql = $db_con->select_by_id();
+        $db_con->set_where_text('triple_id = 1');
+        $created_sql = $db_con->select_by_set_id();
         $sql_avoid_code_check_prefix = "SELECT";
         $expected_sql = $sql_avoid_code_check_prefix . " 
-                        s.word_link_id, 
-                        u.word_link_id AS user_word_link_id, 
+                        s.triple_id, 
+                        u.triple_id AS user_triple_id, 
                         s.user_id, 
                         s.from_phrase_id,
                         s.to_phrase_id, 
@@ -1115,11 +1153,11 @@ class user_sandbox_unit_tests
                         IF(u.name_given  IS NULL, s.name_given,  u.name_given)  AS name_given, 
                         IF(u.description IS NULL, s.description, u.description) AS description,
                         IF(u.excluded    IS NULL, s.excluded,    u.excluded)    AS excluded 
-                   FROM word_links s 
-              LEFT JOIN user_word_links u ON s.word_link_id = u.word_link_id 
+                   FROM triples s 
+              LEFT JOIN user_triples u ON s.triple_id = u.triple_id 
                                          AND u.user_id = 1 
-                  WHERE word_link_id = 1;";
-        $t->dsp('MySQL word_link load select by id', $t->trim($expected_sql), $t->trim($created_sql));
+                  WHERE triple_id = 1;";
+        $t->dsp('MySQL triple load select by id', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         /*
          * Build sample queries in the PostgreSQL format to use the database syntax check of the IDE
@@ -1132,13 +1170,13 @@ class user_sandbox_unit_tests
         $created_sql = "SELECT 
                        f.formula_id,
                        f.formula_name,
-                       " . $db_con->get_usr_field('formula_text', 'f', 'u') . ",
-                       " . $db_con->get_usr_field('resolved_text', 'f', 'u') . ",
+                       " . $db_con->get_usr_field(formula::FLD_FORMULA_TEXT, 'f', 'u') . ",
+                       " . $db_con->get_usr_field(formula::FLD_FORMULA_USER_TEXT, 'f', 'u') . ",
                        " . $db_con->get_usr_field(sql_db::FLD_DESCRIPTION, 'f', 'u') . ",
-                       " . $db_con->get_usr_field('formula_type_id', 'f', 'u', sql_db::FLD_FORMAT_VAL) . ",
+                       " . $db_con->get_usr_field(formula::FLD_FORMULA_TYPE, 'f', 'u', sql_db::FLD_FORMAT_VAL) . ",
                        " . $db_con->get_usr_field(sql_db::FLD_CODE_ID, 't', 'c') . ",
-                       " . $db_con->get_usr_field('all_values_needed', 'f', 'u', sql_db::FLD_FORMAT_VAL) . ",
-                       " . $db_con->get_usr_field('last_update', 'f', 'u', sql_db::FLD_FORMAT_VAL) . ",
+                       " . $db_con->get_usr_field(formula::FLD_ALL_NEEDED, 'f', 'u', sql_db::FLD_FORMAT_VAL) . ",
+                       " . $db_con->get_usr_field(formula::FLD_LAST_UPDATE, 'f', 'u', sql_db::FLD_FORMAT_VAL) . ",
                        " . $db_con->get_usr_field(user_sandbox::FLD_EXCLUDED, 'f', 'u', sql_db::FLD_FORMAT_VAL) . "
                   FROM " . $sql_from . " 
              LEFT JOIN user_formulas u ON u.formula_id = f.formula_id 
@@ -1164,7 +1202,7 @@ class user_sandbox_unit_tests
              LEFT JOIN formula_types c ON u.formula_type_id = c.formula_type_id
                  WHERE l.phrase_id = 1 AND l.formula_id = f.formula_id
               GROUP BY f.formula_id;";
-        $t->dsp('formula list load query', $t->trim($expected_sql), $t->trim($created_sql));
+        $t->dsp('formula list load query', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         // the value list load query
         $db_con->db_type = sql_db::POSTGRES;
@@ -1172,15 +1210,14 @@ class user_sandbox_unit_tests
         $created_sql = "SELECT v.value_id,
                      u.value_id AS user_value_id,
                      v.user_id,
-                    " . $db_con->get_usr_field('word_value', 'v', 'u', sql_db::FLD_FORMAT_VAL) . ",
+                    " . $db_con->get_usr_field(value::FLD_VALUE, 'v', 'u', sql_db::FLD_FORMAT_VAL) . ",
                     " . $db_con->get_usr_field(user_sandbox::FLD_EXCLUDED, 'v', 'u', sql_db::FLD_FORMAT_VAL) . ",
-                    " . $db_con->get_usr_field('last_update', 'v', 'u', sql_db::FLD_FORMAT_VAL) . ",
-                    " . $db_con->get_usr_field('source_id', 'v', 'u', sql_db::FLD_FORMAT_VAL) . ",
+                    " . $db_con->get_usr_field(value::FLD_LAST_UPDATE, 'v', 'u', sql_db::FLD_FORMAT_VAL) . ",
+                    " . $db_con->get_usr_field(source::FLD_ID, 'v', 'u', sql_db::FLD_FORMAT_VAL) . ",
                      v.phrase_group_id,
-                     v.time_word_id,
                      g.word_ids,
                      g.triple_ids
-                FROM phrase_groups g, " . $db_con->get_table_name_esc(DB_TYPE_VALUE) . " v 
+                FROM phrase_groups g, " . $db_con->get_table_name_esc(sql_db::TBL_VALUE) . " v 
            LEFT JOIN user_values u ON u.value_id = v.value_id 
                                   AND u.user_id = 1
                WHERE g.phrase_group_id = v.phrase_group_id 
@@ -1188,7 +1225,7 @@ class user_sandbox_unit_tests
                                        FROM value_phrase_links 
                                       WHERE phrase_id = 1
                                    GROUP BY value_id )
-            ORDER BY v.phrase_group_id, v.time_word_id
+            ORDER BY v.phrase_group_id
                LIMIT " . $limit . ";";
         $expected_sql = "SELECT v.value_id,
                      u.value_id AS user_value_id,
@@ -1198,7 +1235,6 @@ class user_sandbox_unit_tests
                      CASE WHEN (u.last_update IS NULL) THEN v.last_update ELSE u.last_update END AS last_update,
                      CASE WHEN (u.source_id   IS NULL) THEN v.source_id   ELSE u.source_id   END AS source_id,
                      v.phrase_group_id,
-                     v.time_word_id,
                      g.word_ids,
                      g.triple_ids
                 FROM phrase_groups g, values v 
@@ -1209,9 +1245,9 @@ class user_sandbox_unit_tests
                                        FROM value_phrase_links 
                                       WHERE phrase_id = 1
                                    GROUP BY value_id )
-            ORDER BY v.phrase_group_id, v.time_word_id
+            ORDER BY v.phrase_group_id
                LIMIT 10;";
-        $t->dsp('value list load query', $t->trim($expected_sql), $t->trim($created_sql));
+        $t->dsp('value list load query', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         // the phrase load word query
         $db_con->db_type = sql_db::POSTGRES;
@@ -1229,25 +1265,25 @@ class user_sandbox_unit_tests
                   LEFT JOIN user_words u ON u.word_id = w.word_id
                                         AND u.user_id = 1
                    GROUP BY w.word_id, w.word_name ;";
-        $t->dsp('phrase load word query', $t->trim($expected_sql), $t->trim($created_sql));
+        $t->dsp('phrase load word query', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         // the phrase load word link query
         $db_con->db_type = sql_db::POSTGRES;
-        $created_sql = 'SELECT l.word_link_id * -1 AS id,
+        $created_sql = 'SELECT l.triple_id * -1 AS id,
                     ' . $db_con->get_usr_field("name", "l", "u") . ',
                     ' . $db_con->get_usr_field("excluded", "l", "u", sql_db::FLD_FORMAT_BOOL) . '
-                      FROM word_links l
-                 LEFT JOIN user_word_links u ON u.word_link_id = l.word_link_id 
+                      FROM triples l
+                 LEFT JOIN user_triples u ON u.triple_id = l.triple_id 
                                             AND u.user_id = 1
-                  GROUP BY l.word_link_id, l.name ;';
-        $expected_sql = "SELECT l.word_link_id * -1 AS id,
+                  GROUP BY l.triple_id, l.name ;';
+        $expected_sql = "SELECT l.triple_id * -1 AS id,
                        CASE WHEN (u.name  <> '' IS NOT TRUE) THEN          l.name ELSE          u.name   END AS name,
                        CASE WHEN (u.excluded              IS     NULL) THEN COALESCE(l.excluded,0)    ELSE COALESCE(u.excluded,0) END AS excluded
-                       FROM word_links l
-                 LEFT JOIN user_word_links u ON u.word_link_id = l.word_link_id 
+                       FROM triples l
+                 LEFT JOIN user_triples u ON u.triple_id = l.triple_id 
                                             AND u.user_id = 1
-                  GROUP BY l.word_link_id, l.name ;";
-        $t->dsp('phrase load word link query', $t->trim($expected_sql), $t->trim($created_sql));
+                  GROUP BY l.triple_id, l.name ;";
+        $t->dsp('phrase load word link query', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         // the phrase load word link query by type
         $db_con->db_type = sql_db::POSTGRES;
@@ -1256,8 +1292,8 @@ class user_sandbox_unit_tests
                         SELECT DISTINCT
                                l.from_phrase_id,    
                     ' . $db_con->get_usr_field("excluded", "l", "u", sql_db::FLD_FORMAT_BOOL) . '
-                          FROM word_links l
-                     LEFT JOIN user_word_links u ON u.word_link_id = l.word_link_id 
+                          FROM triples l
+                     LEFT JOIN user_triples u ON u.triple_id = l.triple_id 
                                                 AND u.user_id = 1
                          WHERE l.to_phrase_id = 2 
                            AND l.verb_id = 2 ) AS a 
@@ -1266,22 +1302,22 @@ class user_sandbox_unit_tests
                         SELECT DISTINCT
                                l.from_phrase_id,    
                     CASE WHEN (u.excluded         IS     NULL) THEN COALESCE(l.excluded,0)  ELSE COALESCE(u.excluded,0) END AS excluded
-                          FROM word_links l
-                     LEFT JOIN user_word_links u ON u.word_link_id = l.word_link_id 
+                          FROM triples l
+                     LEFT JOIN user_triples u ON u.triple_id = l.triple_id 
                                                 AND u.user_id = 1
                          WHERE l.to_phrase_id = 2 
                            AND l.verb_id = 2 ) AS a 
                          WHERE (excluded <> 1 OR excluded is NULL);";
-        $t->dsp('phrase load word link query by type', $t->trim($expected_sql), $t->trim($created_sql));
+        $t->dsp('phrase load word link query by type', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         // the view component link query by type (used in word_display->assign_dsp_ids)
         $db_con->db_type = sql_db::POSTGRES;
-        $db_con->set_type(DB_TYPE_VIEW_COMPONENT_LINK);
+        $db_con->set_type(sql_db::TBL_VIEW_COMPONENT_LINK);
         //$db_con->set_join_fields(array('position_type'), 'position_type');
         $db_con->set_fields(array(view::FLD_ID, 'view_component_id'));
         $db_con->set_usr_num_fields(array('order_nbr', 'position_type', user_sandbox::FLD_EXCLUDED));
         $db_con->set_where_text('s.view_component_id = 1');
-        $created_sql = $db_con->select_by_id();
+        $created_sql = $db_con->select_by_set_id();
         $expected_sql = "SELECT s.view_component_link_id,
                      u.view_component_link_id AS user_view_component_link_id,
                      s.user_id,
@@ -1294,7 +1330,7 @@ class user_sandbox_unit_tests
            LEFT JOIN user_view_component_links u ON s.view_component_link_id = u.view_component_link_id 
                                             AND u.user_id = 1  
                WHERE s.view_component_id = 1;";
-        $t->dsp('phrase load word link query by type', $t->trim($expected_sql), $t->trim($created_sql));
+        $t->dsp('phrase load word link query by type', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         // the view component link max order number query (used in word_display->next_nbr)
         $db_con->db_type = sql_db::POSTGRES;
@@ -1312,7 +1348,7 @@ class user_sandbox_unit_tests
                            LEFT JOIN user_view_component_links u ON u.view_component_link_id = l.view_component_link_id 
                                                                 AND u.user_id = 1
                                WHERE l.view_id = 1 ) AS m;";
-        $t->dsp('phrase load word link query by type', $t->trim($expected_sql), $t->trim($created_sql));
+        $t->dsp('phrase load word link query by type', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         // the phrase load word link query by phrase
         $db_con->db_type = sql_db::POSTGRES;
@@ -1322,8 +1358,8 @@ class user_sandbox_unit_tests
                         SELECT DISTINCT
                                l.from_phrase_id,    
                     ' . $db_con->get_usr_field("excluded", "l", "u", sql_db::FLD_FORMAT_BOOL) . '
-                          FROM word_links l
-                     LEFT JOIN user_word_links u ON u.word_link_id = l.word_link_id 
+                          FROM triples l
+                     LEFT JOIN user_triples u ON u.triple_id = l.triple_id 
                                                 AND u.user_id = 1
                          WHERE l.to_phrase_id = 1 
                            AND l.verb_id = 2 ) AS a 
@@ -1332,8 +1368,8 @@ class user_sandbox_unit_tests
                           SELECT DISTINCT
                                  l.from_phrase_id,    
                     ' . $db_con->get_usr_field("excluded", "l", "u", sql_db::FLD_FORMAT_BOOL) . '
-                            FROM word_links l
-                       LEFT JOIN user_word_links u ON u.word_link_id = l.word_link_id 
+                            FROM triples l
+                       LEFT JOIN user_triples u ON u.triple_id = l.triple_id 
                                                   AND u.user_id = 1
                            WHERE l.to_phrase_id <> 1 
                              AND l.verb_id = 2
@@ -1361,7 +1397,7 @@ class user_sandbox_unit_tests
                                       SELECT DISTINCT
                                              l.from_phrase_id,
                                              CASE WHEN (u.excluded              IS     NULL) THEN COALESCE(l.excluded,0)    ELSE COALESCE(u.excluded,0) END AS excluded
-                                        FROM word_links l LEFT JOIN user_word_links u ON u.word_link_id = l.word_link_id 
+                                        FROM triples l LEFT JOIN user_triples u ON u.triple_id = l.triple_id 
                                                                               AND u.user_id = 1
                                        WHERE l.to_phrase_id = 1 
                                          AND l.verb_id = 2 ) AS a 
@@ -1371,7 +1407,7 @@ class user_sandbox_unit_tests
                                                        SELECT DISTINCT
                                                               l.from_phrase_id,    
                                                               CASE WHEN (u.excluded         IS     NULL) THEN COALESCE(l.excluded,0)  ELSE COALESCE(u.excluded,0) END AS excluded
-                                                         FROM word_links l LEFT JOIN user_word_links u ON u.word_link_id = l.word_link_id 
+                                                         FROM triples l LEFT JOIN user_triples u ON u.triple_id = l.triple_id 
                                                                                                       AND u.user_id = 1
                                                         WHERE l.to_phrase_id <> 1 
                                                           AND l.verb_id = 2
@@ -1379,7 +1415,7 @@ class user_sandbox_unit_tests
                                                                                             SELECT DISTINCT
                                                                                                    l.from_phrase_id,
                                                                                                    CASE WHEN (u.excluded              IS     NULL) THEN COALESCE(l.excluded,0)    ELSE COALESCE(u.excluded,0) END AS excluded
-                                                                                              FROM word_links l LEFT JOIN user_word_links u ON u.word_link_id = l.word_link_id 
+                                                                                              FROM triples l LEFT JOIN user_triples u ON u.triple_id = l.triple_id 
                                                                                                                                            AND u.user_id = 1
                                                                                              WHERE l.to_phrase_id = 1 
                                                                                                AND l.verb_id = 2 ) AS a 
@@ -1391,13 +1427,13 @@ class user_sandbox_unit_tests
                             AND w.word_id = a.id    
                        GROUP BY name ) AS w 
                     WHERE (excluded <> 1 OR excluded is NULL);";
-        $t->dsp('phrase load word link query by type', $t->trim($expected_sql), $t->trim($created_sql));
+        $t->dsp('phrase load word link query by type', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         // the time word selector query by type (used in word_display->dsp_time_selector)
         // $sql_avoid_code_check_prefix is used to avoid SQL code checks by the IDE on the query building process,
         // which is not needed because the check is done on the $expected_sql and the $created_sql is compared with the checked
         $db_con->db_type = sql_db::POSTGRES;
-        $sql_from = "word_links l, words w";
+        $sql_from = "triples l, words w";
         $sql_where_and = "AND w.word_id = l.from_phrase_id 
                         AND l.verb_id = 2             
                         AND l.to_phrase_id = 14 ";
@@ -1418,7 +1454,7 @@ class user_sandbox_unit_tests
               FROM ( SELECT w.word_id AS id, 
                                 CASE WHEN (u.word_name  <> '' IS NOT TRUE) THEN          w.word_name ELSE          u.word_name   END AS name,
                                 CASE WHEN (u.excluded         IS     NULL) THEN COALESCE(w.excluded,0)  ELSE COALESCE(u.excluded,0) END AS excluded
-                       FROM word_links l, words w   
+                       FROM triples l, words w   
                   LEFT JOIN user_words u ON u.word_id = w.word_id 
                                         AND u.user_id = 1 
                       WHERE w.word_type_id = 2
@@ -1428,7 +1464,7 @@ class user_sandbox_unit_tests
                    GROUP BY name) AS s
             WHERE (excluded <> 1 OR excluded is NULL)                                    
           ORDER BY name;";
-        $t->dsp('time word selector query by type', $t->trim($expected_sql), $t->trim($created_sql));
+        $t->dsp('time word selector query by type', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         // the verb selector query (used in word_display->selector_link)
         $db_con->db_type = sql_db::POSTGRES;
@@ -1458,9 +1494,9 @@ class user_sandbox_unit_tests
              WHERE name_reverse <> '' 
                AND name_reverse <> verb_name) AS links
           ORDER BY words DESC, name;";
-        $t->dsp('verb selector query', $t->trim($expected_sql), $t->trim($created_sql));
+        $t->dsp('verb selector query', $lib->trim($expected_sql), $lib->trim($created_sql));
 
-        // the word link list load query (used in word_link_list->load)
+        // the word link list load query (used in triple_list->load)
         $db_con->db_type = sql_db::POSTGRES;
         $sql_where = 'l.to_phrase_id   = 3';
         $sql_type = 'AND l.verb_id = 2';
@@ -1478,7 +1514,7 @@ class user_sandbox_unit_tests
         $sql_wrd2_from = ' words t2 LEFT JOIN user_words u2 ON u2.word_id = t2.word_id 
                                                        AND u2.user_id = 1 ';
         $sql_wrd2 = 'l.from_phrase_id = t2.word_id';
-        $created_sql = "SELECT l.word_link_id,
+        $created_sql = "SELECT l.triple_id,
                        l.from_phrase_id,
                        l.verb_id,
                        l.to_phrase_id,
@@ -1495,8 +1531,8 @@ class user_sandbox_unit_tests
                        " . $db_con->get_usr_field(user_sandbox::FLD_EXCLUDED, 'l', 'ul', sql_db::FLD_FORMAT_VAL) . ",
                        " . $sql_wrd1_fields . "
                        " . $sql_wrd2_fields . "
-                  FROM word_links l
-             LEFT JOIN user_word_links ul ON ul.word_link_id = l.word_link_id 
+                  FROM triples l
+             LEFT JOIN user_triples ul ON ul.triple_id = l.triple_id 
                                         AND ul.user_id = 1,
                        verbs v, 
                        " . $sql_wrd1_from . "
@@ -1508,7 +1544,7 @@ class user_sandbox_unit_tests
                        " . $sql_type . " 
               GROUP BY t2.word_id, l.verb_id
               ORDER BY l.verb_id, word_name;";
-        $expected_sql = "SELECT l.word_link_id,
+        $expected_sql = "SELECT l.triple_id,
                        l.from_phrase_id,
                        l.verb_id,
                        l.to_phrase_id,
@@ -1531,8 +1567,8 @@ class user_sandbox_unit_tests
                        CASE WHEN (u2.word_type_id      IS     NULL) THEN t2.word_type_id ELSE u2.word_type_id END AS word_type_id,
                        CASE WHEN (u2.excluded          IS     NULL) THEN t2.excluded     ELSE u2.excluded     END AS excluded,
                        t2.values AS values2
-                  FROM word_links l
-             LEFT JOIN user_word_links ul ON ul.word_link_id = l.word_link_id 
+                  FROM triples l
+             LEFT JOIN user_triples ul ON ul.triple_id = l.triple_id 
                                         AND ul.user_id = 1,
                        verbs v, 
                        words t2 LEFT JOIN user_words u2 ON u2.word_id = t2.word_id 
@@ -1543,7 +1579,7 @@ class user_sandbox_unit_tests
                        AND l.verb_id = 2 
               GROUP BY t2.word_id, l.verb_id
               ORDER BY l.verb_id, word_name;";
-        $t->dsp('word link list load query', $t->trim($expected_sql), $t->trim($created_sql));
+        $t->dsp('word link list load query', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         // the phrase load word link query by ...
         // TODO check if and how GROUP BY t2.word_id, l.verb_id can / should be added
@@ -1564,7 +1600,7 @@ class user_sandbox_unit_tests
         $sql_wrd2_from = ' words t2 LEFT JOIN user_words u2 ON u2.word_id = t2.word_id 
                                                        AND u2.user_id = 1 ';
         $sql_wrd2 = 'l.from_phrase_id = t2.word_id';
-        $created_sql = "SELECT l.word_link_id,
+        $created_sql = "SELECT l.triple_id,
                        l.from_phrase_id,
                        l.verb_id,
                        l.to_phrase_id,
@@ -1581,8 +1617,8 @@ class user_sandbox_unit_tests
                        " . $db_con->get_usr_field(user_sandbox::FLD_EXCLUDED, 'l', 'ul', sql_db::FLD_FORMAT_VAL) . ",
                        " . $sql_wrd1_fields . "
                        " . $sql_wrd2_fields . "
-                  FROM word_links l
-             LEFT JOIN user_word_links ul ON ul.word_link_id = l.word_link_id 
+                  FROM triples l
+             LEFT JOIN user_triples ul ON ul.triple_id = l.triple_id 
                                         AND ul.user_id = 1,
                        verbs v, 
                        " . $sql_wrd1_from . "
@@ -1593,7 +1629,7 @@ class user_sandbox_unit_tests
                    AND " . $sql_where . "
                        " . $sql_type . " 
               ORDER BY l.verb_id, word_name;";
-        $expected_sql = "SELECT l.word_link_id,
+        $expected_sql = "SELECT l.triple_id,
                             l.from_phrase_id,                       
                             l.verb_id,                       
                             l.to_phrase_id,                       
@@ -1616,7 +1652,7 @@ class user_sandbox_unit_tests
                             CASE WHEN (u2.word_type_id      IS     NULL) THEN t2.word_type_id ELSE u2.word_type_id END AS word_type_id,
                             CASE WHEN (u2.excluded          IS     NULL) THEN t2.excluded     ELSE u2.excluded     END AS excluded,
                             t2.values AS values2                  
-                       FROM word_links l LEFT JOIN user_word_links ul ON ul.word_link_id = l.word_link_id
+                       FROM triples l LEFT JOIN user_triples ul ON ul.triple_id = l.triple_id
                                                                      AND ul.user_id = 1,
                             verbs v,
                             words t2 LEFT JOIN user_words u2 ON u2.word_id = t2.word_id
@@ -1626,7 +1662,7 @@ class user_sandbox_unit_tests
                         AND l.to_phrase_id   = 3
                         AND l.verb_id = 2
                    ORDER BY l.verb_id, word_name;";
-        $t->dsp('phrase load word link query by ...', $t->trim($expected_sql), $t->trim($created_sql));
+        $t->dsp('phrase load word link query by ...', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         // the general phrase list query (as created in phrase->sql_list)
         $db_con->db_type = sql_db::POSTGRES;
@@ -1636,11 +1672,11 @@ class user_sandbox_unit_tests
                              FROM words w   
                         LEFT JOIN user_words u ON u.word_id = w.word_id 
                                               AND u.user_id = 1 ';
-        $sql_triples = 'SELECT DISTINCT l.word_link_id * -1 AS id, 
+        $sql_triples = 'SELECT DISTINCT l.triple_id * -1 AS id, 
                                     ' . $db_con->get_usr_field("name", "l", "u", sql_db::FLD_FORMAT_TEXT, "phrase_name") . ',
                                     ' . $db_con->get_usr_field("excluded", "l", "u", sql_db::FLD_FORMAT_BOOL) . '
-                               FROM word_links l
-                          LEFT JOIN user_word_links u ON u.word_link_id = l.word_link_id 
+                               FROM triples l
+                          LEFT JOIN user_triples u ON u.triple_id = l.triple_id 
                                                      AND u.user_id = 1 ';
         $sql_avoid_code_check_prefix = "SELECT";
         $created_sql = $sql_avoid_code_check_prefix . " DISTINCT id, phrase_name
@@ -1657,16 +1693,16 @@ class user_sandbox_unit_tests
                   LEFT JOIN user_words u ON u.word_id = w.word_id 
                                         AND u.user_id = 1
                UNION SELECT DISTINCT
-                            l.word_link_id * -1 AS id, 
+                            l.triple_id * -1 AS id, 
                             CASE WHEN (u.name   <> '' IS NOT TRUE) THEN l.name       ELSE u.name       END AS phrase_name,
                             CASE WHEN (u.excluded               IS     NULL) THEN COALESCE(l.excluded,0) ELSE COALESCE(u.excluded,0) END AS excluded
-                       FROM word_links l
-                  LEFT JOIN user_word_links u ON u.word_link_id = l.word_link_id 
+                       FROM triples l
+                  LEFT JOIN user_triples u ON u.triple_id = l.triple_id 
                                              AND u.user_id = 1
                    ) AS p
              WHERE excluded = 0
           ORDER BY p.phrase_name;";
-        $t->dsp('general phrase list query', $t->trim($expected_sql), $t->trim($created_sql));
+        $t->dsp('general phrase list query', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         // the general phrase list query by type (as created in phrase->sql_list)
         $db_con->db_type = sql_db::POSTGRES;
@@ -1676,8 +1712,8 @@ class user_sandbox_unit_tests
                                         SELECT DISTINCT
                                                l.from_phrase_id,    
                                                ' . $db_con->get_usr_field("excluded", "l", "u", sql_db::FLD_FORMAT_BOOL) . '
-                                          FROM word_links l
-                                     LEFT JOIN user_word_links u ON u.word_link_id = l.word_link_id 
+                                          FROM triples l
+                                     LEFT JOIN user_triples u ON u.triple_id = l.triple_id 
                                                                 AND u.user_id = 1
                                          WHERE l.to_phrase_id = 2
                                            AND l.verb_id = 2 ) AS a 
@@ -1686,8 +1722,8 @@ class user_sandbox_unit_tests
                                         SELECT DISTINCT
                                                l.from_phrase_id,    
                                                ' . $db_con->get_usr_field("excluded", "l", "u", sql_db::FLD_FORMAT_BOOL) . '
-                                          FROM word_links l
-                                     LEFT JOIN user_word_links u ON u.word_link_id = l.word_link_id 
+                                          FROM triples l
+                                     LEFT JOIN user_triples u ON u.triple_id = l.triple_id 
                                                                 AND u.user_id = 1
                                          WHERE l.to_phrase_id <> 2
                                            AND l.verb_id = 2
@@ -1706,11 +1742,11 @@ class user_sandbox_unit_tests
                        WHERE ' . $sql_where_exclude . ' ';
         $sql_triples = 'SELECT DISTINCT ' . $sql_field_names . ' FROM (
                         SELECT DISTINCT
-                               l.word_link_id * -1 AS id, 
+                               l.triple_id * -1 AS id, 
                                ' . $db_con->get_usr_field("name", "l", "u", sql_db::FLD_FORMAT_TEXT, "phrase_name") . ',
                                ' . $db_con->get_usr_field("excluded", "l", "u", sql_db::FLD_FORMAT_BOOL) . '
-                          FROM word_links l
-                     LEFT JOIN user_word_links u ON u.word_link_id = l.word_link_id 
+                          FROM triples l
+                     LEFT JOIN user_triples u ON u.triple_id = l.triple_id 
                                                 AND u.user_id = 1
                          WHERE l.from_phrase_id IN ( ' . $sql_wrd_other . ')                                        
                            AND l.verb_id = 2
@@ -1731,8 +1767,8 @@ class user_sandbox_unit_tests
                                         SELECT DISTINCT
                                                l.from_phrase_id,    
                                                 CASE WHEN (u.excluded IS NULL) THEN COALESCE(l.excluded,0) ELSE COALESCE(u.excluded,0) END AS excluded
-                                          FROM word_links l
-                                     LEFT JOIN user_word_links u ON u.word_link_id = l.word_link_id 
+                                          FROM triples l
+                                     LEFT JOIN user_triples u ON u.triple_id = l.triple_id 
                                                                 AND u.user_id = 1
                                          WHERE l.to_phrase_id = 2 
                                            AND l.verb_id = 2 ) AS a 
@@ -1743,8 +1779,8 @@ class user_sandbox_unit_tests
                                         SELECT DISTINCT
                                                l.from_phrase_id,    
                                                 CASE WHEN (u.excluded IS NULL) THEN COALESCE(l.excluded,0) ELSE COALESCE(u.excluded,0) END AS excluded
-                                          FROM word_links l
-                                     LEFT JOIN user_word_links u ON u.word_link_id = l.word_link_id 
+                                          FROM triples l
+                                     LEFT JOIN user_triples u ON u.triple_id = l.triple_id 
                                                                 AND u.user_id = 1
                                          WHERE l.to_phrase_id <> 2 
                                            AND l.verb_id = 2
@@ -1752,8 +1788,8 @@ class user_sandbox_unit_tests
                                         SELECT DISTINCT
                                                l.from_phrase_id,    
                                                 CASE WHEN (u.excluded IS NULL) THEN COALESCE(l.excluded,0) ELSE COALESCE(u.excluded,0) END AS excluded
-                                          FROM word_links l
-                                     LEFT JOIN user_word_links u ON u.word_link_id = l.word_link_id 
+                                          FROM triples l
+                                     LEFT JOIN user_triples u ON u.triple_id = l.triple_id 
                                                                 AND u.user_id = 1
                                          WHERE l.to_phrase_id = 2 
                                            AND l.verb_id = 2 ) AS a 
@@ -1762,18 +1798,18 @@ class user_sandbox_unit_tests
                          AND w.word_id = a.id ) AS w 
                        WHERE excluded = 0  UNION SELECT DISTINCT id, phrase_name, excluded FROM (
                         SELECT DISTINCT
-                               l.word_link_id * -1 AS id, 
+                               l.triple_id * -1 AS id, 
                                 CASE WHEN (u.name <> '' IS NOT TRUE) THEN l.name       ELSE u.name       END AS phrase_name,
                                 CASE WHEN (u.excluded             IS     NULL) THEN COALESCE(l.excluded,0) ELSE COALESCE(u.excluded,0) END AS excluded
-                          FROM word_links l
-                     LEFT JOIN user_word_links u ON u.word_link_id = l.word_link_id 
+                          FROM triples l
+                     LEFT JOIN user_triples u ON u.triple_id = l.triple_id 
                                                 AND u.user_id = 1
                          WHERE l.from_phrase_id IN ( SELECT from_phrase_id FROM (
                                         SELECT DISTINCT
                                                l.from_phrase_id,    
                                                 CASE WHEN (u.excluded IS NULL) THEN COALESCE(l.excluded,0) ELSE COALESCE(u.excluded,0) END AS excluded
-                                          FROM word_links l
-                                     LEFT JOIN user_word_links u ON u.word_link_id = l.word_link_id 
+                                          FROM triples l
+                                     LEFT JOIN user_triples u ON u.triple_id = l.triple_id 
                                                                 AND u.user_id = 1
                                          WHERE l.to_phrase_id <> 2 
                                            AND l.verb_id = 2
@@ -1781,8 +1817,8 @@ class user_sandbox_unit_tests
                                         SELECT DISTINCT
                                                l.from_phrase_id,    
                                                 CASE WHEN (u.excluded IS NULL) THEN COALESCE(l.excluded,0) ELSE COALESCE(u.excluded,0) END AS excluded
-                                          FROM word_links l
-                                     LEFT JOIN user_word_links u ON u.word_link_id = l.word_link_id 
+                                          FROM triples l
+                                     LEFT JOIN user_triples u ON u.triple_id = l.triple_id 
                                                                 AND u.user_id = 1
                                          WHERE l.to_phrase_id = 2 
                                            AND l.verb_id = 2 ) AS a 
@@ -1793,52 +1829,37 @@ class user_sandbox_unit_tests
                          WHERE excluded = 0  ) AS p
              WHERE excluded = 0
           ORDER BY p.phrase_name;";
-        $t->dsp('general phrase list query by type', $t->trim($expected_sql), $t->trim($created_sql));
+        $t->dsp('general phrase list query by type', $lib->trim($expected_sql), $lib->trim($created_sql));
+
+
+        $t->subheader('Test the user sandbox sql creation functions');
+
+        // init
+        $t->name = 'user_sandbox->';
+        $t->resource_path = 'db/user_sandbox/';
 
         // the word changer query (used in user_sandbox->changer_sql)
-        $db_con->db_type = sql_db::POSTGRES;
         $wrd = new word($usr);
-        $wrd->id = 1;
-        $created_sql = $wrd->changer_sql($db_con);
-        $expected_sql = "SELECT user_id 
-                FROM user_words 
-               WHERE word_id = 1
-                 AND (excluded <> 1 OR excluded is NULL)";
-        $t->dsp('word changer query', $t->trim($expected_sql), $t->trim($created_sql));
-
-        // ... and check if the prepared sql name is unique
-        $result = false;
-        $sql_name = $wrd->changer_sql($db_con, true);
-        if (!in_array($sql_name, $sql_names)) {
-            $result = true;
-            $sql_names[] = $sql_name;
-        }
-        $target = true;
-        $t->dsp('user_sandbox->word_changer_sql check sql name', $result, $target);
-
-        // the word changer ex owner query (used in user_sandbox->changer_sql)
+        $wrd->set_id( 1);
         $db_con->db_type = sql_db::POSTGRES;
-        $wrd = new word($usr);
-        $wrd->id = 1;
+        $qp = $wrd->changer_sql($db_con);
+        $t->assert_qp($qp, $db_con->db_type);
+
+        // ... and for MySQL
+        $db_con->db_type = sql_db::MYSQL;
+        $qp = $wrd->changer_sql($db_con);
+        $t->assert_qp($qp, $db_con->db_type);
+
+        // ... and the word changer ex owner query (used in user_sandbox->changer_sql)
         $wrd->owner_id = 2;
-        $created_sql = $wrd->changer_sql($db_con);
-        $expected_sql = "SELECT user_id 
-                FROM user_words 
-               WHERE word_id = 1
-                 AND user_id <> 2
-                 AND (excluded <> 1 OR excluded is NULL)";
-        $t->dsp('word changer ex owner query', $t->trim($expected_sql), $t->trim($created_sql));
+        $db_con->db_type = sql_db::POSTGRES;
+        $qp = $wrd->changer_sql($db_con);
+        $t->assert_qp($qp, $db_con->db_type);
 
-        // ... and check if the prepared sql name is unique
-        $result = false;
-        $sql_name = $wrd->changer_sql($db_con, true);
-        if (!in_array($sql_name, $sql_names)) {
-            $result = true;
-            $sql_names[] = $sql_name;
-        }
-        $target = true;
-        $t->dsp('user_sandbox->word_changer_sql ex owner check sql name', $result, $target);
-
+        // ... and for MySQL
+        $db_con->db_type = sql_db::MYSQL;
+        $qp = $wrd->changer_sql($db_con);
+        $t->assert_qp($qp, $db_con->db_type);
     }
 
 }

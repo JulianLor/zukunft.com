@@ -29,10 +29,16 @@
   
 */
 
+use controller\controller;
+
 $debug = $_GET['debug'] ?? 0;
-include_once '../src/main/php/zu_lib.php';
+const ROOT_PATH = __DIR__ . '/../';
+include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 
 $db_con = prg_start("formula_edit");
+
+// get the parameters
+$frm_id = $_GET[controller::URL_VAR_ID] ?? 0;
 
 $result = ''; // reset the html code var
 $msg = ''; // to collect all messages that should be shown to the user immediately
@@ -42,24 +48,22 @@ $usr = new user;
 $result .= $usr->get();
 
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
-if ($usr->id > 0) {
+if ($usr->id() > 0) {
 
     load_usr_data();
 
     // prepare the display
     $dsp = new view_dsp_old($usr);
-    $dsp->id = cl(db_cl::VIEW, view::FORMULA_EDIT);
-    $dsp->load();
+    $dsp->load_by_code_id(view::FORMULA_EDIT);
     $back = $_GET['back'];
 
-    // create the formula object to have an place to update the parameters
+    // create the formula object to have a place to update the parameters
     $frm = new formula($usr);
-    $frm->id = $_GET['id']; // id of the formula that can be changed
-    $frm->load();
+    $frm->load_by_id($frm_id);
 
     // load the parameters to the formula object to display the user input again in case of an error
     if (isset($_GET['formula_name'])) {
-        $frm->name = $_GET['formula_name'];
+        $frm->set_name($_GET['formula_name']);
     } // the new formula name
     if (isset($_GET['formula_text'])) {
         $frm->usr_text = $_GET['formula_text'];
@@ -79,7 +83,7 @@ if ($usr->id > 0) {
     }
     //if (isset($_GET['need_all_val']))  { if ($_GET['need_all_val'] == 'on') { $frm->need_all_val = true; } else { $frm->need_all_val = false; } }
 
-    if ($frm->id <= 0) {
+    if ($frm->id() <= 0) {
         $result .= log_err("No formula found to change because the id is missing.", "/http/formula_edit.php");
     } else {
 
@@ -87,16 +91,16 @@ if ($usr->id > 0) {
         // to link the formula to another word
         if ($_GET['link_phrase'] > 0) {
             $phr = new phrase($usr);
-            $phr->id = $_GET['link_phrase'];
-            $phr->load();
+            $phr->set_id($_GET['link_phrase']);
+            $phr->load_by_obj_par();
             $upd_result = $frm->link_phr($phr);
         }
 
         // to unlink a word from the formula
         if ($_GET['unlink_phrase'] > 0) {
             $phr = new phrase($usr);
-            $phr->id = $_GET['unlink_phrase'];
-            $phr->load();
+            $phr->set_id($_GET['unlink_phrase']);
+            $phr->load_by_obj_par();
             $upd_result = $frm->unlink_phr($phr);
         }
 
@@ -131,7 +135,7 @@ if ($usr->id > 0) {
             $result .= dsp_err($msg);
 
             // display the view to change the formula
-            $frm->load(); // reload to formula object to display the real database values
+            $frm->load_by_id($frm_id); // reload to formula object to display the real database values
             if (isset($_GET['add_link'])) {
                 $add_link = $_GET['add_link'];
             } else {

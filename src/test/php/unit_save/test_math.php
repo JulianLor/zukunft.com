@@ -30,6 +30,8 @@
 
 */
 
+use api\word_api;
+
 function run_math_test(testing $t)
 {
 
@@ -56,16 +58,15 @@ function run_math_test(testing $t)
     /*$formula_id = $formula_value;
     $target = "45548";
     $word_array =           array($word_abb,$word_revenues,$word_CHF);
-    $word_ids = zut_sql_ids(array($word_abb,$word_revenues,$word_CHF));
-    $time_word_id = $word_2013;
+    $word_ids = zut_sql_ids(array($word_abb,$word_revenues,$word_CHF, $word_2013));
     $debug = false;
-    $result = zuc_parse($formula_id, ZUP_RESULT_TYPE_VALUE, $word_ids, $time_word_id);
+    $result = zuc_parse($formula_id, ZUP_RESULT_TYPE_VALUE, $word_ids);
     $t->dsp(", zuc_parse: the result for formula with id ".$formula_id, $target, $result); */
 
     // test zuc_is_text_only
     $formula = "\"this is just a text\"";
     $target = true;
-    $result = zuc_is_text_only($formula);
+    $result = $calc->is_text_only($formula);
     $t->dsp(", zuc_is_text_only: a text like " . $formula, $target, $result);
 
     // test zuc_pos_separator
@@ -77,27 +78,24 @@ function run_math_test(testing $t)
 
     // test zuc_has_bracket
     $math_text = "(2 - 1) * 2";
-    $target = true;
     $result = $calc->has_bracket($math_text);
-    $t->dsp(", zuc_has_bracket: the result for formula \"" . $math_text . "\"", $target, $result);
+    $t->dsp(", zuc_has_bracket: the result for formula \"" . $math_text . "\"", true, $result);
 
     // test zuc_has_formula
     $formula = "{f4} / {f5}";
-    $target = true;
-    $result = zuc_has_formula($formula);
-    $t->dsp(", zuc_has_formula: the result for formula \"" . $formula . "\"", $target, $result);
+    $result = $calc->has_formula($formula);
+    $t->dsp(", zuc_has_formula: the result for formula \"" . $formula . "\"", true, $result);
 
     // test zuc_is_date
     $date_text = "01.02.2013";
-    $target = true;
-    $result = zuc_is_date($date_text);
-    $t->dsp(", zuc_is_date: the result for \"" . $date_text . "\"", $target, $result);
+    $result = $calc->is_date($date_text);
+    $t->dsp(", zuc_is_date: the result for \"" . $date_text . "\"", true, $result);
 
 
     // test zuc_pos_word
-    $formula_text = "{t6}";
+    $formula_text = "{w6}";
     $target = "0";
-    $result = zuc_pos_word($formula_text);
+    $result = $calc->pos_word($formula_text);
     $t->dsp(", zuc_pos_word: the result for formula \"" . $formula_text . "\"", $target, $result);
 
     // test zut_keep_only_specific
@@ -111,7 +109,7 @@ function run_math_test(testing $t)
     $t->dsp(", zut_keep_only_specific: the result for word array \"".implode(",",$word_array)."\"", $target, $result);
     */
 
-    $time_phr = $t->load_phrase(word::TN_2020);
+    $time_phr = $t->load_phrase(word_api::TN_2020);
 
     // test zuc_math_bracket
     $math_text = "(3 - 1) * 2";
@@ -122,13 +120,13 @@ function run_math_test(testing $t)
     // test zuc_math_parse
     $math_text = "3 - 1";
     $target = 2;
-    $result = $calc->parse($math_text, ZUP_RESULT_TYPE_VALUE, $time_phr);
+    $result = $calc->parse($math_text, math::RESULT_TYPE_VALUE, $time_phr);
     $t->dsp(", zuc_math_parse: the result for formula \"" . $math_text . "\"", $target, $result);
 
     // test zuc_math_parse
     $math_text = "2 * 2";
     $target = 4;
-    $result = $calc->parse($math_text, ZUP_RESULT_TYPE_VALUE, $time_phr);
+    $result = $calc->parse($math_text, math::RESULT_TYPE_VALUE, $time_phr);
     $t->dsp(", zuc_math_parse: the result for formula \"" . $math_text . "\"", $target, $result);
 
     // test zuc_is_math_symbol_or_num
@@ -178,13 +176,13 @@ function run_math_test(testing $t)
     echo "zuc_frm3:".$in_result[0];
       $in_result = zuc_frm(5, "", $wrd_ids, 0, 14, 8);
     echo "zuc_frm5:".$in_result[0];
-      $in_result = zuc_frm(52, "{t19}=({f3}-{f5})/{f5}", $wrd_ids, 0, 14, 8);
+      $in_result = zuc_frm(52, "{w19}=({f3}-{f5})/{f5}", $wrd_ids, 0, 14, 8);
     echo "zuc_frm:".$in_result[0];
     */
     /*
     $frm_id = 31;
-    $frm_text = zuf_text($frm_id, $usr->id);
-    zuf_element_refresh($frm_id, $frm_text, $usr->id, 20);
+    $frm_text = zuf_text($frm_id, $usr->id());
+    zuf_element_refresh($frm_id, $frm_text, $usr->id(), 20);
     */
 
 

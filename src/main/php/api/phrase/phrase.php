@@ -2,8 +2,8 @@
 
 /*
 
-    api\phrase.php - the minimal phrase object for the frontend API
-    --------------
+    api/phrase/phrase.php - the minimal phrase object for the frontend API
+    ---------------------
 
     This file is part of zukunft.com - calc with words
 
@@ -40,13 +40,24 @@ use html\word_dsp;
 class phrase_api extends user_sandbox_named_api
 {
 
-    // phrase names for stand-alone unit tests
-    // for database based test words see model/phrase/phrase.php
-    const TN_ZH_CITY = 'City of Zurich';
-    const TN_ZH_CANTON = 'Canton Zurich';
+    // phrase names for stand-alone unit tests that are added with the system initial data load
+    // TN_* is the name of the phrase used for testing
+    // TD_* is the tooltip/description of the phrase
+    const TN_ZH_CITY_NAME = 'City of Zurich';
+    const TN_ZH_CITY = 'Zurich (City)';
+    const TN_ZH_CANTON_NAME = 'Canton Zurich';
+    const TN_ZH_CANTON = 'Zurich (Canton)';
+    const TN_ZH_COMPANY = "System Test Phrase: Zurich Insurance";
 
-    // the mouse over tooltip for the word
-    private ?string $description = null;
+    const RESERVED_PHRASES = array(
+        self::TN_ZH_CANTON,
+        self::TN_ZH_CITY,
+        self::TN_ZH_COMPANY
+    );
+    const TEST_TRIPLE_STANDARD = array(
+        self::TN_ZH_CANTON,
+        self::TN_ZH_CITY
+    );
 
     // used only if the phrase is a triple
     private ?triple_api $triple;
@@ -96,8 +107,9 @@ class phrase_api extends user_sandbox_named_api
         return $this->description;
     }
 
+
     /*
-     * casting objects
+     * cast
      */
 
     /**

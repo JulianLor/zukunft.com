@@ -30,6 +30,7 @@
 
 */
 
+use api\word_api;
 use cfg\phrase_type;
 
 class word_list_unit_tests
@@ -43,7 +44,7 @@ class word_list_unit_tests
         $db_con = new sql_db();
         $t->name = 'word_list->';
         $t->resource_path = 'db/word/';
-        $usr->id = 1;
+        $usr->set_id(1);
 
         $t->header('Unit tests of the word list class (src/main/php/model/word/word_list.php)');
 
@@ -56,7 +57,7 @@ class word_list_unit_tests
 
         // load by word names
         $wrd_lst = new word_list($usr);
-        $wrd_names = array(word::TN_READ, word::TN_ADD);
+        $wrd_names = array(word_api::TN_READ, word_api::TN_ADD);
         $this->assert_sql_by_names($t, $db_con, $wrd_lst, $wrd_names);
 
         // load by phrase group
@@ -77,7 +78,7 @@ class word_list_unit_tests
         // the parent words
         $wrd_lst = new word_list($usr);
         $wrd = new word($usr);
-        $wrd->id = 6;
+        $wrd->set_id(6);
         $wrd_lst->add($wrd);
         $verb_id = 0;
         $direction = word_select_direction::UP;
@@ -86,7 +87,7 @@ class word_list_unit_tests
         // the parent words filtered by verb
         $wrd_lst = new word_list($usr);
         $wrd = new word($usr);
-        $wrd->id = 7;
+        $wrd->set_id(7);
         $wrd_lst->add($wrd);
         $verb_id = 1;
         $this->assert_sql_by_linked_words($t, $db_con, $wrd_lst, $verb_id, $direction);
@@ -94,7 +95,7 @@ class word_list_unit_tests
         // the child words
         $wrd_lst = new word_list($usr);
         $wrd = new word($usr);
-        $wrd->id = 8;
+        $wrd->set_id(8);
         $wrd_lst->add($wrd);
         $verb_id = 0;
         $direction = word_select_direction::DOWN;
@@ -103,7 +104,7 @@ class word_list_unit_tests
         // the child words filtered by verb
         $wrd_lst = new word_list($usr);
         $wrd = new word($usr);
-        $wrd->id = 9;
+        $wrd->set_id(9);
         $wrd_lst->add($wrd);
         $verb_id = 1;
         $this->assert_sql_by_linked_words($t, $db_con, $wrd_lst, $verb_id, $direction);
@@ -112,34 +113,34 @@ class word_list_unit_tests
 
         // create words for unit testing
         $wrd1 = new word($usr);
-        $wrd1->id = 1;
-        $wrd1->name = 'word1';
+        $wrd1->set_id(1);
+        $wrd1->set_name('word1');
         $wrd2 = new word($usr);
-        $wrd2->id = 2;
-        $wrd2->name = 'word2';
+        $wrd2->set_id(2);
+        $wrd2->set_name('word2');
         $wrd3 = new word($usr);
-        $wrd3->id = 3;
-        $wrd3->name = 'word3';
+        $wrd3->set_id(3);
+        $wrd3->set_name('word3');
         $wrd_time = new word($usr);
-        $wrd_time->id = 4;
-        $wrd_time->name = 'time_word';
-        $wrd_time->type_id = cl(db_cl::WORD_TYPE, phrase_type::TIME);
+        $wrd_time->set_id(4);
+        $wrd_time->set_name('time_word');
+        $wrd_time->type_id = cl(db_cl::PHRASE_TYPE, phrase_type::TIME);
         $wrd_time2 = new word($usr);
-        $wrd_time2->id = 5;
-        $wrd_time2->name = 'time_word2';
-        $wrd_time2->type_id = cl(db_cl::WORD_TYPE, phrase_type::TIME);
+        $wrd_time2->set_id(5);
+        $wrd_time2->set_name('time_word2');
+        $wrd_time2->type_id = cl(db_cl::PHRASE_TYPE, phrase_type::TIME);
         $wrd_scale = new word($usr);
-        $wrd_scale->id = 6;
-        $wrd_scale->name = 'scale_word';
-        $wrd_scale->type_id = cl(db_cl::WORD_TYPE, phrase_type::SCALING);
+        $wrd_scale->set_id(6);
+        $wrd_scale->set_name('scale_word');
+        $wrd_scale->type_id = cl(db_cl::PHRASE_TYPE, phrase_type::SCALING);
         $wrd_percent = new word($usr);
-        $wrd_percent->id = 7;
-        $wrd_percent->name = 'percent_word';
-        $wrd_percent->type_id = cl(db_cl::WORD_TYPE, phrase_type::PERCENT);
+        $wrd_percent->set_id(7);
+        $wrd_percent->set_name('percent_word');
+        $wrd_percent->type_id = cl(db_cl::PHRASE_TYPE, phrase_type::PERCENT);
         $wrd_measure = new word($usr);
-        $wrd_measure->id = 8;
-        $wrd_measure->name = 'measure_word';
-        $wrd_measure->type_id = cl(db_cl::WORD_TYPE, phrase_type::MEASURE);
+        $wrd_measure->set_id(8);
+        $wrd_measure->set_name('measure_word');
+        $wrd_measure->type_id = cl(db_cl::PHRASE_TYPE, phrase_type::MEASURE);
 
         // merge two lists
         $wrd_lst = new word_list($usr);
@@ -253,8 +254,10 @@ class word_list_unit_tests
         $wrd_lst->add($wrd_time);
         $wrd_lst->add($wrd_measure);
         $wrd_lst->add($wrd_scale);
-        $json = json_encode($wrd_lst->export_obj());
-        $t->assert($t->name . '->measure list', $json, '[{"plural":"","description":"","type":"time","view":"","refs":[],"name":"time_word","share":"","protection":""},{"plural":"","description":"","type":"measure","view":"","refs":[],"name":"measure_word","share":"","protection":""},{"plural":"","description":"","type":"scaling","view":"","refs":[],"name":"scale_word","share":"","protection":""}]');
+        $json = json_decode(json_encode($wrd_lst->export_obj()));
+        $json_expected = json_decode(file_get_contents(PATH_TEST_FILES . 'export/word/word_list.json'));
+        $result = json_is_similar($json, $json_expected);
+        $t->assert('JSON export word list', $result, true);
 
     }
 

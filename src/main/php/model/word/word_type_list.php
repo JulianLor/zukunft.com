@@ -2,38 +2,40 @@
 
 /*
 
-  word_types.php - to link coded functionality to a word or a word link, which means to every phrase
-  -----------------
-  
-  This file is part of zukunft.com - calc with words
+    word_type_list.php - to link coded functionality to a word or a triple, which means to every phrase
+    ------------------
 
-  zukunft.com is free software: you can redistribute it and/or modify it
-  under the terms of the GNU General Public License as
-  published by the Free Software Foundation, either version 3 of
-  the License, or (at your option) any later version.
-  zukunft.com is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-  GNU General Public License for more details.
-  
-  You should have received a copy of the GNU General Public License
-  along with zukunft.com. If not, see <http://www.gnu.org/licenses/agpl.html>.
-  
-  To contact the authors write to:
-  Timon Zielonka <timon@zukunft.com>
-  
-  Copyright (c) 1995-2022 zukunft.com AG, Zurich
-  Heang Lor <heang@zukunft.com>
-  
-  http://zukunft.com
+    This file is part of zukunft.com - calc with words
+
+    zukunft.com is free software: you can redistribute it and/or modify it
+    under the terms of the GNU General Public License as
+    published by the Free Software Foundation, either version 3 of
+    the License, or (at your option) any later version.
+    zukunft.com is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with zukunft.com. If not, see <http://www.gnu.org/licenses/agpl.html>.
+
+    To contact the authors write to:
+    Timon Zielonka <timon@zukunft.com>
+
+    Copyright (c) 1995-2022 zukunft.com AG, Zurich
+    Heang Lor <heang@zukunft.com>
+
+    http://zukunft.com
   
 */
 
-global $word_types;
+global $phrase_types;
 
 use cfg\phrase_type;
+use cfg\type_list;
+use cfg\type_object;
 
-class word_type_list extends user_type_list
+class word_type_list extends type_list
 {
 
     const TYPES = array(
@@ -59,7 +61,7 @@ class word_type_list extends user_type_list
      * @param sql_db $db_con the database connection that can be either the real database connection or a simulation used for testing
      * @return bool true if load was successful
      */
-    function load(sql_db $db_con, string $db_type = DB_TYPE_WORD_TYPE): bool
+    function load(sql_db $db_con, string $db_type = sql_db::TBL_WORD_TYPE): bool
     {
         return parent::load($db_con, $db_type);
     }
@@ -67,19 +69,16 @@ class word_type_list extends user_type_list
     /**
      * adding the word types used for unit tests to the dummy list
      */
-    function load_dummy()
+    function load_dummy(): void
     {
-        parent::load_dummy();
-        $i = 2;
+        $i = 1;
         foreach (self::TYPES as $type_name)
         {
-            $type = new user_type();
-            $type->name = $type_name;
-            $type->code_id = $type_name;
-            $this->lst[$i] = $type;
-            $this->hash[$type_name] = $i;
+            $type = new type_object($type_name, $type_name, '', $i);
+            $this->add($type);
             $i++;
         }
+        //parent::load_dummy();
     }
 
     /**

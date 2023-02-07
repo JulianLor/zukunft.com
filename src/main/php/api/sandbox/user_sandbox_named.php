@@ -2,8 +2,8 @@
 
 /*
 
-    api\user_sandbox_named.php - extends the minimal superclass for named objects such as formulas
-    --------------------------
+    api/sandbox/user_sandbox_named_api.php - extends the frontend API superclass for named objects such as formulas
+    --------------------------------------
 
 
     This file is part of zukunft.com - calc with words
@@ -32,16 +32,19 @@
 
 namespace api;
 
+use html\phrase_dsp;
+use html\term_dsp;
+
 class user_sandbox_named_api extends user_sandbox_api
 {
 
     // the unique name of the object that is shown to the user
     // the name must always be set
-    protected string $name;
+    public string $name;
 
-    // all named objects can have a type that links predefined functionality to it
-    // e.g. all value assigned with the percent word are per default shown as percent with two decimals
-    //protected object_type $type;
+    // the mouse over tooltip for the named object e.g. word, triple, formula, verb, view or component
+    public ?string $description = null;
+
 
 
     /*
@@ -60,6 +63,7 @@ class user_sandbox_named_api extends user_sandbox_api
 
     }
 
+
     /*
      * set and get
      */
@@ -72,6 +76,21 @@ class user_sandbox_named_api extends user_sandbox_api
     public function name(): string
     {
         return $this->name;
+    }
+
+
+    /*
+     * cast
+     */
+
+    function phrase(): phrase_api|phrase_dsp
+    {
+        return new phrase_api($this->id, $this->name);
+    }
+
+    function term(): term_api|term_dsp
+    {
+        return new term_api($this->id, $this->name);
     }
 
     /*

@@ -31,7 +31,10 @@
 
 global $formula_element_types;
 
-class formula_element_type_list extends user_type_list
+use cfg\type_list;
+use cfg\type_object;
+
+class formula_element_type_list extends type_list
 {
     // list of the formula element types that have a coded functionality
     const WORD_SELECTOR = "word_selector";
@@ -41,7 +44,7 @@ class formula_element_type_list extends user_type_list
      * @param sql_db $db_con the database connection that can be either the real database connection or a simulation used for testing
      * @return bool true if load was successful
      */
-    function load(sql_db $db_con, string $db_type = DB_TYPE_FORMULA_ELEMENT_TYPE): bool
+    function load(sql_db $db_con, string $db_type = sql_db::TBL_FORMULA_ELEMENT_TYPE): bool
     {
         return parent::load($db_con, $db_type);
     }
@@ -49,13 +52,15 @@ class formula_element_type_list extends user_type_list
     /**
      * adding the view component types used for unit tests to the dummy list
      */
-    function load_dummy() {
+    function load_dummy(): void
+    {
         parent::load_dummy();
-        $type = new user_type();
-        $type->name = formula_element_type_list::WORD_SELECTOR;
-        $type->code_id = formula_element_type_list::WORD_SELECTOR;
-        $this->lst[2] = $type;
-        $this->hash[formula_element_type_list::WORD_SELECTOR] = 2;
+        $type = new type_object(
+            formula_element_type_list::WORD_SELECTOR,
+            formula_element_type_list::WORD_SELECTOR,
+            '',
+            2);
+        $this->add($type);
     }
 
     /**

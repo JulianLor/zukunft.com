@@ -30,7 +30,8 @@
 */
 
 $debug = $_GET['debug'] ?? 0;
-include_once '../src/main/php/zu_lib.php';
+const ROOT_PATH = __DIR__ . '/../';
+include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 
 $db_con = prg_start("formula_del");
 
@@ -41,14 +42,13 @@ $usr = new user;
 $result .= $usr->get();
 
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
-if ($usr->id > 0) {
+if ($usr->id() > 0) {
 
     load_usr_data();
 
     // prepare the display
     $dsp = new view_dsp_old($usr);
-    $dsp->id = cl(db_cl::VIEW, view::FORMULA_DEL);
-    $dsp->load();
+    $dsp->load_by_id(cl(db_cl::VIEW, view::FORMULA_DEL));
     $back = $_GET['back'];
 
     // get the parameters
@@ -60,8 +60,7 @@ if ($usr->id > 0) {
 
         // init the formula object
         $frm = new formula($usr);
-        $frm->id = $formula_id;
-        $frm->load();
+        $frm->load_by_id($formula_id);
 
         if ($confirm == 1) {
             $frm->del();
@@ -72,9 +71,9 @@ if ($usr->id > 0) {
             $result .= $dsp->dsp_navbar($back);
 
             if ($frm->is_used()) {
-                $result .= \html\btn_yesno("Exclude \"" . $frm->name . "\" ", "/http/formula_del.php?id=" . $formula_id . "&back=" . $back);
+                $result .= \html\btn_yesno("Exclude \"" . $frm->name() . "\" ", "/http/formula_del.php?id=" . $formula_id . "&back=" . $back);
             } else {
-                $result .= \html\btn_yesno("Delete \"" . $frm->name . "\" ", "/http/formula_del.php?id=" . $formula_id . "&back=" . $back);
+                $result .= \html\btn_yesno("Delete \"" . $frm->name() . "\" ", "/http/formula_del.php?id=" . $formula_id . "&back=" . $back);
             }
         }
     } else {

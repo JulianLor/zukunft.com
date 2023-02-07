@@ -2,8 +2,8 @@
 
 /*
 
-    api\view.php - the view object for the frontend API
-    ------------
+    api/view/view.php - the view object for the frontend API
+    -----------------
 
 
     This file is part of zukunft.com - calc with words
@@ -32,8 +32,51 @@
 
 namespace api;
 
-class view_api extends user_sandbox_named_api
+class view_api extends user_sandbox_named_with_type_api
 {
+
+    /*
+     * const for system testing
+     */
+
+    // persevered view names for unit and integration tests
+    // TN_* means 'test name'
+    // TD_* means 'description'
+    // TI_* means 'code id'
+    const TN_READ = 'Word';
+    const TD_READ = 'the default view for words';
+    const TI_READ = 'word';
+    const TN_ADD = 'System Test View';
+    const TN_RENAMED = 'System Test View Renamed';
+    const TN_COMPLETE = 'System Test View Complete';
+    const TN_TABLE = 'System Test View Table';
+
+    const TN_READ_RATIO = 'Company ratios';
+    const TN_READ_NESN_2016 = 'Nestlé Financial Statement 2016';
+
+    // array of view names that used for testing and remove them after the test
+    const RESERVED_VIEWS = array(
+        self::TN_ADD,
+        self::TN_RENAMED,
+        self::TN_COMPLETE,
+        self::TN_TABLE
+    );
+
+    // array of test view names create before the test
+    const TEST_VIEWS = array(
+        self::TN_COMPLETE,
+        self::TN_TABLE
+    );
+
+
+    /*
+     * object vars
+     */
+
     // the mouse over tooltip for the word
     public ?string $description = null;
+    public ?string $code_id = null;
+
+    // the components linked to this view
+    public array $cmp_lst = [];
 }

@@ -2,8 +2,8 @@
 
 /*
 
-    api\user_sandbox.php - the minimal superclass for the frontend API
-    --------------------
+    api/sandbox/user_sandbox.php - the minimal superclass for the frontend API
+    ----------------------------
 
     This superclass should be used by the classes word_min, formula_min, ... to enable user specific values and links
 
@@ -39,14 +39,14 @@ use user;
 use user_sandbox;
 use value;
 use word;
-use word_link;
+use triple;
 use function log_err;
 
 class user_sandbox_api
 {
 
     // fields for the backend link
-    protected int $id; // the database id of the object, which is the same as the related database object in the backend
+    public int $id; // the database id of the object, which is the same as the related database object in the backend
 
     /*
      * construct and map
@@ -76,6 +76,7 @@ class user_sandbox_api
         return $this->id;
     }
 
+
     /*
      * casting
      */
@@ -85,17 +86,19 @@ class user_sandbox_api
         $db_obj = null;
         if ($class == word_api::class) {
             $db_obj = new word($usr);
+            $db_obj->load_by_id($this->id, word::class);
         } elseif ($class == triple_api::class) {
-            $db_obj = new word_link($usr);
+            $db_obj = new triple($usr);
+            $db_obj->load_by_id($this->id, triple::class);
         } elseif ($class == value_api::class) {
             $db_obj = new value($usr);
+            $db_obj->load_by_id($this->id, value::class);
         } elseif ($class == formula_api::class) {
             $db_obj = new formula($usr);
+            $db_obj->load_by_id($this->id, formula::class);
         } else {
             log_err('API class "' . $class . '" not yet implemented');
         }
-        $db_obj->id = $this->id;
-        $db_obj->load();
         return $db_obj;
     }
 

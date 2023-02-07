@@ -30,7 +30,9 @@
 
 */
 
-function run_verb_test(testing $t)
+use api\word_api;
+
+function run_verb_test(testing $t): void
 {
 
     global $usr;
@@ -39,25 +41,24 @@ function run_verb_test(testing $t)
 
     // check the loading of the "is a" verb
     $vrb = new verb;
-    $vrb->id = cl(db_cl::VERB, verb::IS_A);
-    $vrb->usr = $usr;
-    $vrb->load();
+    $vrb->set_user($usr);
+    $vrb->load_by_id(cl(db_cl::VERB, verb::IS_A));
     $target = 'is a';
-    $result = $vrb->name;
+    $result = $vrb->name();
     $t->dsp('verb->load ', $target, $result);
 
 
     $t->header('Test the verb list class (classes/verb_list.php)');
 
     // check the loading of the "is a" verb
-    $wrd_ZH = $t->load_word(word::TN_ZH);
+    $wrd_ZH = $t->load_word(word_api::TN_ZH);
     $vrb_lst = $wrd_ZH->link_types(word_select_direction::UP);
     $target = 'is a';
     $result = '';
     // select the first verb
     foreach ($vrb_lst->lst as $vrb) {
         if ($result == '') {
-            $result = $vrb->name;
+            $result = $vrb->name();
         }
     }
     $t->dsp('verb_list->load ', $target, $result);

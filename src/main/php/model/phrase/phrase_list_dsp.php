@@ -50,11 +50,11 @@ class phrase_list_dsp_old extends phrase_list
         $result = array();
         if (isset($this->lst)) {
             foreach ($this->lst as $phr) {
-                $result[] = $phr->name;
-                if (!isset($phr->usr)) {
-                    log_err('The user of a phrase list element differs from the list user.', 'phrase_list->names', 'The user of "' . $phr->name . '" is missing, but the list user is "' . $this->usr->name . '".', (new Exception)->getTraceAsString(), $this->usr);
-                } elseif ($phr->usr <> $this->usr) {
-                    log_err('The user of a phrase list element differs from the list user.', 'phrase_list->names', 'The user "' . $phr->usr->name . '" of "' . $phr->name . '" does not match the list user "' . $this->usr->name . '".', (new Exception)->getTraceAsString(), $this->usr);
+                $result[] = $phr->name();
+                if (!$phr->user()->is_set()) {
+                    log_err('The user of a phrase list element differs from the list user.', 'phrase_list->names', 'The user of "' . $phr->name() . '" is missing, but the list user is "' . $this->user()->name . '".', (new Exception)->getTraceAsString(), $this->user());
+                } elseif ($phr->user() <> $this->user()) {
+                    log_err('The user of a phrase list element differs from the list user.', 'phrase_list->names', 'The user "' . $phr->user()->name . '" of "' . $phr->name() . '" does not match the list user "' . $this->user()->name . '".', (new Exception)->getTraceAsString(), $this->user());
                 }
             }
         }
@@ -92,7 +92,7 @@ class phrase_list_dsp_old extends phrase_list
     }
 
     // return one string with all names of the list with the link
-    function name_linked()
+    function name_linked(): string
     {
         $result = dsp_array($this->names_linked());
         return $result;
@@ -141,7 +141,7 @@ class phrase_list_dsp_old extends phrase_list
 
         // loop over the link types
         if ($this->lst == null) {
-            $result .= 'Nothing linked to ' . $root_phr->name() . ' until now. Click here to link it.';
+            $result .= 'Nothing linked to ' . $root_phr->dsp_name() . ' until now. Click here to link it.';
         } else {
             $wrd_lst = $this->wrd_lst_all();
             $wrd_lst_dsp = $wrd_lst->dsp_obj();

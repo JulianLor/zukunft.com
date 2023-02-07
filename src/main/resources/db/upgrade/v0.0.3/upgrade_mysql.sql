@@ -5,14 +5,46 @@
 -- --------------------------------------------------------
 
 --
+-- Table structure for table`user_refs`
+--
+
+CREATE TABLE IF NOT EXISTS `user_refs`
+(
+    `ref_id`        int(11) NOT NULL,
+    `user_id`       int(11) NOT NULL,
+    `url`           text         DEFAULT NULL,
+    `description`   text         DEFAULT NULL,
+    `excluded`      tinyint(4)   DEFAULT NULL
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8;
+
+--
+-- Indexes for table`user_refs`
+--
+ALTER TABLE `user_refs`
+    ADD UNIQUE KEY `ref_id` (`ref_id`, `user_id`),
+    ADD KEY `user_id` (`user_id`),
+    ADD KEY `ref_id_2` (`ref_id`);
+
+--
+-- Constraints for table`user_refs`
+--
+ALTER TABLE `user_refs`
+    ADD CONSTRAINT `user_refs_fk_1` FOREIGN KEY (`ref_id`) REFERENCES `refs` (`ref_id`),
+    ADD CONSTRAINT `user_refs_fk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`);
+
+-- --------------------------------------------------------
+
+--
 -- Structure for view`phrases`
 --
+
 DROP TABLE IF EXISTS `phrases`;
 
 CREATE ALGORITHM = UNDEFINED DEFINER =`root`@`localhost` SQL SECURITY DEFINER VIEW `phrases` AS
 select `words`.`word_id`            AS `phrase_id`,
        `words`.`user_id`            AS `user_id`,
-       `words`.`word_name`          AS `name_used`,
+       `words`.`word_name`          AS `phrase_name`,
        `words`.`description`        AS `description`,
        `words`.`values`             AS `values`,
        `words`.`word_type_id`       AS `word_type_id`,
@@ -21,17 +53,16 @@ select `words`.`word_id`            AS `phrase_id`,
        `words`.`protect_id` AS `protect_id`
 from `words`
 union
-select (`word_links`.`word_link_id` * -(1)) AS `phrase_id`,
-       `word_links`.`user_id`               AS `user_id`,
-       if(`word_links`.`name_given` is null, `word_links`.`name_generated`,
-          `word_links`.`name_given`)    AS `name_used`,
-       `word_links`.`description`           AS `description`,
-       `word_links`.`values`                AS `values`,
-       `word_links`.`word_type_id`          AS `word_type_id`,
-       `word_links`.`excluded`              AS `excluded`,
-       `word_links`.`share_type_id`         AS `share_type_id`,
-       `word_links`.`protect_id`    AS `protect_id`
-from `word_links`;
+select (`triples`.`triple_id` * -(1)) AS `phrase_id`,
+       `triples`.`user_id`               AS `user_id`,
+       if(`triples`.`name_given` is null, `triples`.`name_generated`, `triples`.`name_given`) AS `phrase_name`,
+       `triples`.`description`           AS `description`,
+       `triples`.`values`                AS `values`,
+       `triples`.`word_type_id`          AS `word_type_id`,
+       `triples`.`excluded`              AS `excluded`,
+       `triples`.`share_type_id`         AS `share_type_id`,
+       `triples`.`protect_id`    AS `protect_id`
+from `triples`;
 
 --
 -- Structure for view`user_phrases`
@@ -39,27 +70,140 @@ from `word_links`;
 DROP TABLE IF EXISTS `user_phrases`;
 
 CREATE ALGORITHM = UNDEFINED DEFINER =`root`@`localhost` SQL SECURITY DEFINER VIEW `user_phrases` AS
-select `user_words`.`word_id`            AS `phrase_id`,
-       `user_words`.`user_id`            AS `user_id`,
-       `user_words`.`word_name`          AS `name_used`,
-       `user_words`.`description`        AS `description`,
-       `user_words`.`values`             AS `values`,
-       `user_words`.`excluded`           AS `excluded`,
-       `user_words`.`share_type_id`      AS `share_type_id`,
-       `user_words`.`protect_id` AS `protect_id`
+select `user_words`.`word_id`       AS `phrase_id`,
+       `user_words`.`user_id`       AS `user_id`,
+       `user_words`.`word_name`     AS `phrase_name`,
+       `user_words`.`description`   AS `description`,
+       `user_words`.`values`        AS `values`,
+       `user_words`.`excluded`      AS `excluded`,
+       `user_words`.`share_type_id` AS `share_type_id`,
+       `user_words`.`protect_id`    AS `protect_id`
 from `user_words`
 union
-select (`user_word_links`.`word_link_id` * -(1)) AS `phrase_id`,
-        `user_word_links`.`user_id`              AS `user_id`,
-       if(`user_word_links`.`name_given` is null, `user_word_links`.`name_generated`,
-          `user_word_links`.`name_given`)    AS `name_used`,
-       `user_word_links`.`description`           AS `description`,
-       `user_word_links`.`values`                AS `values`,
-       `user_word_links`.`excluded`              AS `excluded`,
-       `user_word_links`.`share_type_id`         AS `share_type_id`,
-       `user_word_links`.`protect_id`    AS `protect_id`
-from `user_word_links`;
+select (`user_triples`.`triple_id` * -(1)) AS `phrase_id`,
+       `user_triples`.`user_id`               AS `user_id`,
+       if(`user_triples`.`name_given` is null, `user_triples`.`name_generated`, `user_triples`.`name_given`) AS `phrase_name`,
+       `user_triples`.`description`           AS `description`,
+       `user_triples`.`values`                AS `values`,
+       `user_triples`.`excluded`              AS `excluded`,
+       `user_triples`.`share_type_id`         AS `share_type_id`,
+       `user_triples`.`protect_id`            AS `protect_id`
+from `user_triples`;
 
+
+--
+-- Structure for view`terms`
+--
+DROP TABLE IF EXISTS `terms`;
+
+CREATE ALGORITHM = UNDEFINED DEFINER =`root`@`localhost` SQL SECURITY DEFINER VIEW `terms` AS
+select ((`words`.`word_id` * 2) - 1) AS `term_id`,
+       `words`.`user_id`           AS `user_id`,
+       `words`.`word_name`         AS `term_name`,
+       `words`.`description`       AS `description`,
+       `words`.`values`            AS `usage`,
+       `words`.`excluded`          AS `excluded`,
+       `words`.`share_type_id`     AS `share_type_id`,
+       `words`.`protect_id`        AS `protect_id`
+from `words`
+where `words`.`word_type_id` <> 10 OR `words`.`word_type_id` is null
+union
+select ((`triples`.`triple_id` * -2) + 1) AS `term_id`,
+       `triples`.`user_id`                 AS `user_id`,
+       if(`triples`.`name_given` is null, `triples`.`name_generated`, `triples`.`name_given`) AS `term_name`,
+       `triples`.`description`             AS `description`,
+       `triples`.`values`                  AS `usage`,
+       `triples`.`excluded`                AS `excluded`,
+       `triples`.`share_type_id`           AS `share_type_id`,
+       `triples`.`protect_id`              AS `protect_id`
+from `triples`
+union
+select (`formulas`.`formula_id` * 2) AS `term_id`,
+       `formulas`.`user_id`         AS `user_id`,
+       `formulas`.`formula_name`    AS `term_name`,
+       `formulas`.`description`     AS `description`,
+       `formulas`.`usage`           AS `usage`,
+       `formulas`.`excluded`        AS `excluded`,
+       `formulas`.`share_type_id`   AS `share_type_id`,
+       `formulas`.`protect_id`      AS `protect_id`
+from `formulas`
+union
+select (`verbs`.`verb_id` * -2) AS `term_id`,
+       NULL                    AS `user_id`,
+       `verbs`.`formula_name`  AS `term_name`,
+       `verbs`.`description`   AS `description`,
+       `verbs`.`words`         AS `usage`,
+       NULL                    AS `excluded`,
+       1                       AS `share_type_id`,
+       3                       AS `protect_id`
+from `verbs`
+;
+
+--
+-- Structure for view `user_terms`
+--
+DROP TABLE IF EXISTS `user_terms`;
+
+CREATE ALGORITHM = UNDEFINED DEFINER =`root`@`localhost`SQL
+    SECURITY DEFINER VIEW `user_terms` AS
+select ((`user_words`.`word_id` * 2) - 1) AS `term_id`,
+       `user_words`.`user_id`             AS `user_id`,
+       `user_words`.`word_name`           AS `term_name`,
+       `user_words`.`description`         AS `description`,
+       `user_words`.`values`              AS `usage`,
+       `user_words`.`excluded`            AS `excluded`,
+       `user_words`.`share_type_id`       AS `share_type_id`,
+       `user_words`.`protect_id`          AS `protect_id`
+from `user_words`
+where `user_words`.`word_type_id` <> 10
+union
+select ((`user_triples`.`triple_id` * -2) + 1) AS `term_id`,
+       `user_triples`.`user_id`                   AS `user_id`,
+       if(`user_triples`.`name_given` is null, `user_triples`.`name_generated`, `user_triples`.`name_given`) AS `term_name`,
+       `user_triples`.`description`               AS `description`,
+       `user_triples`.`values`                    AS `usage`,
+       `user_triples`.`excluded`                  AS `excluded`,
+       `user_triples`.`share_type_id`             AS `share_type_id`,
+       `user_triples`.`protect_id`                AS `protect_id`
+from `user_triples`
+union
+select (`user_formulas`.`formula_id` * 2) AS `term_id`,
+       `user_formulas`.`user_id`          AS `user_id`,
+       `user_formulas`.`formula_name`     AS `term_name`,
+       `user_formulas`.`description`      AS `description`,
+       `user_formulas`.`usage`            AS `usage`,
+       `user_formulas`.`excluded`         AS `excluded`,
+       `user_formulas`.`share_type_id`    AS `share_type_id`,
+       `user_formulas`.`protect_id`       AS `protect_id`
+from `user_formulas`
+union
+select (`verbs`.`verb_id` * -2) AS `term_id`,
+       NULL                     AS `user_id`,
+       `verbs`.`formula_name`   AS `term_name`,
+       `verbs`.`description`    AS `description`,
+       `verbs`.`words`          AS `usage`,
+       NULL                     AS `excluded`,
+       1                        AS `share_type_id`,
+       3                        AS `protect_id`
+from `verbs`
+;
+
+--
+-- Structure for view`change_table_fields`
+--
+DROP TABLE IF EXISTS `change_table_fields`;
+
+CREATE ALGORITHM = UNDEFINED DEFINER =`root`@`localhost`SQL
+    SECURITY DEFINER VIEW `change_table_fields` AS
+select `change_fields`.`change_field_id`                                              AS `change_table_field_id`,
+       CONCAT(`change_tables`.`change_table_id`, `change_fields`.`change_field_name`) AS `change_table_field_name`,
+       `change_fields`.`description`                                                  AS `description`,
+       IF(`change_fields`.`code_id` IS NULL,
+          CONCAT(`change_tables`.`change_table_id`, `change_fields`.`change_field_name`),
+          `change_fields`.`code_id`) AS `code_id`
+from `change_fields`,
+     `change_tables`
+WHERE `change_fields`.table_id = `change_tables`.change_table_id;
 
 -- --------------------------------------------------------
 

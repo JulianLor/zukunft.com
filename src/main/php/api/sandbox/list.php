@@ -2,8 +2,8 @@
 
 /*
 
-    api\List.php - the minimal list object used for the api
-    ------------
+    api/sandbox/list.php - the minimal list object used for the api
+    --------------------
 
     e.g. used for the value and formula result api object
 
@@ -73,7 +73,7 @@ class list_api
     }
 
     /**
-     * @returns array the protected list of value or formula results
+     * @returns array the protected list of values or formula results
      */
     public function lst(): array
     {
@@ -99,6 +99,30 @@ class list_api
     {
         $this->lst_dirty = true;
         return true;
+    }
+
+    /*
+     * information functions
+     */
+
+    /**
+     * @returns int the number of objects of the protected list
+     */
+    function count(): int
+    {
+        return count($this->lst);
+    }
+
+    /**
+     * @returns true if the list does not contain any object
+     */
+    function is_empty(): bool
+    {
+        if ($this->count() <= 0) {
+            return true;
+        } else {
+            return false;
+        }
     }
 
     /*

@@ -2,7 +2,7 @@
 
 /*
 
-    web\view\view_cmp.php - the display extension of the api view component object
+    /web/view/view_cmp.php - the display extension of the api view component object
     ---------------------
 
     This file is part of zukunft.com - calc with words
@@ -32,8 +32,239 @@
 namespace html;
 
 use api\view_cmp_api;
+use view_cmp_type;
 
 class view_cmp_dsp extends view_cmp_api
 {
+
+    const FORM_ADD = 'view_component_add';
+    const FORM_EDIT = 'view_component_edit';
+
+    /**
+     * @returns string the html code to display this view component
+     */
+    function html(?phrase_dsp $phr = null): string
+    {
+        global $view_component_types;
+        return match ($view_component_types->code_id($this->type_id)) {
+            view_cmp_type::TEXT => $this->text(),
+            view_cmp_type::PHRASE_NAME => $this->word_name($phr),
+            view_cmp_type::VALUES_RELATED => $this->table(),
+            default => 'ERROR: unknown type ',
+        };
+    }
+
+    /**
+     * @return string a fixed text
+     */
+    function text(): string
+    {
+        global $view_component_types;
+        if ($view_component_types->code_id($this->type_id) == view_cmp_type::TEXT) {
+            return $this->name();
+        } else {
+            return '';
+        }
+    }
+
+    /**
+     * @return string the name of a phrase and give the user the possibility to change the phrase name
+     */
+    function word_name(phrase_dsp $phr): string
+    {
+        global $view_component_types;
+        if ($view_component_types->code_id($this->type_id) == view_cmp_type::PHRASE_NAME) {
+            return $phr->name();
+        } else {
+            return '';
+        }
+    }
+
+    /**
+     * TODO move code from view_cmp_dsp_old
+     * @return string a dummy text
+     */
+    function table(): string
+    {
+        global $view_component_types;
+        if ($view_component_types->code_id($this->type_id) == view_cmp_type::VALUES_RELATED) {
+            return $this->name();
+        } else {
+            return '';
+        }
+    }
+
+    /**
+     * TODO move code from view_cmp_dsp_old
+     * @return string a dummy text
+     */
+    function num_list(): string
+    {
+        global $view_component_types;
+        if ($view_component_types->code_id($this->type_id) == view_cmp_type::WORD_VALUE) {
+            return $this->name();
+        } else {
+            return '';
+        }
+    }
+
+    /**
+     * TODO move code from view_cmp_dsp_old
+     * @return string a dummy text
+     */
+    function formulas(): string
+    {
+        global $view_component_types;
+        if ($view_component_types->code_id($this->type_id) == view_cmp_type::FORMULAS) {
+            return $this->name();
+        } else {
+            return '';
+        }
+    }
+
+    /**
+     * TODO move code from view_cmp_dsp_old
+     * @return string a dummy text
+     */
+    function formula_values(): string
+    {
+        global $view_component_types;
+        if ($view_component_types->code_id($this->type_id) == view_cmp_type::FORMULA_RESULTS) {
+            return $this->name();
+        } else {
+            return '';
+        }
+    }
+
+    /**
+     * TODO move code from view_cmp_dsp_old
+     * @return string a dummy text
+     */
+    function word_children(): string
+    {
+        global $view_component_types;
+        if ($view_component_types->code_id($this->type_id) == view_cmp_type::WORDS_DOWN) {
+            return $this->name();
+        } else {
+            return '';
+        }
+    }
+
+    /**
+     * TODO move code from view_cmp_dsp_old
+     * @return string a dummy text
+     */
+    function word_parents(): string
+    {
+        global $view_component_types;
+        if ($view_component_types->code_id($this->type_id) == view_cmp_type::WORDS_UP) {
+            return $this->name();
+        } else {
+            return '';
+        }
+    }
+
+    /**
+     * TODO move code from view_cmp_dsp_old
+     * @return string a dummy text
+     */
+    function json_export(): string
+    {
+        global $view_component_types;
+        if ($view_component_types->code_id($this->type_id) == view_cmp_type::JSON_EXPORT) {
+            return $this->name();
+        } else {
+            return '';
+        }
+    }
+
+    /**
+     * TODO move code from view_cmp_dsp_old
+     * @return string a dummy text
+     */
+    function xml_export(): string
+    {
+        global $view_component_types;
+        if ($view_component_types->code_id($this->type_id) == view_cmp_type::XML_EXPORT) {
+            return $this->name();
+        } else {
+            return '';
+        }
+    }
+
+    /**
+     * TODO move code from view_cmp_dsp_old
+     * @return string a dummy text
+     */
+    function csv_export(): string
+    {
+        global $view_component_types;
+        if ($view_component_types->code_id($this->type_id) == view_cmp_type::CSV_EXPORT) {
+            return $this->name();
+        } else {
+            return '';
+        }
+    }
+
+    /**
+     * TODO move code from view_cmp_dsp_old
+     * @return string a dummy text
+     */
+    function all(): string
+    {
+        global $view_component_types;
+        if ($view_component_types->code_id($this->type_id) == view_cmp_type::VALUES_ALL) {
+            return $this->name();
+        } else {
+            return '';
+        }
+    }
+
+    /**
+     * HTML code to edit all component fields
+     * @param string $dsp_type the html code to display the type selector
+     * @param string $phr_row the html code to select the phrase for the row
+     * @param string $phr_col the html code to select the phrase for the column
+     * @param string $phr_cols the html code to select the phrase for the second column
+     * @param string $dsp_log the html code of the change log
+     * @param string $back the html code to be opened in case of a back action
+     * @return string the html code to display the edit page
+     */
+    function form_edit(
+        string $dsp_type,
+        string $phr_row,
+        string $phr_col,
+        string $phr_cols,
+        string $dsp_log,
+        string $back = ''): string
+    {
+        $html = new html_base();
+        $result = '';
+
+        $hidden_fields = '';
+        if ($this->id <= 0) {
+            $script = self::FORM_ADD;
+            $fld_ext = '_add';
+            $header = $html->text_h2('Create a view element');
+        } else {
+            $script = self::FORM_EDIT;
+            $fld_ext = '';
+            $header = $html->text_h2('Change "' . $this->name . '"');
+            $hidden_fields .= $html->form_hidden("id", $this->id);
+        }
+        $hidden_fields .= $html->form_hidden("back", $back);
+        $hidden_fields .= $html->form_hidden("confirm", '1');
+        $detail_fields = $html->form_text("name" . $fld_ext, $this->name(), "Name");
+        $detail_fields .= $html->form_text("description" . $fld_ext, $this->description, "Description");
+        $detail_fields .= $dsp_type;
+        $detail_row = $html->fr($detail_fields) . '<br>';
+        $result = $header
+            . $html->form($script, $hidden_fields . $detail_row)
+            . '<br>';
+
+        $result .= $dsp_log;
+
+        return $result;
+    }
 
 }

@@ -43,6 +43,10 @@ class phrase_group_list
     // search fields
     public ?phrase $phr; //
 
+    /*
+     * construct and map
+     */
+
     /**
      * always set the user because a phrase group list is always user specific
      * @param user $usr the user who requested to see the phrase groups
@@ -50,8 +54,35 @@ class phrase_group_list
     function __construct(user $usr)
     {
         $this->lst = array();
+        $this->set_user($usr);
+    }
+
+    /*
+     * get and set
+     */
+
+    /**
+     * set the user of the phrase group list
+     *
+     * @param user $usr the person who wants to access the phrase groups
+     * @return void
+     */
+    function set_user(user $usr): void
+    {
         $this->usr = $usr;
     }
+
+    /**
+     * @return user the person who wants to see the phrase groups
+     */
+    function user(): user
+    {
+        return $this->usr;
+    }
+
+    /*
+     * load functions
+     */
 
     /**
      * create an SQL statement to retrieve a list of phrase groups from the database
@@ -62,22 +93,22 @@ class phrase_group_list
      */
     function load_sql(sql_db $db_con, bool $get_name = false): sql_par
     {
+        $db_con->set_type(sql_db::TBL_PHRASE_GROUP);
         $qp = new sql_par(self::class);
         $qp->name = self::class . '_by_';
         $sql_where = '';
 
-        $db_con->set_type(DB_TYPE_PHRASE_GROUP);
 
         if ($this->phr != null) {
-            if ($this->phr->id <> 0) {
+            if ($this->phr->id() <> 0) {
                 if ($this->phr->is_word()) {
-                    $qp->name .= 'word_id';
-                    $db_con->add_par(sql_db::PAR_INT, $this->phr->id);
-                    $sql_where = 'l.word_id = ' . $db_con->par_name();
+                    $qp->name .= word::FLD_ID;
+                    $db_con->add_par(sql_db::PAR_INT, $this->phr->id());
+                    $sql_where = 'l.' . word::FLD_ID . ' = ' . $db_con->par_name();
                 } else {
-                    $qp->name .= 'triple_id';
-                    $db_con->add_par(sql_db::PAR_INT, $this->phr->id * -1);
-                    $sql_where = 'l.triple_id = ' . $db_con->par_name();
+                    $qp->name .= triple::FLD_ID;
+                    $db_con->add_par(sql_db::PAR_INT, $this->phr->id() * -1);
+                    $sql_where = 'l.' . triple::FLD_ID . ' = ' . $db_con->par_name();
                 }
             }
         }
@@ -86,15 +117,15 @@ class phrase_group_list
         } else {
 
             $db_con->set_name($qp->name);
-            $db_con->set_usr($this->usr->id);
+            $db_con->set_usr($this->user()->id());
             $db_con->set_fields(phrase_group::FLD_NAMES);
             if ($this->phr->is_word()) {
-                $db_con->set_join_fields(array(word::FLD_ID), DB_TYPE_PHRASE_GROUP_WORD_LINK, phrase_group::FLD_ID, phrase_group::FLD_ID);
+                $db_con->set_join_fields(array(word::FLD_ID), sql_db::TBL_PHRASE_GROUP_WORD_LINK, phrase_group::FLD_ID, phrase_group::FLD_ID);
             } else {
-                $db_con->set_join_fields(array('triple_id'), DB_TYPE_PHRASE_GROUP_TRIPLE_LINK, phrase_group::FLD_ID, phrase_group::FLD_ID);
+                $db_con->set_join_fields(array(triple::FLD_ID), sql_db::TBL_PHRASE_GROUP_TRIPLE_LINK, phrase_group::FLD_ID, phrase_group::FLD_ID);
             }
             $db_con->set_where_text($sql_where);
-            $qp->sql = $db_con->select_by_id();
+            $qp->sql = $db_con->select_by_set_id();
             $qp->par = $db_con->get_par();
 
         }
@@ -108,7 +139,7 @@ class phrase_group_list
         $result = false;
 
         // check the all minimal input parameters
-        if (!isset($this->usr)) {
+        if (!$this->user()->is_set()) {
             log_err('The user must be set to load ' . self::class, self::class . '->load');
         } else {
             $qp = $this->load_sql($db_con);
@@ -116,7 +147,7 @@ class phrase_group_list
             if ($db_con->get_where() == '') {
                 log_err('The phrase must be set to load ' . self::class, self::class . '->load');
             } else {
-                // similar statement used in word_link_list->load, check if changes should be repeated in word_link_list.php
+                // similar statement used in triple_list->load, check if changes should be repeated in triple_list.php
                 $db_rows = $db_con->get($qp);
                 if ($db_rows != null) {
                     foreach ($db_rows as $db_row) {
@@ -179,19 +210,18 @@ class phrase_group_list
     // add a phrase group and a time word based on the id
     private function add_grp_time_id($grp_id, $time_id): bool
     {
-        log_debug('phrase_group_list->add_grp_time_id ' . $grp_id . '@' . $time_id);
+        log_debug($grp_id . '@' . $time_id);
 
         $grp = new phrase_group($this->usr);
         if ($grp_id > 0) {
-            $grp->id = $grp_id;
+            $grp->set_id($grp_id);
             $grp->load();
-            log_debug('phrase_group_list->add_grp_time_id -> found ' . $grp->name());
+            log_debug('found ' . $grp->name());
         }
         $time = new word($this->usr);
         if ($time_id > 0) {
-            $time->id = $time_id;
-            $time->load();
-            log_debug('phrase_group_list->add_grp_time_id -> found time ' . $time->dsp_id());
+            $time->load_by_id($time_id);
+            log_debug('found time ' . $time->dsp_id());
         }
         return $this->add_with_time($grp, $time);
     }
@@ -202,11 +232,11 @@ class phrase_group_list
         $result = false;
 
         $id = $this->grp_time_id($grp, $time);
-        log_debug('phrase_group_list->add_with_time ' . $id);
+        log_debug($id);
         if ($id <> '') {
-            log_debug('phrase_group_list->add_with_time is id ' . $id . ' in ' . implode(",", $this->grp_time_ids));
+            log_debug('is id ' . $id . ' in ' . implode(",", $this->grp_time_ids));
             if (!in_array($id, $this->grp_time_ids)) {
-                log_debug('phrase_group_list->add_with_time id ' . $id . ' add');
+                log_debug('id ' . $id . ' add');
                 $this->grp_time_ids[] = $id;
                 if (isset($grp)) {
                     $this->lst[] = $grp;
@@ -239,20 +269,20 @@ class phrase_group_list
      */
     function add($grp)
     {
-        log_debug('phrase_group_list->add ' . $grp->id);
+        log_debug($grp->id());
         $do_add = false;
-        if ($grp->id > 0) {
+        if ($grp->id() > 0) {
             if ($this->grp_ids == null) {
                 $do_add = true;
             } else {
-                if (!in_array($grp->id, $this->grp_ids)) {
+                if (!in_array($grp->id(), $this->grp_ids)) {
                     $do_add = true;
                 }
             }
         }
         if ($do_add) {
             $this->lst[] = $grp;
-            $this->grp_ids[] = $grp->id;
+            $this->grp_ids[] = $grp->id();
             $this->time_lst[] = null;
             log_debug($grp->dsp_id() . ' added to list ' . $this->dsp_id());
         } else {
@@ -315,15 +345,15 @@ class phrase_group_list
 
         // separate the time words from the phrases
         $time_linked = $phr_linked->time_lst();
-        log_debug('phr_grp_lst->get_grp_by_phr -> time words linked ' . $time_linked->name());
+        log_debug('time words linked ' . $time_linked->name());
         $time_used = $phr_used->time_lst();
-        log_debug('phr_grp_lst->get_grp_by_phr -> time words used ' . $time_used->name());
+        log_debug('time words used ' . $time_used->name());
         $phr_linked_ex = clone $phr_linked;
         $phr_linked_ex->ex_time();
-        log_debug('phr_grp_lst->get_grp_by_phr -> linked ex time ' . $phr_linked_ex->name());
+        log_debug('linked ex time ' . $phr_linked_ex->name());
         $phr_used_ex = clone $phr_used;
         $phr_used_ex->ex_time();
-        log_debug('phr_grp_lst->get_grp_by_phr -> used ex time ' . $phr_used_ex->name());
+        log_debug('used ex time ' . $phr_used_ex->name());
 
         // create the group selection
         $sql_group = '';
@@ -331,10 +361,10 @@ class phrase_group_list
             $sql_group = 'SELECT l1.phrase_group_id
                       FROM phrase_group_phrase_links l1
                  LEFT JOIN user_phrase_group_phrase_links u1 ON u1.phrase_group_phrase_link_id = l1.phrase_group_phrase_link_id 
-                                                            AND u1.user_id = ' . $this->usr->id . ',
+                                                            AND u1.user_id = ' . $this->user()->id() . ',
                            phrase_group_phrase_links l2
                  LEFT JOIN user_phrase_group_phrase_links u2 ON u2.phrase_group_phrase_link_id = l2.phrase_group_phrase_link_id 
-                                                            AND u2.user_id = ' . $this->usr->id . '
+                                                            AND u2.user_id = ' . $this->user()->id() . '
                      WHERE l1.phrase_id IN (' . $phr_linked_ex->ids_txt() . ')  
                        AND l2.phrase_id IN (' . $phr_used_ex->ids_txt() . ')
                        AND l1.phrase_group_id = l2.phrase_group_id
@@ -350,6 +380,7 @@ class phrase_group_list
         }
 
         // create the time selection
+        /*
         $sql_time = '';
         if (count($time_linked->ids) > 0 and count($time_used->ids) > 0) {
             $sql_time = 'v.time_word_id IN (' . sql_array($time_linked->ids) . ')
@@ -358,41 +389,30 @@ class phrase_group_list
             // dito group
             log_warning('Phrases missing while loading the phrase groups');
         }
+        */
 
         // create the value or result selection
         if ($type == 'value') {
             $sql_select = 'SELECT v.value_id,
-                            v.phrase_group_id,
-                            v.time_word_id
+                            v.phrase_group_id
                        FROM values v';
         } else {
             $sql_select = 'SELECT v.formula_value_id AS value_id,
-                            v.phrase_group_id,
-                            v.time_word_id
+                            v.phrase_group_id
                        FROM formula_values v';
         }
 
         // combine the selections
         $sql = '';
-        $sql_group_by = ' GROUP BY value_id, phrase_group_id, time_word_id LIMIT 500'; // limit is only set for testing: remove for release!
+        $sql_group_by = ' GROUP BY value_id, phrase_group_id LIMIT 500'; // limit is only set for testing: remove for release!
         if ($sql_group <> '') {
-            if ($sql_time <> '') {
-                // select only values that match both: group and time
-                $sql = $sql_select . ', ( ' . $sql_group . ') AS g WHERE v.phrase_group_id = g.phrase_group_id OR ' . $sql_time . $sql_group_by . ';';
-            } else {
-                // select values only by the group
-                $sql = $sql_select . ', ( ' . $sql_group . ') AS g WHERE v.phrase_group_id = g.phrase_group_id' . $sql_group_by . ';';
-            }
-        } else {
-            // select values only by the time
-            if ($sql_time <> '') {
-                $sql = $sql_select . ' WHERE ' . $sql_time . $sql_group_by . ';';
-            }
+            // select values only by the group
+            $sql = $sql_select . ', ( ' . $sql_group . ') AS g WHERE v.phrase_group_id = g.phrase_group_id' . $sql_group_by . ';';
         }
 
-        log_debug('phr_grp_lst->get_grp_by_phr -> sql "' . $sql . '"');
+        log_debug('sql "' . $sql . '"');
         //$db_con = New mysql;
-        $db_con->usr_id = $this->usr->id;
+        $db_con->usr_id = $this->user()->id();
         return $db_con->get_old($sql);
     }
 
@@ -413,7 +433,7 @@ class phrase_group_list
             log_err('Formula phrase is missing.', 'phr_grp_lst->add_grp_by_phr');
         }
 
-        log_debug('phr_grp_lst->add_grp_by_phr -> ' . $frm_linked->name() . ' related ' . $type . 's found for ' . $frm_used->name() . ' and user ' . $this->usr->name);
+        log_debug($frm_linked->name() . ' related ' . $type . 's found for ' . $frm_used->name() . ' and user ' . $this->user()->name);
         $added = 0;
         $changed = 0;
 
@@ -424,35 +444,37 @@ class phrase_group_list
             foreach ($val_rows as $val_row) {
                 // add the phrase group of the value or formula result add the time using a combined index
                 // because a time word should never be part of a phrase group to have a useful number of groups
-                log_debug('phr_grp_lst->add_grp_by_phr -> add id ' . $val_row['phrase_group_id']);
-                log_debug('phr_grp_lst->add_grp_by_phr -> add time id ' . $val_row['time_word_id']);
+                log_debug('add id ' . $val_row[phrase_group::FLD_ID]);
+                // log_debug('add time id ' . $val_row[value::FLD_TIME_WORD]);
                 // remove the formula name phrase and the result phrases from the value phrases to avoid potentials loops and
                 $val_grp = new phrase_group($this->usr);
-                $val_grp->id = $val_row['phrase_group_id'];
+                $val_grp->set_id($val_row[phrase_group::FLD_ID]);
                 $val_grp->load();
                 $used_phr_lst = clone $val_grp->phr_lst;
-                log_debug('phr_grp_lst->add_grp_by_phr -> used_phr_lst ' . $used_phr_lst->dsp_id());
+                log_debug('used_phr_lst ' . $used_phr_lst->dsp_id());
                 // exclude the formula name
                 $used_phr_lst->del($phr_frm);
-                log_debug('phr_grp_lst->add_grp_by_phr -> removed formula phrase ' . $phr_frm->dsp_id() . ' from used_phr_lst ' . $used_phr_lst->dsp_id());
+                log_debug('removed formula phrase ' . $phr_frm->dsp_id() . ' from used_phr_lst ' . $used_phr_lst->dsp_id());
                 // exclude the result phrases
                 $phr_lst_fv_name = '';
                 if (isset($phr_lst_fv)) {
                     $used_phr_lst->diff($phr_lst_fv);
-                    log_debug('phr_grp_lst->add_grp_by_phr -> removed result phrases ' . $phr_lst_fv->dsp_id() . ' from used_phr_lst ' . $used_phr_lst->dsp_id());
+                    log_debug('removed result phrases ' . $phr_lst_fv->dsp_id() . ' from used_phr_lst ' . $used_phr_lst->dsp_id());
                     $phr_lst_fv_name = $phr_lst_fv->dsp_id();
                 }
                 // add the group to the calculation list if the group is not yet in the list
                 $grp_to_add = $used_phr_lst->get_grp();
-                if ($grp_to_add->id <> $val_grp->id) {
-                    log_debug('phr_grp_lst->add_grp_by_phr -> group ' . $grp_to_add->dsp_id() . ' used instead of ' . $val_grp->dsp_id() . ' because ' . $phr_frm->dsp_id() . ' and  ' . $phr_lst_fv_name . ' are part of the formula and have been remove from the phrase group selection');
+                if ($grp_to_add->id() <> $val_grp->id()) {
+                    log_debug('group ' . $grp_to_add->dsp_id() . ' used instead of ' . $val_grp->dsp_id() . ' because ' . $phr_frm->dsp_id() . ' and  ' . $phr_lst_fv_name . ' are part of the formula and have been remove from the phrase group selection');
                     $changed++;
                 }
-                if ($this->add_grp_time_id($grp_to_add->id, $val_row['time_word_id'])) {
+                /* TODO deprecate now
+                if ($this->add_grp_time_id($grp_to_add->id(), $val_row[value::FLD_TIME_WORD])) {
                     $added++;
                     $changed++;
-                    log_debug('phr_grp_lst->add_grp_by_phr -> added ' . $added . ' in ' . dsp_count($this->grp_time_ids));
+                    log_debug('added ' . $added . ' in ' . dsp_count($this->grp_time_ids));
                 }
+                */
             }
         }
 
@@ -505,7 +527,7 @@ class phrase_group_list
     // return all phrases that are part of each phrase group of the list
     function common_phrases(): ?phrase_list
     {
-        log_debug('phrase_group_list->common_phrases');
+        log_debug();
         $result = new phrase_list($this->usr);
         $pos = 0;
         foreach ($this->lst as $grp) {
@@ -520,10 +542,10 @@ class phrase_group_list
                     $result->common($grp->phr_lst);
                 }
             }
-            log_debug('phrase_group_list->common_phrases ' . $result->dsp_name());
+            log_debug($result->dsp_name());
             $pos++;
         }
-        log_debug('phrase_group_list->common_phrases (' . dsp_count($result->lst) . ')');
+        log_debug(dsp_count($result->lst()));
         return $result;
     }
 

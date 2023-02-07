@@ -35,31 +35,40 @@ namespace html;
 class api
 {
 
-    // url path to the api functions
-    const PATH = '/http/';
+    // url path of the api
+    const PATH = '/api/';
 
-    // url extension of the api functions
+    // url path to the fixed views
+    const PATH_FIXED = '/http/';
+
+    // url extension of the fixed views
     const EXT = '.php';
 
-    // url of all possible the api calls
+    // classes used to allow renaming of the API name independent of the class name
+    const WORD = 'word';
+    const VERB = 'verb';
+    const TRIPLE = 'triple';
+    const VALUE = 'value';
+    const FORMULA = 'formula';
+    const VIEW = 'view';
+    const LINK = 'link';
+
+    // class extensions of all possible the fixed views
     const CREATE = '_add';
     const UPDATE = '_edit';
     const REMOVE = '_del';
     const LIST = '';
     const SEARCH = 'find';
 
-    // classes used to allow renaming independent of the class name
-    const WORD = 'word';
-    const VALUE = 'value';
-    const VIEW = 'view';
-    const LINK = 'link';
-
     // special api function independent of a class
     const LOGIN_RESET = 'login_reset';
     const ERROR_UPDATE = 'error_update';
 
     // view parameter names
-    const PAR_VIEW_WORDS = 'words';  // to select the phrases that should be display
+    const PAR_VIEW_WORDS = 'words';  // to select the words that should be display
+    const PAR_VIEW_TRIPLES = 'triples';  // to select the triple that should be display
+    const PAR_VIEW_FORMULAS = 'formulas';  // to select the formulas that should be display
+    const PAR_VIEW_VERBS = 'verbs';  // to select the verbs that should be display
     const PAR_LOG_STATUS = 'status'; // to set the status of a log entry
 
     // styles used

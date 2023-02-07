@@ -31,7 +31,8 @@
 */
 
 $debug = $_GET['debug'] ?? 0;
-include_once '../src/main/php/zu_lib.php';
+const ROOT_PATH = __DIR__ . '/../';
+include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 
 $db_con = prg_start("error_update");
 
@@ -47,36 +48,36 @@ $usr = new user;
 $result .= $usr->get();
 
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
-if ($usr->id > 0) {
+if ($usr->id() > 0) {
 
     load_usr_data();
 
     $dsp = new view_dsp_old($usr);
-    $dsp->id = cl(db_cl::VIEW, view::ERR_UPD);
+    $dsp->set_id(cl(db_cl::VIEW, view::ERR_UPD));
     $result .= $dsp->dsp_navbar($back);
 
-    if ($usr->id > 0 and $usr->profile_id == cl(db_cl::USER_PROFILE, user_profile::ADMIN)) {
+    if ($usr->id() > 0 and $usr->profile_id == cl(db_cl::USER_PROFILE, user_profile::ADMIN)) {
         // update the error if requested
         if ($log_id > 0 and $status_id > 0) {
-            $err_entry = new system_error_log;
-            $err_entry->usr = $usr;
-            $err_entry->id = $log_id;
+            $err_entry = new system_log;
+            $err_entry->set_user($usr);
+            $err_entry->set_id($log_id);
             $err_entry->status_id = $status_id;
             $err_entry->save();
         }
 
         // display all program issues if the user is an admin
         $errors_all = '';
-        $err_lst = new system_error_log_list;
-        $err_lst->usr = $usr;
-        $err_lst->dsp_type = system_error_log_list::DSP_ALL;
+        $err_lst = new system_log_list;
+        $err_lst->set_user($usr);
+        $err_lst->dsp_type = system_log_list::DSP_ALL;
         $err_lst->page = 1;
         $err_lst->size = 20;
         $err_lst->back = $back;
         if ($err_lst->load()) {
             $errors_all = $err_lst->dsp_obj()->get_html();
         }
-        //$errors_all .= zuu_dsp_errors  ($usr->id, $usr->profile_id, "all", $back);
+        //$errors_all .= zuu_dsp_errors  ($usr->id(), $usr->profile_id, "all", $back);
         if ($errors_all <> "") {
             $result .= dsp_text_h3("Program issues that other user have found, that have not yet been solved.");
             $result .= $errors_all;

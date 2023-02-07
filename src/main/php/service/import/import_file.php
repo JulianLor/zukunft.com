@@ -48,7 +48,7 @@ function import_json_file(string $filename, user $usr): string
             $import->usr = $usr;
             $import->json_str = $json_str;
             $import_result = $import->put();
-            if ($import_result == '') {
+            if ($import_result->is_ok()) {
                 $msg .= ' done ('
                     . $import->words_done . ' words, '
                     . $import->verbs_done . ' verbs, '
@@ -57,6 +57,7 @@ function import_json_file(string $filename, user $usr): string
                     . $import->values_done . ' values, '
                     . $import->list_values_done . ' simple values, '
                     . $import->sources_done . ' sources, '
+                    . $import->refs_done . ' references, '
                     . $import->views_done . ' views loaded, '
                     . $import->calc_validations_done . ' results validated, '
                     . $import->view_validations_done . ' views validated)';
@@ -67,7 +68,7 @@ function import_json_file(string $filename, user $usr): string
                     $msg .= ' ... and ' . $import->system_done . ' $system objects';
                 }
             } else {
-                $msg .= ' failed because ' . $import_result . '.';
+                $msg .= ' failed because ' . $import_result->all_message_text() . '.';
             }
         }
     }
@@ -83,17 +84,16 @@ function import_system_users(): bool
 
     // allow adding only if there is not yet any system user in the database
     $usr = new user;
-    $usr->id = SYSTEM_USER_ID;
-    $usr->load_test_user();
+    $usr->load_by_id(SYSTEM_USER_ID);
 
-    if ($usr->id <= 0) {
+    if ($usr->id() <= 0) {
 
         // check if there is really no user in the database with a system profile
         $check_usr = new user();
-        if (!$check_usr->has_any_user_this_profile(user_profile::SYSTEM, $db_con)) {
+        if (!$check_usr->has_any_user_this_profile(user_profile::SYSTEM)) {
             // if the system users are missing always reset all users as a double line of defence to prevent system
             // TODO ask for final confirmation before deleting all users !!!
-            run_table_truncate(DB_TYPE_USER);
+            run_table_truncate(sql_db::TBL_USER);
             run_seq_reset('users_user_id_seq');
             $usr->set_profile(user_profile::SYSTEM);
             $import_result = import_json_file(SYSTEM_USER_CONFIG_FILE, $usr);
@@ -126,17 +126,22 @@ function import_verbs(user $usr): bool
     return $result;
 }
 
-# import all zukunft.com base configuration json files
-# for an import it can be assumed that this base configuration is loaded
-# even if a user has overwritten some of these definitions the technical import should be possible
-# TODO load this configuration on first start of zukunft
-# TODO add a check bottom for admin to reload the base configuration
-function import_base_config(): string
+/**
+ * import all zukunft.com base configuration json files
+ * for an import it can be assumed that this base configuration is loaded
+ * even if a user has overwritten some of these definitions the technical import should be possible
+ * TODO load this configuration on first start of zukunft
+ * TODO add a check bottom for admin to reload the base configuration
+ */
+function import_base_config(user $usr): string
 {
-    global $usr;
-
     $result = '';
-    log_debug('load base config');
+    log_info('base setup',
+        'import_base_config',
+        'import of the base setup',
+        'import_base_config',
+        $usr, true
+    );
 
     $file_list = unserialize(BASE_CONFIG_FILES);
     foreach ($file_list as $filename) {
@@ -144,7 +149,6 @@ function import_base_config(): string
         echo "\n";
         $result .= import_json_file(PATH_BASE_CONFIG_MESSAGE_FILES . $filename, $usr);
     }
-
 
     log_debug('load base config ... done');
 

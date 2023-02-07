@@ -29,21 +29,10 @@
 
 */
 
-class formula_element_list
+class formula_element_list extends sandbox_list
 {
 
-    public array $lst; // the list of formula elements
-    public user $usr;  // the person who has requested the formula elements
-
-    /**
-     * always set the user because a formula element list is always user specific
-     * @param user $usr the user who requested to see the formula with the formula elements
-     */
-    function __construct(user $usr)
-    {
-        $this->lst = array();
-        $this->usr = $usr;
-    }
+    // array $lst is the list of formula elements
 
     /*
      * load functions
@@ -56,10 +45,10 @@ class formula_element_list
      */
     private function load_sql(sql_db $db_con): sql_par
     {
+        $db_con->set_type(sql_db::TBL_FORMULA_ELEMENT);
         $qp = new sql_par(self::class);
-        $db_con->set_type(DB_TYPE_FORMULA_ELEMENT);
-        $db_con->set_usr($this->usr->id);
         $db_con->set_name($qp->name); // assign incomplete name to force the usage of the user as a parameter
+        $db_con->set_usr($this->user()->id());
         $db_con->set_fields(formula_element::FLD_NAMES);
         return $qp;
     }
@@ -77,7 +66,7 @@ class formula_element_list
             $qp->name .= 'frm_id';
             $db_con->set_name($qp->name);
             $db_con->add_par(sql_db::PAR_INT, $frm_id);
-            $db_con->add_par(sql_db::PAR_INT, $this->usr->id);
+            $db_con->add_par(sql_db::PAR_INT, $this->user()->id());
             $qp->sql = $db_con->select_by_field_list(array(formula::FLD_ID, user_sandbox::FLD_USER));
         } else {
             $qp->name = '';
@@ -101,7 +90,7 @@ class formula_element_list
             $db_con->set_name($qp->name);
             $db_con->add_par(sql_db::PAR_INT, $frm_id);
             $db_con->add_par(sql_db::PAR_INT, $elm_type_id);
-            $db_con->add_par(sql_db::PAR_INT, $this->usr->id);
+            $db_con->add_par(sql_db::PAR_INT, $this->user()->id());
             $qp->sql = $db_con->select_by_field_list(array(formula::FLD_ID, formula_element::FLD_TYPE, user_sandbox::FLD_USER));
         } else {
             $qp->name = '';
@@ -119,7 +108,7 @@ class formula_element_list
         $db_rows = $db_con->get($qp);
         if ($db_rows != null) {
             foreach ($db_rows as $db_row) {
-                $elm = new formula_element($this->usr);
+                $elm = new formula_element($this->user());
                 $elm->row_mapper($db_row);
                 $this->lst[] = $elm;
                 $result = true;
@@ -130,54 +119,18 @@ class formula_element_list
     }
 
     /*
-     * display functions
+     * modification function
      */
 
     /**
-     * return best possible identification for this element list mainly used for debugging
+     * add one formula element to the list and keep the order (contrary to the parent function)
+     * @returns bool true the term has been added
      */
-    function dsp_id(): string
+    function add(?formula_element $elm_to_add): bool
     {
-        $id = dsp_array($this->ids());
-        $name = $this->name();
-        if ($name <> '""') {
-            $result = $name . ' (' . $id . ')';
-        } else {
-            $result = $id;
-        }
-        if (isset($this->usr)) {
-            $result .= ' for user ' . $this->usr->id . ' (' . $this->usr->name . ')';
-        }
-
-        return $result;
-    }
-
-    /**
-     * to show the element name to the user in the most simple form (without any ids)
-     * this function is called from dsp_id, so no other call is allowed
-     */
-    function name(): string
-    {
-        $result = '';
-        foreach ($this->lst as $elm) {
-            $result .= $elm->name() . ' ';
-        }
-        return $result;
-    }
-
-    /**
-     * this function is called from dsp_id, so no other call is allowed
-     */
-    function ids(): array
-    {
-        $result = array();
-        foreach ($this->lst as $elm) {
-            // use only valid ids
-            if ($elm->id <> 0) {
-                $result[] = $elm->id;
-            }
-        }
-        return $result;
+        $this->lst[] = $elm_to_add;
+        $this->set_lst_dirty();
+        return true;
     }
 
 }

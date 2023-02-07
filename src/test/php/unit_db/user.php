@@ -2,8 +2,8 @@
 
 /*
 
-  test/unit_db/user.php - database unit testing of the user profile handling
-  -----------------------------
+    test/unit_db/user.php - database unit testing of the user profile handling
+    ---------------------
 
 
     This file is part of zukunft.com - calc with words
@@ -30,25 +30,52 @@
 
 */
 
-function run_user_unit_db_tests(testing $t)
+use api\user_api;
+
+class user_unit_db_tests
 {
 
-    global $db_con;
+    function run(testing $t): void
+    {
 
-    $t->header('Unit database tests of the user profile handling');
+        global $db_con;
 
-    $t->subheader('User profile tests');
+        // init
+        $t->header('Unit database tests of the user handling');
+        $t->name = 'unit read db->';
 
-    // load the user_profile types
-    $lst = new user_profile_list();
-    $result = $lst->load($db_con);
-    $target = true;
-    $t->dsp('unit_db_user_profile->load_types', $target, $result);
 
-    // ... and check if at least the most critical is loaded
-    $result = cl(db_cl::USER_PROFILE, user_profile::NORMAL);
-    $target = 1;
-    $t->dsp('unit_db_user_profile->check ' . user_profile::NORMAL, $result, $target);
+        $t->subheader('User db read tests');
+
+        $test_name = 'load user ' . user::SYSTEM_TEST_NAME . ' by name and id';
+        $usr = new user();
+        $usr->load_by_name(user::SYSTEM_TEST_NAME, user::class);
+        $usr_by_id = new user($usr);
+        $usr_by_id->load_by_id($usr->id(), user::class);
+        $t->assert($test_name, $usr_by_id->name, user::SYSTEM_TEST_NAME);
+        //$t->assert($test_name, $usr_by_id->email, user::SYSTEM_TEST_EMAIL);
+
+        $test_name = 'load user ' . user::SYSTEM_TEST_NAME . ' by email';
+        $usr = new user();
+        $usr->load_by_email(user::SYSTEM_TEST_EMAIL);
+        $usr_by_id = new user($usr);
+        $usr_by_id->load_by_id($usr->id(), user::class);
+        $t->assert($test_name, $usr_by_id->name, user::SYSTEM_TEST_NAME);
+
+        // TODO test type and view
+
+
+        $t->subheader('User profile tests');
+
+        // load the user_profile types
+        $lst = new user_profile_list();
+        $result = $lst->load($db_con);
+        $t->assert('user profile load types', $result, true);
+
+        // ... and check if at least the most critical is loaded
+        $result = cl(db_cl::USER_PROFILE, user_profile::NORMAL);
+        $t->assert('user profile check ' . user_profile::NORMAL, $result, 1);
+    }
 
 }
 

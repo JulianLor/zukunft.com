@@ -34,7 +34,7 @@
 // start testing the user permission functionality
 // -----------------------------------------------
 
-function run_user_test(testing $t)
+function run_user_test(testing $t): void
 {
 
     global $usr;
@@ -44,8 +44,8 @@ function run_user_test(testing $t)
     // test the user display after the word changes to have a sample case
     $t->header('Test the user display class (classes/user_display.php)');
 
-    $result = $usr->dsp_obj()->dsp_edit($back);
-    $target = user::NAME_SYSTEM_TEST;
+    $result = $usr->dsp_obj()->form_edit($back);
+    $target = user::SYSTEM_TEST_NAME;
     $t->dsp_contains(', user_display->dsp_edit', $target, $result);
 
     // display system usernames
@@ -56,7 +56,7 @@ function run_user_test(testing $t)
             echo 'remote user: ' . $_SERVER['REMOTE_USER'] . '<br>';
         }
     }
-    echo 'user id: ' . $usr->id . '<br>';
+    echo 'user id: ' . $usr->id() . '<br>';
 
     $t->header('Test the user permission scripts (e.g. /user/user.php)');
 

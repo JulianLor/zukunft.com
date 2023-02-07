@@ -2,59 +2,89 @@
 
 /*
 
-  test/unit_db/formula.php - database unit testing of the formula functions
-  ------------------------
+    test/unit_db/formula.php - database unit testing of the formula functions
+    ------------------------
 
 
-zukunft.com - calc with formulas
+    This file is part of zukunft.com - calc with words
 
-copyright 1995-2021 by zukunft.com AG, Blumentalstrasse 15, 8707 Uetikon am See, Switzerland
+    zukunft.com is free software: you can redistribute it and/or modify it
+    under the terms of the GNU General Public License as
+    published by the Free Software Foundation, either version 3 of
+    the License, or (at your option) any later version.
+    zukunft.com is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU General Public License for more details.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+    You should have received a copy of the GNU General Public License
+    along with zukunft.com. If not, see <http://www.gnu.org/licenses/agpl.html>.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+    To contact the authors write to:
+    Timon Zielonka <timon@zukunft.com>
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+    Copyright (c) 1995-2023 zukunft.com AG, Switzerland
+    Heang Lor <heang@zukunft.com>
+
+    http://zukunft.com
 
 */
 
-function run_formula_unit_db_tests(testing $t)
+use api\formula_api;
+use cfg\formula_type;
+
+class formula_unit_db_tests
 {
 
-    global $db_con;
-    global $usr;
+    function run(testing $t): void
+    {
 
-    $t->header('Unit database tests of the formula class (src/main/php/model/formula/formula.php)');
+        global $db_con;
+        global $usr;
 
-    $t->subheader('formula types tests');
+        // init
+        $t->name = 'formula read db->';
 
-    // load the formula types
-    $lst = new formula_type_list();
-    $result = $lst->load($db_con);
-    $target = true;
-    $t->dsp('unit_db_formula->load_types', $target, $result);
+        $t->header('Unit database tests of the formula class (src/main/php/model/formula/formula.php)');
 
-    // ... and check if at least the most critical is loaded
-    $result = cl(db_cl::FORMULA_TYPE, formula::CALC);
-    $target = 1;
-    $t->dsp('unit_db_formula->check ' . formula::CALC, $result, $target);
+        $t->subheader('formula tests');
 
-    // check the estimates for the calculation blocks
-    $calc_blocks = (new formula_list($usr))->calc_blocks($db_con);
-    $t->assert_greater_zero('unit_db_formula->calc_blocks', $calc_blocks);
+        /*
+        // ... check if the link is shown correctly also for the second user
+        // ... the second user has excluded the word at this point, so even if the word is linked the word link is nevertheless false
+        // TODO check what that the word is linked if the second user activates the word
+        $phr = new phrase($usr);
+        $phr->load_by_name(word_api::TN_READ);
+        $frm = new formula($t->usr2);
+        $frm->load_by_name(formula_api::TN_RENAMED, formula::class);
+        $phr_lst = $frm->assign_phr_ulst();
+        $result = $phr_lst->does_contain($phr);
+        $target = false;
+        $t->dsp('formula->assign_phr_ulst contains "' . $phr->name() . '" for user "' . $t->usr2->name . '"', $target, $result);
+        */
 
-    $t->subheader('Frontend API tests');
 
-    $frm = $t->load_formula(formula::TN_READ);
-    $t->assert_api($frm);
+        $t->subheader('formula types tests');
+
+        // load the formula types
+        $lst = new formula_type_list();
+        $result = $lst->load($db_con);
+        $t->assert('load_types', $result, true);
+
+        // ... and check if at least the most critical is loaded
+        $result = cl(db_cl::FORMULA_TYPE, formula_type::CALC);
+        $target = 1;
+        $t->assert('check ' . formula_type::CALC, $result, 1);
+
+        // check the estimates for the calculation blocks
+        $calc_blocks = (new formula_list($usr))->calc_blocks($db_con);
+        $t->assert_greater_zero('calc_blocks', $calc_blocks);
+
+        $t->subheader('Frontend API tests');
+
+        $frm = $t->load_formula(formula_api::TN_INCREASE);
+        $t->assert_api_exp($frm);
+    }
 
 }
 

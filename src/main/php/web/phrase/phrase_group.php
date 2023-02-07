@@ -2,7 +2,7 @@
 
 /*
 
-    web\phrase_group_dsp.php - the extension of the phrase group api object to create the HTML code to display a word or triple
+    /web/phrase_group_dsp.php - the extension of the phrase group api object to create the HTML code to display a word or triple
     ------------------------
 
     mainly links to the word and triple display functions
@@ -47,7 +47,7 @@ class phrase_group_dsp extends phrase_group_api
         $result = '';
         if ($this->name_dirty()) {
             if ($this->name <> '') {
-                $result .= $this->name;
+                $result .= $this->name();
             } else {
                 $lst_to_show = $this->phr_lst();
                 if ($phr_lst_header != null) {

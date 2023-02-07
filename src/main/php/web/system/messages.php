@@ -2,7 +2,7 @@
 
 /*
 
-    web\system\messages.php - the language specific UI messages
+    /web/system/messages.php - the language specific UI messages
     -----------------------
 
 
@@ -39,6 +39,11 @@ class msg
     const WORD_DELETE = 'delete_word';
     const WORD_UNLINK = 'unlink_word';
     const PLEASE_SELECT = 'please_select';
+    const IP_BLOCK_PRE_ADDR = 'ip_block_pre_addr';
+    const IP_BLOCK_POST_ADDR = 'ip_block_post_addr';
+    const IP_BLOCK_SOLUTION = 'ip_block_solution';
+    const FORM_WORD_ADD_TITLE = 'form_word_add_title';
+    const FORM_WORD_FLD_NAME = 'form_word_fld_name';
 
     public function txt(string $message_id): string
     {
@@ -58,6 +63,22 @@ class msg
                 break;
             case self::PLEASE_SELECT:
                 $msg_text = 'please select ...';
+                break;
+            case self::IP_BLOCK_PRE_ADDR:
+                $msg_text = 'Your IP ';
+                break;
+            case self::IP_BLOCK_POST_ADDR:
+                $msg_text = ' is blocked at the moment because ';
+                break;
+            case self::IP_BLOCK_SOLUTION:
+                $msg_text = '. If you think, this should not be the case, ' .
+                    'please request the unblocking with an email to admin@zukunft.com.';
+                break;
+            case self::FORM_WORD_ADD_TITLE:
+                $msg_text = 'Add a new word';
+                break;
+            case self::FORM_WORD_FLD_NAME:
+                $msg_text = 'Word name';
                 break;
             default:
                 $msg_text = $message_id . ' (translation missing)';

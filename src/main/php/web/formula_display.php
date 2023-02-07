@@ -37,19 +37,8 @@ use html\html_selector;
 class formula_dsp_old extends formula
 {
 
-    // show the formula name to the user in the most simple form (without any ids)
-    function name(): string
-    {
-        return $this->name;
-    }
-
-    public function set_name(string $name)
-    {
-        $this->name = $name;
-    }
-
     // create the HTML code to display the formula name with the HTML link
-    function name_linked(string $back = ''): string
+    function name_linked(?string $back = ''): string
     {
         if ($back) {
             return '<a href="/http/formula_edit.php?id=' . $this->id . '">' . $this->name . '</a>';
@@ -61,17 +50,17 @@ class formula_dsp_old extends formula
     // create the HTML code to display the formula text in the human-readable format including links to the formula elements
     function dsp_text(string $back = ''): string
     {
-        log_debug('formula->dsp_text');
+        log_debug();
         $result = $this->usr_text;
 
         $exp = $this->expression();
-        $elm_lst = $exp->element_lst($back);
-        foreach ($elm_lst->lst as $elm) {
-            log_debug("formula->display -> replace " . $elm->name . " with " . $elm->name_linked($back) . ".");
-            $result = str_replace('"' . $elm->name . '"', $elm->name_linked($back), $result);
+        $elm_lst = $exp->element_list();
+        foreach ($elm_lst->lst() as $elm) {
+            log_debug("replace " . $elm->name() . " with " . $elm->name_linked($back) . ".");
+            $result = str_replace('"' . $elm->name() . '"', $elm->name_linked($back), $result);
         }
 
-        log_debug('formula->dsp_text -> ' . $result);
+        log_debug($result);
         return $result;
     }
 
@@ -79,15 +68,15 @@ class formula_dsp_old extends formula
      * display the most interesting formula result for one word
      * TODO define the criteria and review the formula value loading
      */
-    function dsp_result($wrd, $back): string
+    function dsp_result(phrase $phr, $back): string
     {
-        log_debug('formula->dsp_result for "' . $wrd->name . '" and formula ' . $this->dsp_id());
-        $fv = new formula_value($this->usr);
+        log_debug('for "' . $phr->name() . '" and formula ' . $this->dsp_id());
+        $fv = new formula_value($this->user());
         $fv->frm = $this;
-        $fv->wrd = $wrd;
-        log_debug('formula->dsp_result load fv');
-        $fv->load_by_vars();
-        log_debug('formula->dsp_result display');
+        $fv->phr = $phr;
+        log_debug('load fv');
+        $fv->load_obj_vars();
+        log_debug('display');
         return $fv->display($back);
     }
 
@@ -116,9 +105,9 @@ class formula_dsp_old extends formula
     // allow the user to unlink a word
     function dsp_unlink_phr($phr_id, $back): string
     {
-        log_debug('formula->dsp_unlink_phr(' . $phr_id . ')');
+        log_debug($phr_id);
         $result = '    <td>' . "\n";
-        $url = api::PATH . self::class . api::UPDATE . api::EXT .'?id=' . $this->id . '&unlink_phrase=' . $phr_id . '&back=' . $back;
+        $url = api::PATH_FIXED . self::class . api::UPDATE . api::EXT .'?id=' . $this->id . '&unlink_phrase=' . $phr_id . '&back=' . $back;
         $result .=  (new button("unlink word", $url))->del();
         $result .= '    </td>' . "\n";
         return $result;
@@ -143,9 +132,9 @@ class formula_dsp_old extends formula
     // display the history of a formula
     private function dsp_hist_log($page, $size, $call, $back): user_log_display
     {
-        $log_dsp = new user_log_display($this->usr);
+        $log_dsp = new user_log_display($this->user());
         $log_dsp->id = $this->id;
-        $log_dsp->usr = $this->usr;
+        $log_dsp->usr = $this->user();
         $log_dsp->type = formula::class;
         $log_dsp->page = $page;
         $log_dsp->size = $size;
@@ -157,43 +146,43 @@ class formula_dsp_old extends formula
     // display the history of a formula
     function dsp_hist($page, $size, $call, $back): string
     {
-        log_debug("formula->dsp_hist for id " . $this->id . " page " . $size . ", size " . $size . ", call " . $call . ", back " . $back . ".");
+        log_debug("for id " . $this->id . " page " . $size . ", size " . $size . ", call " . $call . ", back " . $back . ".");
         $result = ''; // reset the html code var
 
         $log_dsp = $this->dsp_hist_log($page, $size, $call, $back);
         $result .= $log_dsp->dsp_hist();
 
-        log_debug("formula->dsp_hist -> done");
+        log_debug("done");
         return $result;
     }
 
     // display the link history of a formula
     function dsp_hist_links($page, $size, $call, $back): string
     {
-        log_debug("formula->dsp_hist_links for id " . $this->id . " page " . $size . ", size " . $size . ", call " . $call . ", back " . $back . ".");
+        log_debug("for id " . $this->id . " page " . $size . ", size " . $size . ", call " . $call . ", back " . $back . ".");
         $result = ''; // reset the html code var
 
         $log_dsp = $this->dsp_hist_log($page, $size, $call, $back);
         $result .= $log_dsp->dsp_hist_links();
 
-        log_debug("formula->dsp_hist_links -> done");
+        log_debug("done");
         return $result;
     }
 
     // list all words linked to the formula and allow to unlink or add new words
     function dsp_used4words($add, $wrd, $back): string
     {
-        log_debug("formula->dsp_used4words " . $this->ref_text . " for " . $wrd->name . ",back:" . $back . " and user " . $this->usr->name . ".");
+        log_debug($this->ref_text . " for " . $wrd->name() . ",back:" . $back . " and user " . $this->user()->name . ".");
         $result = '';
 
         $html = new html_base();
 
         $phr_lst = $this->assign_phr_ulst_direct();
-        log_debug("formula->dsp_used4words words linked loaded");
+        log_debug("words linked loaded");
 
         // list all linked words
         $result .= dsp_tbl_start_half();
-        foreach ($phr_lst->lst as $phr_linked) {
+        foreach ($phr_lst->lst() as $phr_linked) {
             $result .= '  <tr>' . "\n";
             $result .= $phr_linked->dsp_tbl(0);
             $result .= $this->dsp_unlink_phr($phr_linked->id, $back);
@@ -201,7 +190,7 @@ class formula_dsp_old extends formula
         }
 
         // give the user the possibility to add a similar word
-        log_debug("formula->dsp_used4words user");
+        log_debug("user");
         $result .= '  <tr>';
         $result .= '    <td>';
         if ($add == 1 or $wrd->id > 0) {
@@ -209,7 +198,7 @@ class formula_dsp_old extends formula
             $sel->form = "formula_edit"; // ??? to review
             $sel->name = 'link_phrase';
             $sel->dummy_text = 'select a word where the formula should also be used';
-            $sel->sql = sql_lst_usr("word", $this->usr);
+            $sel->sql = sql_lst_usr("word", $this->user());
             if ($wrd->id > 0) {
                 $sel->selected = $wrd->id;
             } else {
@@ -227,7 +216,7 @@ class formula_dsp_old extends formula
 
         $result .= dsp_tbl_end();
 
-        log_debug("formula->dsp_used4words -> done");
+        log_debug("done");
         return $result;
     }
 
@@ -235,17 +224,17 @@ class formula_dsp_old extends formula
 
     function dsp_test_and_samples(string $back = ''): string
     {
-        log_debug("formula->dsp_test_and_samples " . $this->ref_text . ".");
+        log_debug($this->ref_text);
         $result = '<br>';
 
-        $result .= dsp_btn_text("Test", '/http/formula_test.php?id=' . $this->id . '&user=' . $this->usr->id . '&back=' . $back);
-        $result .= dsp_btn_text("Refresh results", '/http/formula_test.php?id=' . $this->id . '&user=' . $this->usr->id . '&back=' . $back . '&refresh=1');
+        $result .= dsp_btn_text("Test", '/http/formula_test.php?id=' . $this->id . '&user=' . $this->user()->id() . '&back=' . $back);
+        $result .= dsp_btn_text("Refresh results", '/http/formula_test.php?id=' . $this->id . '&user=' . $this->user()->id() . '&back=' . $back . '&refresh=1');
 
         $result .= '<br><br>';
 
         // display some sample values
-        log_debug("formula->dsp_test_and_samples value list");
-        $fv_lst = new formula_value_list($this->usr);
+        log_debug("value list");
+        $fv_lst = new formula_value_list($this->user());
         $fv_lst->load($this);
         $sample_val = $fv_lst->display($back);
         if (trim($sample_val) <> "") {
@@ -255,7 +244,7 @@ class formula_dsp_old extends formula
             $result .= $sample_val;
         }
 
-        log_debug("formula->dsp_test_and_samples -> done");
+        log_debug("done");
         return $result;
     }
 
@@ -264,7 +253,7 @@ class formula_dsp_old extends formula
     // $wrd is the word that should be linked (used for a new formula)
     function dsp_edit($add, $wrd, $back): string
     {
-        log_debug("formula->dsp_edit " . $this->ref_text . " for " . $wrd->name . ", back:" . $back . " and user " . $this->usr->name . ".");
+        log_debug("" . $this->ref_text . " for " . $wrd->name() . ", back:" . $back . " and user " . $this->user()->name . ".");
         $result = '';
 
         $resolved_text = str_replace('"', '&quot;', $this->usr_text);
@@ -299,7 +288,7 @@ class formula_dsp_old extends formula
         $result .= dsp_form_fld("description", $this->description, "Description:", "col-sm-9");
         // predefined formulas like "this" or "next" should only be changed by an admin
         // TODO check if formula user or login user should be used
-        if (!$this->is_special() or $this->usr->is_admin()) {
+        if (!$this->is_special() or $this->user()->is_admin()) {
             $result .= dsp_form_fld("formula_text", $resolved_text, "Expression:", "col-sm-10");
         }
         $result .= dsp_form_fld_checkbox("need_all_val", $this->need_all_val, "calculate only if all values used in the formula exist");
@@ -336,7 +325,7 @@ class formula_dsp_old extends formula
         $result .= '</div>';   // of row
         $result .= '<br><br>'; // this a usually a small for, so the footer can be moved away
 
-        log_debug("formula->dsp_edit -> done.");
+        log_debug("done");
         return $result;
     }
 

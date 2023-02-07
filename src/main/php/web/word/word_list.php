@@ -35,6 +35,8 @@ use api\word_list_api;
 use cfg\phrase_type;
 use db_cl;
 use formula;
+use term_list;
+use user;
 
 class word_list_dsp extends word_list_api
 {
@@ -96,25 +98,28 @@ class word_list_dsp extends word_list_api
     }
 
     // display a list of words that match to the given pattern
-    function dsp_like($word_pattern, $user_id): string
+    // TODO REVIEW
+    function dsp_like($word_pattern, user $usr): string
     {
-        log_debug('word_dsp->dsp_like (' . $word_pattern . ',u' . $user_id . ')');
+        log_debug($word_pattern . ',u' . $usr->id());
 
         global $db_con;
         $result = '';
 
         $back = 1;
+        $trm_lst = new term_list($usr);
+
         // get the link types related to the word
         $sql = " ( SELECT t.word_id AS id, t.word_name AS name, 'word' AS type
                  FROM words t 
                 WHERE t.word_name like '" . $word_pattern . "%' 
-                  AND t.word_type_id <> " . cl(db_cl::WORD_TYPE, phrase_type::FORMULA_LINK) . ")
+                  AND t.word_type_id <> " . cl(db_cl::PHRASE_TYPE, phrase_type::FORMULA_LINK) . ")
        UNION ( SELECT f.formula_id AS id, f.formula_name AS name, 'formula' AS type
                  FROM formulas f 
                 WHERE f.formula_name like '" . $word_pattern . "%' )
              ORDER BY name
                 LIMIT 200;";
-        $db_con->usr_id = $this->usr->id;
+        //$db_con->usr_id = $this->usr->id;
         $db_lst = $db_con->get_old($sql);
 
         // loop over the words and display it with the link
@@ -125,20 +130,14 @@ class word_list_dsp extends word_list_api
                 $result .= $wrd->tr();
             }
             if ($db_row['type'] == "formula") {
-                $frm = new formula($this->usr);
+                $frm = new formula_dsp();
                 $frm->id = $db_row['id'];
-                $frm->name = $db_row['name'];
+                $frm->set_name($db_row['name']);
                 $result .= $frm->name_linked($back);
             }
         }
 
         return $result;
-    }
-
-    // return an url with the word ids
-    function id_url_long(): string
-    {
-        return zu_ids_to_url($this->ids(), "word");
     }
 
 }

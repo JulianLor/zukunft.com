@@ -30,7 +30,11 @@
 
 */
 
-function run_batch_job_test(testing $t)
+use api\formula_api;
+use api\value_api;
+use api\word_api;
+
+function run_batch_job_test(testing $t): void
 {
 
     global $usr;
@@ -39,27 +43,26 @@ function run_batch_job_test(testing $t)
 
     // make sure that the test value is set independent of any previous database tests
     $t->test_value(array(
-        word::TN_CH,
-        word::TN_INHABITANT,
-        word::TN_MIO,
-        word::TN_2020
+        word_api::TN_CH,
+        word_api::TN_INHABITANTS,
+        word_api::TN_MIO,
+        word_api::TN_2020
     ),
-        value::TV_CH_INHABITANTS_2020_IN_MIO);
+        value_api::TV_CH_INHABITANTS_2020_IN_MIO);
 
 
     // prepare test adding a batch job via a list
     $phr_lst = new phrase_list($usr);
-    $phr_lst->load_by_names(array(word::TN_CH, word::TN_INHABITANT, word::TN_MIO, word::TN_2020));
+    $phr_lst->load_by_names(array(word_api::TN_CH, word_api::TN_INHABITANTS, word_api::TN_MIO, word_api::TN_2020));
     $phr_lst->ex_time();
     $val = new value($usr);
-    $val->grp = $phr_lst->get_grp();
-    $val->load();
-    $result = $val->number;
-    $target = value::TV_CH_INHABITANTS_2020_IN_MIO;
+    $val->load_by_grp($phr_lst->get_grp());
+    $result = $val->number();
+    $target = value_api::TV_CH_INHABITANTS_2020_IN_MIO;
     $t->dsp('batch_job->value to link', $target, $result);
 
     // test adding a batch job
-    $job = new batch_job;
+    $job = new batch_job($usr);
     $job->obj = $val;
     $job->type = cl(db_cl::JOB_TYPE, job_type_list::VALUE_UPDATE);
     $result = $job->add();
@@ -70,7 +73,7 @@ function run_batch_job_test(testing $t)
 
 }
 
-function run_batch_job_list_test(testing $t)
+function run_batch_job_list_test(testing $t): void
 {
 
     global $usr;
@@ -78,22 +81,22 @@ function run_batch_job_list_test(testing $t)
     $t->header('Test the batch job list class (classes/batch_job_list.php)');
 
     // prepare test adding a batch job via a list
-    $frm = $t->load_formula(formula::TN_INCREASE);
+    $frm = $t->load_formula(formula_api::TN_ADD);
     $phr_lst = new phrase_list($usr);
-    $phr_lst->load_by_names(array(word::TN_CH, word::TN_INHABITANT, word::TN_MIO, word::TN_2020));
+    $phr_lst->load_by_names(array(word_api::TN_CH, word_api::TN_INHABITANTS, word_api::TN_MIO, word_api::TN_2020));
 
     // test adding a batch job via a list
     $job_lst = new batch_job_list($usr);
-    $calc_request = new batch_job;
+    $calc_request = new batch_job($usr);
     $calc_request->frm = $frm;
     $calc_request->usr = $usr;
     $calc_request->phr_lst = $phr_lst;
     $result = $job_lst->add($calc_request);
     // TODO review
-    $target = 0;
-    if ($result > 0) {
-        $target = $result;
+    $target = '';
+    if ($result->is_ok()) {
+        $target = $result->get_last_message();
     }
-    $t->dsp('batch_job->add has number "' . $result . '"', $target, $result, TIMEOUT_LIMIT_DB_MULTI);
+    $t->dsp('batch_job->add has number "' . $result->get_last_message() . '"', $target, $result->get_last_message(), TIMEOUT_LIMIT_DB_MULTI);
 
 }

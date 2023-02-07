@@ -2,8 +2,8 @@
 
 /*
 
-    api\triple.php - the minimal triple (word_link) object
-    --------------
+    api/word/triple.php - the minimal triple (triple) object
+    -------------------
 
 
     This file is part of zukunft.com - calc with words
@@ -32,15 +32,33 @@
 
 namespace api;
 
-use html\phrase_dsp;
+use html\term_dsp;
+use triple;
 
-class triple_api extends user_sandbox_named_api
+class triple_api extends user_sandbox_named_with_type_api
 {
+
+    /*
+     * const for system testing
+     */
+
+    // triple names for stand-alone unit tests that are added with the system initial data load
+    // TN_* is the name of the triple used for testing
+    const TN_READ = 'Pi';
+    const TN_READ_NAME = 'Pi (math)';
+
+
+    /*
+     * object vars
+     */
 
     // the triple components
     private phrase_api $from;
     private verb_api $verb;
     private phrase_api $to;
+
+    public ?string $description = null; // the triple description that is shown as a mouseover explain to the user
+
 
     /*
      * construct and map
@@ -55,9 +73,59 @@ class triple_api extends user_sandbox_named_api
     )
     {
         parent::__construct($id, $name);
-        $this->from = new phrase_api(0, $from);
-        $this->verb= new verb_api(0, $verb);
-        $this->to = new phrase_api(0, $to);
+        $this->set($from, $verb, $to);
+    }
+
+
+    /*
+     * set and get
+     */
+
+    function set(string $from, string $verb, string $to): void
+    {
+        $this->set_from(new phrase_api(0, $from));
+        $this->set_verb(new verb_api(0, $verb));
+        $this->set_to(new phrase_api(0, $to));
+    }
+
+    function set_from(phrase_api $from): void
+    {
+        $this->from = $from;
+    }
+
+    function set_verb(verb_api $vrb): void
+    {
+        $this->verb = $vrb;
+    }
+
+    function set_to(phrase_api $to): void
+    {
+        $this->to = $to;
+    }
+
+    function from(): phrase_api
+    {
+        return $this->from;
+    }
+
+    function verb(): verb_api
+    {
+        return $this->verb;
+    }
+
+    function to(): phrase_api
+    {
+        return $this->to;
+    }
+
+
+    /*
+     * cast
+     */
+
+    function term(): term_api|term_dsp
+    {
+        return new term_api($this->id, $this->name, triple::class);
     }
 
 }

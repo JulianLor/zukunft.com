@@ -31,7 +31,8 @@
 */
 
 $debug = $_GET['debug'] ?? 0;
-include_once '../src/main/php/zu_lib.php';
+const ROOT_PATH = __DIR__ . '/../';
+include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 
 $db_con = prg_start("user");
 
@@ -53,80 +54,80 @@ $undo_src = $_GET['undo_source'];
 // load the session user parameters
 $usr = new user;
 $result .= $usr->get();
-$dsp_usr = $usr->dsp_user();
+$dsp_usr = $usr->dsp_obj();
+$dsp_usr_old = $usr->dsp_user();
 
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
-if ($usr->id > 0) {
-    log_debug("user -> (" . $usr->id . ")");
+if ($usr->id() > 0) {
+    log_debug($usr->id());
 
     load_usr_data();
 
     // prepare the display
     $dsp = new view_dsp_old($usr);
-    $dsp->id = cl(db_cl::VIEW, view::USER);
-    $dsp->load();
+    $dsp->load_by_code_id(view::USER);
 
-    // do user changes
+    // do user change
     $result .= $usr->upd_pars($_GET);
 
     // undo user changes for values
     if ($undo_val > 0) {
         $val = new value($usr);
-        $val->id = $undo_val;
+        $val->set_id($undo_val);
         $val->del_usr_cfg();
     }
 
     // undo user changes for words
     if ($undo_wrd > 0) {
         $wrd = new word($usr);
-        $wrd->id = $undo_wrd;
+        $wrd->set_id($undo_wrd);
         $wrd->del_usr_cfg();
     }
 
     // undo user changes for triples
     if ($undo_lnk > 0) {
-        $lnk = new word_link($usr);
-        $lnk->id = $undo_lnk;
+        $lnk = new triple($usr);
+        $lnk->set_id($undo_lnk);
         $lnk->del_usr_cfg();
     }
 
     // undo user changes for formulas
     if ($undo_frm > 0) {
         $frm = new formula($usr);
-        $frm->id = $undo_frm;
+        $frm->set_id($undo_frm);
         $frm->del_usr_cfg();
     }
 
     // undo user changes for formula word links
     if ($undo_frm_lnk > 0) {
         $frm_lnk = new formula_link($usr);
-        $frm_lnk->id = $undo_frm_lnk;
+        $frm_lnk->set_id($undo_frm_lnk);
         $frm_lnk->del_usr_cfg();
     }
 
     // undo user changes for formulas
     if ($undo_dsp > 0) {
         $dsp = new view($usr);
-        $dsp->id = $undo_dsp;
+        $dsp->set_id($undo_dsp);
         $dsp->del_usr_cfg();
     }
 
     // undo user changes for formulas
     if ($undo_cmp > 0) {
         $cmp = new view_cmp($usr);
-        $cmp->id = $undo_cmp;
+        $cmp->set_id($undo_cmp);
         $cmp->del_usr_cfg();
     }
 
     // undo user changes for formulas
     if ($undo_cmp_lnk > 0) {
         $cmp_lnk = new view_cmp_link($usr);
-        $cmp_lnk->id = $undo_cmp_lnk;
+        $cmp_lnk->set_id($undo_cmp_lnk);
         $cmp_lnk->del_usr_cfg();
     }
 
     $result .= $dsp->dsp_navbar($back);
-    $result .= $dsp_usr->dsp_edit($back);
+    $result .= $dsp_usr->form_edit($back);
 
     // allow to import data
     if ($usr->can_import()) {
@@ -145,7 +146,7 @@ if ($usr->id > 0) {
     }
 
     // display the user sandbox if there is something in
-    $sandbox = $dsp_usr->dsp_sandbox($back);
+    $sandbox = $dsp_usr_old->dsp_sandbox($back);
     if (trim($sandbox) <> "") {
         $result .= dsp_text_h2("Your changes, which are not standard");
         $result .= $sandbox;
@@ -153,7 +154,7 @@ if ($usr->id > 0) {
     }
 
     // display the user changes 
-    $changes = $dsp_usr->dsp_changes(0, SQL_ROW_LIMIT, 1, $back);
+    $changes = $dsp_usr_old->dsp_changes(0, SQL_ROW_LIMIT, 1, $back);
     if (trim($changes) <> "") {
         $result .= dsp_text_h2("Your latest changes");
         $result .= $changes;
@@ -161,7 +162,7 @@ if ($usr->id > 0) {
     }
 
     // display the program issues that the user has found if there are some
-    $errors = $dsp_usr->dsp_errors("", SQL_ROW_LIMIT, 1, $back);
+    $errors = $dsp_usr_old->dsp_errors("", SQL_ROW_LIMIT, 1, $back);
     if (trim($errors) <> "") {
         $result .= dsp_text_h2("Program issues that you found, that have not yet been solved.");
         $result .= $errors;
@@ -170,7 +171,7 @@ if ($usr->id > 0) {
 
     // display all program issues if the user is an admin
     if ($usr->profile_id == cl(db_cl::USER_PROFILE, user_profile::ADMIN)) {
-        $errors_all = $dsp_usr->dsp_errors("other", SQL_ROW_LIMIT, 1, $back);
+        $errors_all = $dsp_usr_old->dsp_errors("other", SQL_ROW_LIMIT, 1, $back);
         if (trim($errors_all) <> "") {
             $result .= dsp_text_h2("Program issues that other user have found, that have not yet been solved.");
             $result .= $errors_all;

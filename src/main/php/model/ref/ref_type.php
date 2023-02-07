@@ -30,14 +30,15 @@
    
 */
 
-class ref_type extends user_type
+use cfg\type_object;
+
+class ref_type extends type_object
 {
     // list of the ref types that have a coded functionality
     const WIKIDATA = "wikidata";
     const WIKIPEDIA = "wikipedia";
 
-    public int $id = 0;
-
     // the url that can be used to receive data if the external key is added
     public ?string $url = null;
+
 }

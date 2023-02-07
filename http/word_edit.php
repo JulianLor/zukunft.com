@@ -31,7 +31,8 @@
 
 // standard zukunft header for callable php files to allow debugging and lib loading
 $debug = $_GET['debug'] ?? 0;
-include_once '../src/main/php/zu_lib.php';
+const ROOT_PATH = __DIR__ . '/../';
+include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 
 // open database
 $db_con = prg_start("word_edit");
@@ -44,28 +45,26 @@ $usr = new user;
 $result .= $usr->get();
 
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
-if ($usr->id > 0) {
+if ($usr->id() > 0) {
 
     load_usr_data();
 
     // prepare the display
     $dsp = new view_dsp_old($usr);
-    $dsp->id = cl(db_cl::VIEW, view::WORD_EDIT);
-    $dsp->load();
+    $dsp->load_by_code_id(view::WORD_EDIT);
     $back = $_GET['back']; // the word id from which this value change has been called (maybe later any page)
 
     // create the word object to have an place to update the parameters
     $wrd = new word($usr);
-    $wrd->id = $_GET['id'];
-    $wrd->load();
+    $wrd->load_by_id($_GET['id']);
 
-    if ($wrd->id <= 0) {
+    if ($wrd->id() <= 0) {
         $result .= log_info("The word id must be set to display a word.", "word_edit.php", '', (new Exception)->getTraceAsString(), $usr);
     } else {
 
         // get all parameters (but if not set, use the database value)
         if (isset($_GET['name'])) {
-            $wrd->name = $_GET['name'];
+            $wrd->set_name($_GET['name']);
         } //
         if (isset($_GET['plural'])) {
             $wrd->plural = $_GET['plural'];
@@ -81,7 +80,7 @@ if ($usr->id > 0) {
         if ($_GET['confirm'] > 0) {
 
             // an empty word name should never be saved; instead the word should be deleted)
-            if ($wrd->name == '') {
+            if ($wrd->name() == '') {
                 $msg .= 'An empty name should never be saved. Please delete the word instead.';
             } else {
                 // save the changes

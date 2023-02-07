@@ -39,7 +39,7 @@ class user_list
 
     // fill the user objects of the list based on a sql
     // TODO review
-    private function load_sql($sql, sql_db $db_con)
+    private function load_sql($sql, sql_db $db_con): void
     {
 
         $db_usr_lst = $db_con->get_old($sql);
@@ -47,8 +47,8 @@ class user_list
         if ($db_usr_lst != null) {
             foreach ($db_usr_lst as $db_usr) {
                 $usr = new user;
-                $usr->id = $db_usr[user::FLD_ID];
-                $usr->name = $db_usr['user_name'];
+                $usr->set_id($db_usr[user::FLD_ID]);
+                $usr->name = $db_usr[user::FLD_NAME];
                 $usr->code_id = $db_usr[sql_db::FLD_CODE_ID];
                 $this->lst[] = $usr;
             }
@@ -83,17 +83,17 @@ class user_list
             WHERE u.user_id = c.user_id
          ORDER BY u.user_id;";
         // TODO check if the user needs to be set to the original value again
-        $db_con->usr_id = $usr->id;
+        $db_con->usr_id = $usr->id();
         $this->load_sql($sql, $db_con);
 
-        log_debug('user_list->load_active -> (' . dsp_count($this->lst) . ')');
+        log_debug(dsp_count($this->lst));
         return $this->lst;
     }
 
     /**
      * load all system users that have a code id
      */
-    function load_system(sql_db $db_con)
+    function load_system(sql_db $db_con): void
     {
         global $system_users;
 
@@ -109,15 +109,15 @@ class user_list
     /**
      * add an usr with just the id for later mass load
      */
-    function add_by_id($usr_id)
+    function add_by_id($usr_id): void
     {
         $usr = new user;
-        $usr->id = $usr_id;
+        $usr->set_id($usr_id);
         $this->lst[] = $usr;
     }
 
     // fill the user objects of the list based on the id
-    function load_by_id()
+    function load_by_id(): void
     {
 
         global $db_con;
@@ -146,7 +146,7 @@ class user_list
     /**
      * fill the hash based on the code id
      */
-    function set_hash()
+    function set_hash(): void
     {
         $this->code_id_hash = [];
         if ($this->lst != null) {
@@ -180,20 +180,20 @@ class user_list
     /**
      * create dummy system user list for the unit tests without database connection
      */
-    function load_dummy()
+    function load_dummy(): void
     {
         $this->lst = array();
         $this->code_id_hash = array();
         $type = new user();
-        $type->name = user::SYSTEM_OLD;
-        $type->code_id = user::SYSTEM_OLD;
+        $type->name = user::SYSTEM_NAME;
+        $type->code_id = user::SYSTEM_CODE_ID;
         $this->lst[1] = $type;
-        $this->code_id_hash[user::SYSTEM_OLD] = 1;
+        $this->code_id_hash[user::SYSTEM_NAME] = 1;
         $type = new user();
-        $type->name = user::SYSTEM_TEST_OLD;
-        $type->code_id = user::SYSTEM_TEST_OLD;
+        $type->name = user::SYSTEM_TEST_NAME;
+        $type->code_id = user::SYSTEM_TEST_PROFILE_CODE_ID;
         $this->lst[2] = $type;
-        $this->code_id_hash[user::SYSTEM_TEST_OLD] = 2;
+        $this->code_id_hash[user::SYSTEM_TEST_PROFILE_CODE_ID] = 2;
 
     }
 

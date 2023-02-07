@@ -35,29 +35,75 @@
 class user_sandbox_value extends user_sandbox
 {
 
-    /**
-     * reset the search values of this object
-     * needed to search for the standard object, because the search is work, value, formula or ... specific
+    /*
+     * object vars
      */
-    function reset(): void
-    {
-        parent::reset();
 
-        $this->number = null;
+    // database fields only used for the value object
+    protected ?float $number; // simply the numeric value
+
+    /*
+     * construct and map
+     */
+
+    /**
+     * all value user specific, that's why the user is always set
+     */
+    function __construct(user $usr)
+    {
+        parent::__construct($usr);
+
+        $this->set_number(null);
+    }
+
+    /*
+     * set and get
+     */
+
+    /**
+     * set the numeric value of the user sandbox object
+     *
+     * @param float|null $number the numeric value that should be saved in the database
+     * @return void
+     */
+    function set_number(?float $number): void
+    {
+        $this->number = $number;
+    }
+
+    /**
+     * @return float|null the numeric value
+     */
+    function number(): ?float
+    {
+        return $this->number;
+    }
+
+
+    /*
+     * cast
+     */
+
+    /**
+     * @param object $api_obj frontend API object filled with the database id
+     */
+    function fill_api_obj(object $api_obj): void
+    {
+        parent::fill_api_obj($api_obj);
+
+        $api_obj->set_number($this->number);
     }
 
     /**
      * fill a similar object that is extended with display interface functions
      *
-     * @return object the object fill with all user sandbox value
+     * @param  object $dsp_obj the object fill with all user sandbox value
      */
-    function fill_dsp_obj(object $dsp_obj): object
+    function fill_dsp_obj(object $dsp_obj): void
     {
         parent::fill_dsp_obj($dsp_obj);
 
-        $dsp_obj->number = $this->number;
-
-        return $dsp_obj;
+        $dsp_obj->set_number($this->number);
     }
 
     /**
@@ -69,16 +115,8 @@ class user_sandbox_value extends user_sandbox
         if (isset($this->grp)) {
             $result .= $this->grp->dsp_id();
         }
-        if (isset($this->time_phr)) {
-            if ($result <> '') {
-                $result .= '@';
-            }
-            if (gettype($this->time_phr) == 'object') {
-                $result .= $this->time_phr->dsp_id();
-            }
-        }
-        if (isset($this->usr)) {
-            $result .= ' for user ' . $this->usr->id . ' (' . $this->usr->name . ')';
+        if ($this->user()->is_set()) {
+            $result .= ' for user ' . $this->user()->id() . ' (' . $this->user()->name . ')';
         }
         return $result;
     }
@@ -88,19 +126,18 @@ class user_sandbox_value extends user_sandbox
      * for all not named objects like links, this function is overwritten
      * e.g. that the user can see "added formula 'scale millions' to word 'mio'"
      */
-    function log_add(): user_log_named
+    function log_add(): change_log_named
     {
-        log_debug($this->obj_name . '->log_add ' . $this->dsp_id());
+        log_debug($this->dsp_id());
 
-        $log = new user_log_named;
-        $log->field = 'word_value';
+        $log = new change_log_named;
+        $log->usr = $this->user();
+        $log->action = change_log_action::ADD;
+        $log->set_table($this->obj_name . 's');
+        $log->set_field(change_log_field::FLD_VALUE_NUMBER);
         $log->old_value = '';
         $log->new_value = $this->number;
 
-        $log->usr = $this->usr;
-        $log->action = 'add';
-        // TODO add the table exceptions from sql_db
-        $log->table = $this->obj_name . 's';
         $log->row_id = 0;
         $log->add();
 
@@ -109,20 +146,20 @@ class user_sandbox_value extends user_sandbox
 
     /**
      * set the log entry parameter to delete a object
-     * @returns user_log_link with the object presets e.g. th object name
+     * @returns change_log_link with the object presets e.g. th object name
      */
-    function log_del(): user_log_named
+    function log_del(): change_log_named
     {
-        log_debug($this->obj_name . '->log_del ' . $this->dsp_id());
+        log_debug($this->dsp_id());
 
-        $log = new user_log_named;
-        $log->field = 'word_value';
+        $log = new change_log_named;
+        $log->usr = $this->user();
+        $log->action = change_log_action::DELETE;
+        $log->set_table($this->obj_name . 's');
+        $log->set_field(change_log_field::FLD_VALUE_NUMBER);
         $log->old_value = $this->number;
         $log->new_value = '';
 
-        $log->usr = $this->usr;
-        $log->action = 'del';
-        $log->table = $this->obj_name . 's';
         $log->row_id = $this->id;
         $log->add();
 
@@ -140,10 +177,8 @@ class user_sandbox_value extends user_sandbox
      */
     function save_id_fields(sql_db $db_con, user_sandbox $db_rec, user_sandbox $std_rec): string
     {
-        $result = '';
 
-        $result .= 'The user sandbox save_id_fields does not support ' . $this->obj_type . ' for ' . $this->obj_name;
-        return $result;
+        return 'The user sandbox save_id_fields does not support ' . $this->obj_type . ' for ' . $this->obj_name;
     }
 
 }

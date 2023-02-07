@@ -12,6 +12,15 @@
     test_dsp - simply to display the function test result
     test_show_db_id  - to get a database id because this may differ from instance to instance
 
+    the extension of the test classes
+
+    test_base    - the basic test elements that are used everywhere
+    test_new_obj - to create the objects used for testing
+    test_api     - the test function for the api
+    testing      - adding the cleanup function to have a useful and complete test set
+
+    do sudo apt-get install php-curl
+
 
     This file is part of zukunft.com - calc with words
 
@@ -39,6 +48,12 @@
 
 // TODO move the names and values for testing to the single objects and check that they cannot be used by an user
 // TODO add checks that all id (name or link) changing return the correct error message if the new id already exists
+// TODO build a cascading test classes and split the classes to sections less than 1000 lines of code
+
+use controller\controller;
+use html\html_base;
+
+const HOST_TESTING = 'http://localhost/';
 
 global $debug;
 global $root_path;
@@ -50,58 +65,75 @@ if ($root_path == '') {
 }
 
 // set the paths of the program code
-$path_test = $root_path . 'src/test/php/utils/';            // for the general tests and test setup
-$path_unit = $root_path . 'src/test/php/unit/';             // for unit tests
-$path_unit_db = $root_path . 'src/test/php/unit_db/';       // for the unit tests with database real only
-$path_unit_dsp = $root_path . 'src/test/php/unit_display/'; // for the unit tests that create HTML code
-$path_unit_ui = $root_path . 'src/test/php/unit_ui/';       // for the unit tests that create JSON messages for the frontend
-$path_unit_save = $root_path . 'src/test/php/unit_save/';   // for the unit tests that save to database (and cleanup the test data after completion)
-$path_it = $root_path . 'src/test/php/integration/';        // for integration tests
-$path_dev = $root_path . 'src/test/php/dev/';               // for test still in development
+$path_test = $root_path . 'src/test/php/';     // the test base path
+$path_utils = $path_test . 'utils/';           // for the general tests and test setup
+$path_unit = $path_test . 'unit/';             // for unit tests
+$path_unit_db = $path_test . 'unit_db/';       // for the unit tests with database real only
+$path_unit_dsp = $path_test . 'unit_display/'; // for the unit tests that create HTML code
+$path_unit_ui = $path_test . 'unit_ui/';       // for the unit tests that create JSON messages for the frontend
+$path_unit_save = $path_test . 'unit_save/';   // for the unit tests that save to database (and cleanup the test data after completion)
+$path_it = $path_test . 'integration/';        // for integration tests
+$path_dev = $path_test . 'dev/';               // for test still in development
 
 include_once $root_path . 'src/main/php/service/config.php';
 
 // load the other test utility modules (beside this base configuration module)
-include_once $path_test . 'test_system.php';
-include_once $path_test . 'test_db_link.php';
-include_once $path_test . 'test_user.php';
-include_once $path_test . 'test_user_sandbox.php';
+include_once $path_utils . 'create_test_objects.php';
+include_once $path_utils . 'test_system.php';
+include_once $path_utils . 'test_api.php';
+include_once $path_utils . 'test_db_link.php';
+include_once $path_utils . 'test_user.php';
+include_once $path_utils . 'test_user_sandbox.php';
+include_once $path_utils . 'test_cleanup.php';
 
 // load the unit testing modules
-include_once $path_unit . 'all.php';
+include_once $path_unit . 'test_unit.php';
 include_once $path_unit . 'test_lib.php';
 include_once $path_unit . 'system.php';
+include_once $path_unit . 'user.php';
 include_once $path_unit . 'user_sandbox.php';
 include_once $path_unit . 'word.php';
 include_once $path_unit . 'word_list.php';
-include_once $path_unit . 'word_link.php';
-include_once $path_unit . 'word_link_list.php';
+include_once $path_unit . 'triple.php';
+include_once $path_unit . 'triple_list.php';
 include_once $path_unit . 'phrase.php';
 include_once $path_unit . 'phrase_list.php';
 include_once $path_unit . 'phrase_group.php';
+include_once $path_unit . 'term.php';
+include_once $path_unit . 'term_list.php';
 include_once $path_unit . 'value.php';
 include_once $path_unit . 'value_phrase_link.php';
 include_once $path_unit . 'value_list.php';
 include_once $path_unit . 'value_list_display.php';
 include_once $path_unit . 'formula.php';
+include_once $path_unit . 'formula_list.php';
 include_once $path_unit . 'formula_link.php';
 include_once $path_unit . 'formula_value.php';
 include_once $path_unit . 'formula_element.php';
 include_once $path_unit . 'figure.php';
+include_once $path_unit . 'expression.php';
 include_once $path_unit . 'view.php';
+include_once $path_unit . 'view_list.php';
 include_once $path_unit . 'view_component.php';
+include_once $path_unit . 'view_component_display.php';
 include_once $path_unit . 'view_component_link.php';
 include_once $path_unit . 'verb.php';
 include_once $path_unit . 'ref.php';
-include_once $path_unit . 'user_log.php';
+include_once $path_unit . 'language.php';
+include_once $path_unit . 'batch_job.php';
+include_once $path_unit . 'change_log.php';
+include_once $path_unit . 'system_log.php';
 
 // load the testing functions for creating HTML code
 include_once $path_unit . 'html.php';
+include_once $path_unit . 'user_display.php';
 include_once $path_unit . 'word_display.php';
 include_once $path_unit . 'word_list_display.php';
 include_once $path_unit . 'triple_display.php';
 include_once $path_unit . 'phrase_list_display.php';
+include_once $path_unit . 'change_log_display.php';
 include_once $path_unit_dsp . 'test_display.php';
+include_once $path_unit_dsp . 'type_lists.php';
 
 
 // load the unit testing modules with database read only
@@ -109,14 +141,25 @@ include_once $path_unit_db . 'all.php';
 include_once $path_unit_db . 'system.php';
 include_once $path_unit_db . 'sql_db.php';
 include_once $path_unit_db . 'user.php';
+include_once $path_unit_db . 'batch_job.php';
+include_once $path_unit_db . 'change_log.php';
+include_once $path_unit_db . 'system_log.php';
 include_once $path_unit_db . 'word.php';
+include_once $path_unit_db . 'word_list.php';
 include_once $path_unit_db . 'verb.php';
+include_once $path_unit_db . 'phrase.php';
+include_once $path_unit_db . 'phrase_group.php';
+include_once $path_unit_db . 'term.php';
+include_once $path_unit_db . 'term_list.php';
 include_once $path_unit_db . 'value.php';
 include_once $path_unit_db . 'formula.php';
+include_once $path_unit_db . 'formula_list.php';
+include_once $path_unit_db . 'expression.php';
 include_once $path_unit_db . 'view.php';
 include_once $path_unit_db . 'ref.php';
 include_once $path_unit_db . 'share.php';
 include_once $path_unit_db . 'protection.php';
+include_once $path_unit_db . 'language.php';
 
 
 // load the testing functions for creating JSON messages for the frontend code
@@ -129,7 +172,7 @@ include_once $path_unit_save . 'test_math.php';
 include_once $path_unit_save . 'test_word.php';
 include_once $path_unit_save . 'test_word_display.php';
 include_once $path_unit_save . 'test_word_list.php';
-include_once $path_unit_save . 'test_word_link.php';
+include_once $path_unit_save . 'test_triple.php';
 include_once $path_unit_save . 'phrase_test.php';
 include_once $path_unit_save . 'phrase_list_test.php';
 include_once $path_unit_save . 'phrase_group_test.php';
@@ -152,24 +195,10 @@ include_once $path_unit_save . 'test_view.php';
 include_once $path_unit_save . 'test_view_component.php';
 include_once $path_unit_save . 'test_view_component_link.php';
 include_once $path_unit_save . 'test_value.php';
-include_once $path_unit_save . 'test_cleanup.php';
 
 // load the integration test functions
 include_once $path_it . 'test_import.php';
 include_once $path_it . 'test_export.php';
-
-// libraries that can be dismissed, but still used to compare the result with the result of the legacy function
-include_once $root_path . 'src/main/php/service/test/zu_lib_word_dsp.php';
-include_once $root_path . 'src/main/php/service/test/zu_lib_sql.php';
-include_once $root_path . 'src/main/php/service/test/zu_lib_link.php';
-include_once $root_path . 'src/main/php/service/test/zu_lib_sql_naming.php';
-include_once $root_path . 'src/main/php/service/test/zu_lib_value.php';
-include_once $root_path . 'src/main/php/service/test/zu_lib_word.php';
-include_once $root_path . 'src/main/php/service/test/zu_lib_word_db.php';
-include_once $root_path . 'src/main/php/service/test/zu_lib_calc.php';
-include_once $root_path . 'src/main/php/service/test/zu_lib_value_dsp.php';
-include_once $root_path . 'src/main/php/service/test/zu_lib_user.php';
-include_once $root_path . 'src/main/php/service/test/zu_lib_html.php';
 
 // load the test functions still in development
 include_once $path_dev . 'test_legacy.php';
@@ -315,6 +344,8 @@ class test_base
     public string $name;
     public string $resource_path;
 
+    private int $seq_nbr;
+
     function __construct()
     {
         // init the times to be able to detect potential timeouts
@@ -326,715 +357,29 @@ class test_base
         $this->timeout_counter = 0;
         $this->total_tests = 0;
 
+        $this->seq_nbr = 0;
+
         $this->name = '';
         $this->resource_path = '';
     }
 
-    function set_users()
+    function set_users(): void
     {
 
         // create the system test user to simulate the user sandbox
         // e.g. a value owned by the first user cannot be adjusted by the second user instead a user specific value is created
         // instead a user specific value is created
         // for testing $usr is the user who has started the test ans $usr1 and $usr2 are the users used for simulation
-        $this->usr1 = new user_dsp;
-        $this->usr1->name = user::NAME_SYSTEM_TEST;
-        $this->usr1->load_test_user();
+        $this->usr1 = new user_dsp_old;
+        $this->usr1->load_by_name(user::SYSTEM_TEST_NAME);
 
-        $this->usr2 = new user_dsp;
-        $this->usr2->name = user::NAME_SYSTEM_TEST_PARTNER;
-        $this->usr2->load_test_user();
+        $this->usr2 = new user_dsp_old;
+        $this->usr2->load_by_name(user::SYSTEM_NAME_TEST_PARTNER);
 
     }
 
 
-    /*
-     * object adding, loading and testing functions
-     *
-     *   create_* to create an object mainly used to shorten the code in unit tests
-     *   add_* to create an object and save it in the database to prepare the testing (not used for all classes)
-     *   load_* just load the object, but does not create the object
-     *   test_* additional creates the object if needed and checks if it has been persistent
-     *
-     *   * is for the name of the class, so the long name e.g. word not wrd
-     *
-     */
 
-    /**
-     * create a new word e.g. for unit testing with a given type
-     *
-     * @param string $wrd_name the name of the word that should be created
-     * @param string|null $wrd_type_code_id the id of the predefined word type which the new word should have
-     * @param user|null $test_usr if not null the user for whom the word should be created to test the user sandbox
-     * @return word the created word object
-     */
-    function create_word(string $wrd_name, string $wrd_type_code_id = null, ?user $test_usr = null): word
-    {
-        global $usr;
-
-        if ($test_usr == null) {
-            $test_usr = $usr;
-        }
-
-        $wrd = new word($test_usr);
-        $wrd->name = $wrd_name;
-
-        if ($wrd_type_code_id != null) {
-            $wrd->type_id = cl(db_cl::WORD_TYPE, $wrd_type_code_id);
-        }
-        return $wrd;
-    }
-
-    function load_word(string $wrd_name, ?user $test_usr = null): word
-    {
-        $wrd = $this->create_word($wrd_name, null, $test_usr);
-        $wrd->load();
-        return $wrd;
-    }
-
-    function add_word(string $wrd_name, string $wrd_type_code_id = null, ?user $test_usr = null): word
-    {
-        $wrd = $this->load_word($wrd_name, $test_usr);
-        if ($wrd->id == 0) {
-            $wrd->name = $wrd_name;
-            $wrd->save();
-        }
-        if ($wrd_type_code_id != null) {
-            $wrd->type_id = cl(db_cl::WORD_TYPE, $wrd_type_code_id);
-            $wrd->save();
-        }
-        return $wrd;
-    }
-
-    function test_word(string $wrd_name, $wrd_type_code_id = null, ?user $test_usr = null): word
-    {
-        $wrd = $this->add_word($wrd_name, $wrd_type_code_id, $test_usr);
-        $target = $wrd_name;
-        $this->dsp('testing->add_word', $target, $wrd->name);
-        return $wrd;
-    }
-
-    function load_ref(string $wrd_name, string $type_name): ref
-    {
-        global $usr;
-
-        $wrd = $this->load_word($wrd_name);
-        $phr = $wrd->phrase();
-
-        $ref = new ref($usr);
-        $ref->phr = $phr;
-        $ref->ref_type = get_ref_type($type_name);
-        if ($phr->id != 0) {
-            $ref->load();
-        }
-        return $ref;
-    }
-
-    function test_ref(string $wrd_name, string $external_key, string $type_name): ref
-    {
-        $wrd = $this->test_word($wrd_name);
-        $phr = $wrd->phrase();
-        $ref = $this->load_ref($wrd->name, $type_name);
-        if ($ref->id == 0) {
-            $ref->phr = $phr;
-            $ref->ref_type = get_ref_type($type_name);
-            $ref->external_key = $external_key;
-            $ref->save();
-        }
-        $target = $external_key;
-        $this->dsp('ref', $target, $ref->external_key);
-        return $ref;
-    }
-
-    function load_formula(string $frm_name): formula
-    {
-        global $usr;
-        $frm = new formula_dsp_old($usr);
-        $frm->name = $frm_name;
-        $frm->load();
-        return $frm;
-    }
-
-    /**
-     * get or create a formula
-     */
-    function add_formula(string $frm_name, string $frm_text): formula
-    {
-        $frm = $this->load_formula($frm_name);
-        if ($frm->id == 0) {
-            $frm->name = $frm_name;
-            $frm->usr_text = $frm_text;
-            $frm->set_ref_text();
-            $frm->save();
-        }
-        return $frm;
-    }
-
-    function test_formula(string $frm_name, string $frm_text): formula
-    {
-        $frm = $this->add_formula($frm_name, $frm_text);
-        $this->dsp('formula', $frm_name, $frm->name);
-        return $frm;
-    }
-
-    function load_phrase(string $phr_name): phrase
-    {
-        global $usr;
-        $phr = new phrase($usr);
-        $phr->name = $phr_name;
-        $phr->load();
-        return $phr;
-    }
-
-    /**
-     * test if a phrase with the given name exists, but does not create it, if it has not yet been created
-     * @param string $phr_name name of the phrase to test
-     * @return phrase the loaded phrase object
-     */
-    function test_phrase(string $phr_name): phrase
-    {
-        $phr = $this->load_phrase($phr_name);
-        $this->dsp('phrase', $phr_name, $phr->name);
-        return $phr;
-    }
-
-    /**
-     * create a phrase list object based on an array of strings
-     */
-    function load_word_list($array_of_word_str): word_list
-    {
-        global $usr;
-        $wrd_lst = new word_list($usr);
-        $wrd_lst->load_by_names($array_of_word_str);
-        return $wrd_lst;
-    }
-
-    function test_word_list($array_of_word_str): word_list
-    {
-        $wrd_lst = $this->load_word_list($array_of_word_str);
-        $target = '"' . implode('","', $array_of_word_str) . '"';
-        $result = $wrd_lst->name();
-        $this->dsp(', word list', $target, $result);
-        return $wrd_lst;
-    }
-
-    /**
-     * create a phrase list object based on an array of strings
-     */
-    function load_phrase_list($array_of_word_str): phrase_list
-    {
-        global $usr;
-        $phr_lst = new phrase_list($usr);
-        $phr_lst->load_by_names($array_of_word_str);
-        return $phr_lst;
-    }
-
-    function test_phrase_list($array_of_word_str): phrase_list
-    {
-        $phr_lst = $this->load_phrase_list($array_of_word_str);
-        $target = '"' . implode('","', $array_of_word_str) . '"';
-        $result = $phr_lst->dsp_name();
-        $this->dsp(', phrase list', $target, $result);
-        return $phr_lst;
-    }
-
-    /**
-     * load a phrase group by the list of phrase names
-     * @param array $array_of_phrase_str with the names of the words or triples
-     * @return phrase_group
-     */
-    function load_phrase_group(array $array_of_phrase_str): phrase_group
-    {
-        return $this->load_phrase_list($array_of_phrase_str)->get_grp();
-    }
-
-    /**
-     * load a phrase group by the name
-     * which can be either the name set by the users
-     * or the automatically created name based on the phrases
-     * @param string $phrase_group_name
-     * @return phrase_group
-     */
-    function load_phrase_group_by_name(string $phrase_group_name): phrase_group
-    {
-        global $usr;
-        $phr_grp = new phrase_group($usr);
-        $phr_grp->grp_name = $phrase_group_name;
-        $phr_grp->load();
-        return $phr_grp;
-    }
-
-    /**
-     * add a phrase group to the database
-     * @param array $array_of_phrase_str the phrase names
-     * @param string $phrase_group_name the name that should be shown to the user
-     * @return phrase_group the phrase group object including the database is
-     */
-    function add_phrase_group(array $array_of_phrase_str, string $phrase_group_name): phrase_group
-    {
-        global $usr;
-        $phr_grp = new phrase_group($usr);
-        $phr_grp->phr_lst = $this->load_phrase_list($array_of_phrase_str);
-        $phr_grp->grp_name = $phrase_group_name;
-        $phr_grp->get();
-        return $phr_grp;
-    }
-
-    function load_value_by_id(user $usr, int $id): value
-    {
-        $val = new value($usr);
-        $val->id = $id;
-        $val->load();
-        return $val;
-    }
-
-    function load_value(array $array_of_word_str): value
-    {
-        global $usr;
-
-        // the time separation is done here until there is a phrase series value table that can be used also to time phrases
-        $phr_lst = $this->load_phrase_list($array_of_word_str);
-        $time_phr = $phr_lst->time_useful();
-        $phr_lst->ex_time();
-        $phr_grp = $phr_lst->get_grp();
-
-        $val = new value($usr);
-        if ($phr_grp == null) {
-            log_err('Cannot get phrase group for ' . $phr_lst->dsp_id());
-        } else {
-            $val->grp = $phr_grp;
-            $val->time_phr = $time_phr;
-            $val->load();
-        }
-        return $val;
-    }
-
-    function add_value($array_of_word_str, $target): value
-    {
-        global $usr;
-        $val = $this->load_value($array_of_word_str);
-        if ($val->id == 0) {
-            // the time separation is done here until there is a phrase series value table that can be used also to time phrases
-            $phr_lst = $this->load_phrase_list($array_of_word_str);
-            $time_phr = $phr_lst->time_useful();
-            $phr_lst->ex_time();
-            $phr_grp = $phr_lst->get_grp();
-
-            $val = new value($usr);
-            if ($phr_grp == null) {
-                log_err('Cannot get phrase group for ' . $phr_lst->dsp_id());
-            } else {
-                $val->grp = $phr_grp;
-            }
-            $val->time_phr = $time_phr;
-            $val->number = $target;
-            $val->save();
-        }
-
-        return $val;
-    }
-
-    function test_value($array_of_word_str, $target): value
-    {
-        $val = $this->add_value($array_of_word_str, $target);
-        $result = $val->number;
-        $this->dsp(', value->load for ' . $val->name(), $target, $result);
-        return $val;
-    }
-
-    function load_value_by_phr_grp(phrase_group $phr_grp): value
-    {
-        global $usr;
-
-        $val = new value($usr);
-        $val->grp = $phr_grp;
-        $val->load();
-        return $val;
-    }
-
-    function add_value_by_phr_grp(phrase_group $phr_grp, float $target): value
-    {
-        $val = $this->load_value_by_phr_grp($phr_grp);
-        if ($val->id == 0) {
-            $val->grp = $phr_grp;
-            $val->number = $target;
-            $val->save();
-        }
-
-        return $val;
-    }
-
-    function test_value_by_phr_grp(phrase_group $phr_grp, float $target): value
-    {
-        $val = $this->add_value_by_phr_grp($phr_grp, $target);
-        $result = $val->number;
-        $this->dsp(', value->load for ' . $val->name(), $target, $result);
-        return $val;
-    }
-
-    function load_source(string $src_name): source
-    {
-        global $usr;
-        $src = new source($usr);
-        $src->name = $src_name;
-        $src->load();
-        return $src;
-    }
-
-    function add_source(string $src_name): source
-    {
-        $src = $this->load_source($src_name);
-        if ($src->id == 0) {
-            $src->name = $src_name;
-            $src->save();
-        }
-        return $src;
-    }
-
-    function test_source(string $src_name): source
-    {
-        $src = $this->add_source($src_name);
-        $this->dsp('source', $src_name, $src->name);
-        return $src;
-    }
-
-    /**
-     * load a view and if the test user is set for a specific user
-     */
-    function load_view(string $dsp_name, ?user $test_usr = null): view
-    {
-        global $usr;
-
-        if ($test_usr == null) {
-            $test_usr = $usr;
-        }
-
-        $dsp = new view_dsp_old($test_usr);
-        $dsp->name = $dsp_name;
-        $dsp->load();
-        return $dsp;
-    }
-
-    function add_view(string $dsp_name, ?user $test_usr = null): view
-    {
-        global $usr;
-
-        if ($test_usr == null) {
-            $test_usr = $usr;
-        }
-
-        $dsp = $this->load_view($dsp_name, $test_usr);
-        if ($dsp->id == 0) {
-            $dsp->usr = $test_usr;
-            $dsp->name = $dsp_name;
-            $dsp->save();
-        }
-        return $dsp;
-    }
-
-    function test_view(string $dsp_name, ?user $test_usr = null): view
-    {
-        $dsp = $this->add_view($dsp_name, $test_usr);
-        $this->dsp('view', $dsp_name, $dsp->name);
-        return $dsp;
-    }
-
-
-    function load_view_component(string $cmp_name, ?user $test_usr = null): view_cmp
-    {
-        global $usr;
-
-        if ($test_usr == null) {
-            $test_usr = $usr;
-        }
-
-        $cmp = new view_cmp($test_usr);
-        $cmp->name = $cmp_name;
-        $cmp->load();
-        return $cmp;
-    }
-
-    function add_view_component(string $cmp_name, string $type_code_id = '', ?user $test_usr = null): view_cmp
-    {
-        global $usr;
-
-        if ($test_usr == null) {
-            $test_usr = $usr;
-        }
-
-        $cmp = $this->load_view_component($cmp_name, $test_usr);
-        if ($cmp->id == 0 or $cmp->id == Null) {
-            $cmp->usr = $test_usr;
-            $cmp->name = $cmp_name;
-            if ($type_code_id != '') {
-                $cmp->type_id = cl(db_cl::VIEW_COMPONENT_TYPE, $type_code_id);
-            }
-            $cmp->save();
-        }
-        return $cmp;
-    }
-
-    function test_view_component(string $cmp_name, string $type_code_id = '', ?user $test_usr = null): view_cmp
-    {
-        $cmp = $this->add_view_component($cmp_name, $type_code_id, $test_usr);
-        $this->dsp('view component', $cmp_name, $cmp->name);
-        return $cmp;
-    }
-
-    function test_view_cmp_lnk(string $dsp_name, string $cmp_name, int $pos): view_cmp_link
-    {
-        global $usr;
-        $dsp = $this->load_view($dsp_name);
-        $cmp = $this->load_view_component($cmp_name);
-        $lnk = new view_cmp_link($usr);
-        $lnk->fob = $dsp;
-        $lnk->tob = $cmp;
-        $lnk->order_nbr = $pos;
-        $result = $lnk->save();
-        $target = '';
-        $this->dsp('view component link', $target, $result);
-        return $lnk;
-    }
-
-    function test_view_cmp_unlink(string $dsp_name, string $cmp_name): string
-    {
-        $result = '';
-        $dsp = $this->load_view($dsp_name);
-        $cmp = $this->load_view_component($cmp_name);
-        if ($dsp != null and $cmp != null) {
-            if ($dsp->id > 0 and $cmp->id > 0) {
-                $result = $cmp->unlink($dsp);
-            }
-        }
-        return $result;
-    }
-
-    function load_word_link(string $from_name,
-                            string $verb_code_id,
-                            string $to_name): word_link
-    {
-        global $usr;
-        global $verbs;
-
-        $wrd_from = $this->load_word($from_name);
-        $wrd_to = $this->load_word($to_name);
-        $from = $wrd_from->phrase();
-        $to = $wrd_to->phrase();
-
-        $vrb = $verbs->get_verb($verb_code_id);
-
-        $lnk_test = new word_link($usr);
-        if ($from->id > 0 or $to->id > 0) {
-            // check if the forward link exists
-            $lnk_test->from = $from;
-            $lnk_test->verb = $vrb;
-            $lnk_test->to = $to;
-            $lnk_test->load();
-        }
-        return $lnk_test;
-    }
-
-    /**
-     * check if a word link exists and if not and requested create it
-     * $phrase_name should be set if the standard name for the link should not be used
-     */
-    function test_word_link(string $from_name,
-                            string $verb_code_id,
-                            string $to_name,
-                            string $target = '',
-                            string $phrase_name = '',
-                            bool   $autocreate = true)
-    {
-        global $usr;
-        global $verbs;
-
-        $result = '';
-
-        // create the words if needed
-        $wrd_from = $this->load_word($from_name);
-        if ($wrd_from->id <= 0 and $autocreate) {
-            $wrd_from->name = $from_name;
-            $wrd_from->save();
-            $wrd_from->load();
-        }
-        $wrd_to = $this->load_word($to_name);
-        if ($wrd_to->id <= 0 and $autocreate) {
-            $wrd_to->name = $to_name;
-            $wrd_to->save();
-            $wrd_to->load();
-        }
-        $from = $wrd_from->phrase();
-        $to = $wrd_to->phrase();
-
-        $vrb = $verbs->get_verb($verb_code_id);
-
-        $lnk_test = new word_link($usr);
-        if ($from->id == 0 or $to->id == 0) {
-            log_err("Words " . $from_name . " and " . $to_name . " cannot be created");
-        } else {
-            // check if the forward link exists
-            $lnk_test->from = $from;
-            $lnk_test->verb = $vrb;
-            $lnk_test->to = $to;
-            $lnk_test->load();
-            if ($lnk_test->id > 0) {
-                // refresh the given name if needed
-                if ($phrase_name <> '' and $lnk_test->description() <> $phrase_name) {
-                    $lnk_test->description = $phrase_name;
-                    $lnk_test->save();
-                    $lnk_test->load();
-                }
-                $result = $lnk_test;
-            } else {
-                // check if the backward link exists
-                $lnk_test->from = $to;
-                $lnk_test->verb = $vrb;
-                $lnk_test->to = $from;
-                $lnk_test->usr = $usr;
-                $lnk_test->load();
-                $result = $lnk_test;
-                // create the link if requested
-                if ($lnk_test->id <= 0 and $autocreate) {
-                    $lnk_test->from = $from;
-                    $lnk_test->verb = $vrb;
-                    $lnk_test->to = $to;
-                    $lnk_test->save();
-                    $lnk_test->load();
-                    // refresh the given name if needed
-                    if ($lnk_test->id <> 0 and $phrase_name <> '' and $lnk_test->description() <> $phrase_name) {
-                        $lnk_test->description = $phrase_name;
-                        $lnk_test->save();
-                        $lnk_test->load();
-                    }
-                    $result = $lnk_test;
-                }
-            }
-        }
-        // fallback setting of target f
-        $result_text = '';
-        if ($lnk_test->id > 0) {
-            $result_text = $lnk_test->description();
-            if ($target == '') {
-                $target = $lnk_test->name();
-            }
-        }
-        $this->dsp('word link', $target, $result_text, TIMEOUT_LIMIT_DB);
-        return $result;
-    }
-
-    function del_word_link(string $from_name,
-                           string $verb_code_id,
-                           string $to_name): bool
-    {
-        $trp = $this->load_word_link($from_name, $verb_code_id, $to_name);
-        if ($trp->id <> 0) {
-            $trp->del();
-            return true;
-        } else {
-            return false;
-        }
-    }
-
-    function test_formula_link(string $formula_name, string $word_name, bool $autocreate = true): string
-    {
-        global $usr;
-
-        $result = '';
-
-        $frm = new formula($usr);
-        $frm->name = $formula_name;
-        $frm->load();
-        $phr = new word($usr);
-        $phr->name = $word_name;
-        $phr->load();
-        if ($frm->id > 0 and $phr->id <> 0) {
-            $frm_lnk = new formula_link($usr);
-            $frm_lnk->fob = $frm;
-            $frm_lnk->tob = $phr;
-            $frm_lnk->load();
-            if ($frm_lnk->id > 0) {
-                $result = $frm_lnk->fob->name . ' is linked to ' . $frm_lnk->tob->name;
-                $target = $formula_name . ' is linked to ' . $word_name;
-                $this->dsp('formula_link', $target, $result);
-            } else {
-                if ($autocreate) {
-                    $frm_lnk->save();
-                }
-            }
-        }
-        return $result;
-    }
-
-    /*
-     * Format functions
-     */
-
-    /**
-     * @return string text with just single spaces
-     */
-    function trim(string $string_with_multiple_spaces): string
-    {
-        return trim(preg_replace('!\s+!', ' ', $string_with_multiple_spaces));
-    }
-
-    /**
-     * @return string text with just single spaces and without line feeds
-     */
-    function trim_lines(string $string_with_new_lines): string
-    {
-        return $this->trim(preg_replace('/[\n\r]/', ' ', $string_with_new_lines));
-    }
-
-    /**
-     * @return string text with just single spaces and all spaces removed not needed in a SQL
-     */
-    function trim_sql(string $sql_string): string
-    {
-        $result = $this->trim_lines($sql_string);
-        $result = preg_replace('/\( /', '(', $result);
-        $result = preg_replace('/ \)/', ')', $result);
-        return preg_replace('/, /', ',', $result);
-    }
-
-    /**
-     * @return string text with just single spaces and all spaces removed not needed in a JSON
-     */
-    function trim_json(string $json_string): string
-    {
-        $result = $this->trim_lines($json_string);
-        $result = preg_replace('/\[ {/', '[{', $result);
-        $result = preg_replace('/} ]/', '}]', $result);
-        $result = preg_replace('/" }/', '"}', $result);
-        $result = preg_replace('/": /', '":', $result);
-        $result = preg_replace('/, "/', ',"', $result);
-        $result = preg_replace('/{ "/', '{"', $result);
-        return preg_replace('/}, {/', '},{', $result);
-    }
-
-    /**
-     * @return string text with just single spaces and all spaces removed not needed for HTML
-     */
-    function trim_html(string $html_string): string
-    {
-        $result = $this->trim_lines($html_string);
-        $result = preg_replace('/ <td>/', '<td>', $result);
-        $result = preg_replace('/ <\/td>/', '</td>', $result);
-        $result = preg_replace('/ <th>/', '<th>', $result);
-        $result = preg_replace('/ <\/th>/', '</th>', $result);
-        $result = preg_replace('/ <tr>/', '<tr>', $result);
-        $result = preg_replace('/ <\/tr>/', '</tr>', $result);
-        $result = preg_replace('/> <div/', '><div', $result);
-        $result = preg_replace('/> <\/div/', '></div', $result);
-        $result = preg_replace('/> <table/', '><table', $result);
-        $result = preg_replace('/> <\/table/', '></table', $result);
-        $result = preg_replace('/> <footer/', '><footer', $result);
-        $result = preg_replace('/> <\/footer/', '></footer', $result);
-        $result = preg_replace('/" \/>/', '"/>', $result);
-        $result = preg_replace('/" </', '"<', $result);
-        $result = preg_replace('/ >/', '>', $result);
-        $result = preg_replace('/ </', '<', $result);
-        return preg_replace('/> </', '><', $result);
-    }
 
     /*
      * Display functions
@@ -1043,7 +388,7 @@ class test_base
     /**
      * the HTML code to display the header text
      */
-    function header($header_text)
+    function header(string $header_text): void
     {
         echo '<br><br><h2>' . $header_text . '</h2><br>';
     }
@@ -1051,7 +396,7 @@ class test_base
     /**
      * the HTML code to display the subheader text
      */
-    function subheader($header_text)
+    function subheader(string $header_text): void
     {
         echo '<br><h3>' . $header_text . '</h3><br>';
     }
@@ -1061,7 +406,11 @@ class test_base
      */
     function file(string $test_resource_path): string
     {
-        return file_get_contents(PATH_TEST_FILES . $test_resource_path);
+        $result = file_get_contents(PATH_TEST_FILES . $test_resource_path);
+        if ($result === false) {
+            $result = 'Cannot get file from ' . PATH_TEST_FILES . $test_resource_path;
+        }
+        return $result;
     }
 
     /**
@@ -1069,36 +418,140 @@ class test_base
      * TODO replace all dsp calls with this but the
      *
      * @param string $msg (unique) description of the test
-     * @param $result
-     * @param $target
-     * @param $exe_max_time
-     * @param $comment
-     * @param $test_type
-     * @return bool
+     * @param string|array $result the actual result
+     * @param string|array $target the expected result
+     * @param float $exe_max_time the expected max time to create the result
+     * @param string $comment
+     * @param string $test_type
+     * @return bool true is the result is fine
      */
-    function assert(string $msg, $result, $target, $exe_max_time = TIMEOUT_LIMIT, $comment = '', $test_type = ''): bool
+    function assert(
+        string            $msg,
+        string|array|null $result,
+        string|array      $target,
+        float             $exe_max_time = TIMEOUT_LIMIT,
+        string            $comment = '',
+        string            $test_type = ''): bool
     {
+        // the result should never be null, but if, check it here not on each call
+        if ($result == null) {
+            $result = '';
+            log_warning('result of test ' . $msg . ' has been null');
+        }
         return $this->dsp(', ' . $msg, $target, $result, $exe_max_time, $comment, $test_type);
     }
 
     /**
-     * check if the frontend API object can be created and if the recreation of the backend object result to the same object
+     * check if the result text contains at least the target text
+     *
+     * @param string $msg (unique) description of the test
+     * @param string $result the actual result
+     * @param string $target the expected result
+     * @param float $exe_max_time the expected max time to create the result
+     * @param string $comment
+     * @param string $test_type
+     * @return bool true is the result is fine
+     */
+    function assert_text_contains(
+        string $msg,
+        string $result,
+        string $target,
+        float  $exe_max_time = TIMEOUT_LIMIT,
+        string $comment = '',
+        string $test_type = ''): bool
+    {
+        if (strpos($result, $target) !== null) {
+            $result = $target;
+        }
+        return $this->dsp(', ' . $msg, $target, $result, $exe_max_time, $comment, $test_type);
+    }
+
+    /**
+     * check if the test results contains at least all expected results
+     *
+     * @param string $msg (unique) description of the test
+     * @param array $result the actual result
+     * @param array $target the expected result
+     * @param float $exe_max_time the expected max time to create the result
+     * @param string $comment
+     * @param string $test_type
+     * @return bool true is the result is fine
+     */
+    function assert_contains(
+        string $msg,
+        array  $result,
+        array  $target,
+        float  $exe_max_time = TIMEOUT_LIMIT,
+        string $comment = '',
+        string $test_type = ''): bool
+    {
+        $result = array_intersect($result, $target);
+        return $this->dsp(', ' . $msg, $target, $result, $exe_max_time, $comment, $test_type);
+    }
+
+    /**
+     * check if the test results contains at least all expected results
+     *
+     * @param string $msg (unique) description of the test
+     * @param array $result the actual result
+     * @param array $target the expected result
+     * @param float $exe_max_time the expected max time to create the result
+     * @param string $comment
+     * @param string $test_type
+     * @return bool true is the result is fine
+     */
+    function assert_contains_not(
+        string $msg,
+        array  $result,
+        array  $target,
+        float  $exe_max_time = TIMEOUT_LIMIT,
+        string $comment = '',
+        string $test_type = ''): bool
+    {
+        $result = array_diff($target, $result);
+        return $this->dsp(', ' . $msg, $target, $result, $exe_max_time, $comment, $test_type);
+    }
+
+    /**
+     * check if the frontend API object can be created
+     * and if the export based recreation of the backend object result to the similar object
      *
      * @param object $usr_obj the object which frontend API functions should be tested
      * @return bool true if the reloaded backend object has no relevant differences
      */
-    function assert_api(object $usr_obj): bool
+    function assert_api_exp(object $usr_obj): bool
     {
         $original_json = json_decode(json_encode($usr_obj->export_obj(false)), true);
         $recreated_json = '';
         $api_obj = $usr_obj->api_obj();
         if ($api_obj->id() == $usr_obj->id()) {
-            $db_obj = $api_obj->db_obj($usr_obj->usr, get_class($api_obj));
+            $db_obj = $api_obj->db_obj($usr_obj->user(), get_class($api_obj));
             $recreated_json = json_decode(json_encode($db_obj->export_obj(false)), true);
         }
         $result = json_is_similar($original_json, $recreated_json);
         return $this->assert($this->name . 'API check', $result, true);
     }
+
+    /**
+     * check if the REST GET call returns the expected export JSON message
+     *
+     * @param string $test_name the name of the object to test
+     * @param string $fld the field name to select the export
+     * @param int $id the database id of the db row that should be used for testing
+     * @return bool true if the json has no relevant differences
+     */
+    function assert_api_get_json(string $test_name, string $fld = '', int $id = 1): bool
+    {
+        $url = HOST_TESTING . controller::URL_API_PATH . 'json';
+        $data = array($fld => $id);
+        $actual = json_decode($this->api_call("GET", $url, $data), true);
+        // TODO remove, for faster debugging only
+        $json_actual = json_encode($actual);
+        $expected_text = $this->file('api/json/' . $test_name . '.json');
+        $expected = json_decode($expected_text, true);
+        return $this->assert($test_name . ' API GET', json_is_similar($actual, $expected), true);
+    }
+
 
     /**
      * check if the REST curl calls are possible
@@ -1109,7 +562,7 @@ class test_base
     function assert_rest(object $usr_obj): bool
     {
         $obj_name = get_class($usr_obj);
-        $url_read = 'api/' . $obj_name . '/read.php';
+        $url_read = 'api/' . $obj_name . '/index.php';
         $original_json = json_decode(json_encode($usr_obj->$usr_obj()), true);
         $recreated_json = '';
         $api_obj = $usr_obj->api_obj();
@@ -1122,6 +575,25 @@ class test_base
     }
 
     /**
+     * test a system view with a sample user object
+     *
+     * @param string $dsp_code_id the code id of the view that should be tested
+     * @return bool true if the generated view matches the expected
+     */
+    function assert_view(string $dsp_code_id): bool
+    {
+        global $usr;
+
+        $filename = 'views/' . $dsp_code_id;
+
+        $dsp = new view($usr);
+        $dsp->load_by_code_id($dsp_code_id);
+
+        $actual = $dsp->dsp_obj()->dsp_system_view();
+        return $this->assert_html($this->name . ' view ' . $dsp_code_id, $actual, $filename);
+    }
+
+    /**
      * check if an object json file can be recreated by importing the object and recreating the json with the export function
      *
      * @param object $usr_obj the object which json im- and export functions should be tested
@@ -1130,11 +602,207 @@ class test_base
      */
     function assert_json(object $usr_obj, string $json_file_name): bool
     {
-        $json_in = json_decode(file_get_contents(PATH_TEST_FILES . $json_file_name), true);
+        $file_text = file_get_contents(PATH_TEST_FILES . $json_file_name);
+        $json_in = json_decode($file_text, true);
         $usr_obj->import_obj($json_in, false);
         $json_ex = json_decode(json_encode($usr_obj->export_obj(false)), true);
         $result = json_is_similar($json_in, $json_ex);
+        // TODO remove, for faster debugging only
+        $json_in_txt = json_encode($json_in);
+        $json_ex_txt = json_encode($json_ex);
         return $this->assert($this->name . 'import check name', $result, true);
+    }
+
+    /**
+     * check if the created html matches a defined html file
+     *
+     * @param string $test_name the description of the test
+     * @param string $body the body of a html page
+     * @param string $filename the filename of the expected html page
+     * @return bool true if the html has no relevant differences
+     */
+    public function assert_html(string $test_name, string $body, string $filename): bool
+    {
+        $lib = new library();
+
+        $actual = $this->html_page($body);
+        $expected = $this->file('web/html/' . $filename . '.html');
+        return $this->assert($test_name, $lib->trim_html($actual), $lib->trim_html($expected));
+    }
+
+    /**
+     * similar to assert_load_sql but for the load_sql_obj_vars that
+     * TODO should be replaced by assert_load_sql_id, assert_load_sql_name, assert_load_sql_all, ...
+     *
+     * check the object load SQL statements for all allowed SQL database dialects
+     *
+     * @param sql_db $db_con does not need to be connected to a real database
+     * @param object $usr_obj the user sandbox object e.g. a word
+     * @param string $db_type to define the database type if it does not match the class
+     * @return bool true if all tests are fine
+     */
+    function assert_load_sql_obj_vars(sql_db $db_con, object $usr_obj, string $db_type = ''): bool
+    {
+        if ($db_type == '') {
+            $db_type = get_class($usr_obj);
+        }
+
+        // check the PostgreSQL query syntax
+        $db_con->db_type = sql_db::POSTGRES;
+        $qp = $usr_obj->load_sql_obj_vars($db_con, $db_type);
+        $result = $this->assert_qp($qp, $db_con->db_type);
+
+        // ... and check the MySQL query syntax
+        if ($result) {
+            $db_con->db_type = sql_db::MYSQL;
+            $qp = $usr_obj->load_sql_obj_vars($db_con, $db_type);
+            $result = $this->assert_qp($qp, $db_con->db_type);
+        }
+        return $result;
+    }
+
+    /**
+     * similar to assert_load_sql but for an id
+     * check the object load by id list SQL statements for all allowed SQL database dialects
+     *
+     * @param sql_db $db_con does not need to be connected to a real database
+     * @param object $usr_obj the user sandbox object e.g. a word
+     * @return bool true if all tests are fine
+     */
+    function assert_load_sql_id(sql_db $db_con, object $usr_obj): bool
+    {
+        // check the PostgreSQL query syntax
+        $db_con->db_type = sql_db::POSTGRES;
+        $qp = $usr_obj->load_sql_by_id($db_con, 1, $usr_obj::class);
+        $result = $this->assert_qp($qp, $db_con->db_type);
+
+        // ... and check the MySQL query syntax
+        if ($result) {
+            $db_con->db_type = sql_db::MYSQL;
+            $qp = $usr_obj->load_sql_by_id($db_con, 1, $usr_obj::class);
+            $result = $this->assert_qp($qp, $db_con->db_type);
+        }
+        return $result;
+    }
+
+    /**
+     * similar to assert_load_sql but for an id list
+     * check the object load by id list SQL statements for all allowed SQL database dialects
+     *
+     * @param sql_db $db_con does not need to be connected to a real database
+     * @param object $usr_obj the user sandbox object e.g. a word
+     * @return bool true if all tests are fine
+     */
+    function assert_load_sql_ids(sql_db $db_con, object $usr_obj): bool
+    {
+        // check the PostgreSQL query syntax
+        $db_con->db_type = sql_db::POSTGRES;
+        $qp = $usr_obj->load_sql_by_ids($db_con, array(1, 2));
+        $result = $this->assert_qp($qp, $db_con->db_type);
+
+        // ... and check the MySQL query syntax
+        if ($result) {
+            $db_con->db_type = sql_db::MYSQL;
+            $qp = $usr_obj->load_sql_by_ids($db_con, array(1, 2));
+            $result = $this->assert_qp($qp, $db_con->db_type);
+        }
+        return $result;
+    }
+
+    /**
+     * similar to assert_load_sql_ids but for a term id list
+     * check the object load by id list SQL statements for all allowed SQL database dialects
+     *
+     * @param sql_db $db_con does not need to be connected to a real database
+     * @param object $usr_obj the user sandbox object e.g. a word
+     * @return bool true if all tests are fine
+     */
+    function assert_load_sql_trm_ids(sql_db $db_con, object $usr_obj): bool
+    {
+        // check the PostgreSQL query syntax
+        $db_con->db_type = sql_db::POSTGRES;
+        $qp = $usr_obj->load_sql_by_ids($db_con, new trm_ids(array()));
+        $result = $this->assert_qp($qp, $db_con->db_type);
+
+        // ... and check the MySQL query syntax
+        if ($result) {
+            $db_con->db_type = sql_db::MYSQL;
+            $qp = $usr_obj->load_sql_by_ids($db_con, new trm_ids(array()));
+            $result = $this->assert_qp($qp, $db_con->db_type);
+        }
+        return $result;
+    }
+
+    /**
+     * similar to assert_load_sql but select one row based on the name
+     * check the object load by name SQL statements for all allowed SQL database dialects
+     *
+     * @param sql_db $db_con does not need to be connected to a real database
+     * @param object $usr_obj the user sandbox object e.g. a word
+     * @return bool true if all tests are fine
+     */
+    function assert_load_sql_name(sql_db $db_con, object $usr_obj): bool
+    {
+        // check the PostgreSQL query syntax
+        $db_con->db_type = sql_db::POSTGRES;
+        $qp = $usr_obj->load_sql_by_name($db_con, 'System test', $usr_obj::class);
+        $result = $this->assert_qp($qp, $db_con->db_type);
+
+        // ... and check the MySQL query syntax
+        if ($result) {
+            $db_con->db_type = sql_db::MYSQL;
+            $qp = $usr_obj->load_sql_by_name($db_con, 'System test', $usr_obj::class);
+            $result = $this->assert_qp($qp, $db_con->db_type);
+        }
+        return $result;
+    }
+
+    /**
+     * similar to assert_load_sql but select one row based on the code id
+     * check the object load by name SQL statements for all allowed SQL database dialects
+     *
+     * @param sql_db $db_con does not need to be connected to a real database
+     * @param object $usr_obj the user sandbox object e.g. a verb
+     * @return bool true if all tests are fine
+     */
+    function assert_load_sql_code_id(sql_db $db_con, object $usr_obj): bool
+    {
+        // check the PostgreSQL query syntax
+        $db_con->db_type = sql_db::POSTGRES;
+        $qp = $usr_obj->load_sql_by_code_id($db_con, 'System test', $usr_obj::class);
+        $result = $this->assert_qp($qp, $db_con->db_type);
+
+        // ... and check the MySQL query syntax
+        if ($result) {
+            $db_con->db_type = sql_db::MYSQL;
+            $qp = $usr_obj->load_sql_by_code_id($db_con, 'System test', $usr_obj::class);
+            $result = $this->assert_qp($qp, $db_con->db_type);
+        }
+        return $result;
+    }
+
+    /**
+     * similar to assert_load_sql but select one row based on the linked components
+     * check the SQL statements for user object load by linked objects for all allowed SQL database dialects
+     *
+     * @param sql_db $db_con does not need to be connected to a real database
+     * @param object $usr_obj the user sandbox object e.g. a word
+     * @return bool true if all tests are fine
+     */
+    function assert_load_sql_link(sql_db $db_con, object $usr_obj): bool
+    {
+        // check the PostgreSQL query syntax
+        $db_con->db_type = sql_db::POSTGRES;
+        $qp = $usr_obj->load_sql_by_link($db_con, 1, 0, 3, $usr_obj::class);
+        $result = $this->assert_qp($qp, $db_con->db_type);
+
+        // ... and check the MySQL query syntax
+        if ($result) {
+            $db_con->db_type = sql_db::MYSQL;
+            $qp = $usr_obj->load_sql_by_link($db_con, 1, 0, 3, $usr_obj::class);
+            $result = $this->assert_qp($qp, $db_con->db_type);
+        }
+        return $result;
     }
 
     /**
@@ -1145,7 +813,7 @@ class test_base
      * @param string $db_type to define the database type if it does not match the class
      * @return bool true if all tests are fine
      */
-    function assert_load_sql(sql_db $db_con, object $usr_obj, string $db_type = ''): bool
+    function assert_load_sql_all(sql_db $db_con, object $usr_obj, string $db_type = ''): bool
     {
         if ($db_type == '') {
             $db_type = get_class($usr_obj);
@@ -1153,13 +821,37 @@ class test_base
 
         // check the PostgreSQL query syntax
         $db_con->db_type = sql_db::POSTGRES;
-        $qp = $usr_obj->load_sql($db_con, $db_type);
+        $qp = $usr_obj->load_sql_all($db_con, $db_type);
         $result = $this->assert_qp($qp, $db_con->db_type);
 
         // ... and check the MySQL query syntax
         if ($result) {
             $db_con->db_type = sql_db::MYSQL;
-            $qp = $usr_obj->load_sql($db_con, $db_type);
+            $qp = $usr_obj->load_sql_all($db_con, $db_type);
+            $result = $this->assert_qp($qp, $db_con->db_type);
+        }
+        return $result;
+    }
+
+    /**
+     * similar to assert_load_sql but for a name pattern
+     * check the object load by id list SQL statements for all allowed SQL database dialects
+     *
+     * @param sql_db $db_con does not need to be connected to a real database
+     * @param object $usr_obj the user sandbox object e.g. a word
+     * @return bool true if all tests are fine
+     */
+    function assert_load_sql_like(sql_db $db_con, object $usr_obj,): bool
+    {
+        // check the PostgreSQL query syntax
+        $db_con->db_type = sql_db::POSTGRES;
+        $qp = $usr_obj->load_sql_like($db_con, '');
+        $result = $this->assert_qp($qp, $db_con->db_type);
+
+        // ... and check the MySQL query syntax
+        if ($result) {
+            $db_con->db_type = sql_db::MYSQL;
+            $qp = $usr_obj->load_sql_like($db_con, '');
             $result = $this->assert_qp($qp, $db_con->db_type);
         }
         return $result;
@@ -1175,17 +867,41 @@ class test_base
      * @param bool $by_source set to true to force the selection e.g. by source phrase group id
      * @return bool true if all tests are fine
      */
-    function assert_load_list_sql(sql_db $db_con, object $lst_obj, object $select_obj, object $select_obj2 = null, bool $by_source = false): bool
+    function assert_load_list_sql(sql_db $db_con, object $lst_obj, object $select_obj, bool $by_source = false): bool
     {
         // check the PostgreSQL query syntax
         $db_con->db_type = sql_db::POSTGRES;
-        $qp = $lst_obj->load_sql($db_con, $select_obj, $select_obj2, $by_source);
+        $qp = $lst_obj->load_sql($db_con, $select_obj, $by_source);
         $result = $this->assert_qp($qp, $db_con->db_type);
 
         // ... and check the MySQL query syntax
         if ($result) {
             $db_con->db_type = sql_db::MYSQL;
-            $qp = $lst_obj->load_sql($db_con, $select_obj, $select_obj2, $by_source);
+            $qp = $lst_obj->load_sql($db_con, $select_obj, $by_source);
+            $result = $this->assert_qp($qp, $db_con->db_type);
+        }
+        return $result;
+    }
+
+    /**
+     * check the SQL statements for loading a list of objects selected by the type in all allowed SQL database dialects
+     *
+     * @param sql_db $db_con does not need to be connected to a real database
+     * @param object $lst_obj the list object e.g. batch job list
+     * @param string $type_code_id the type code id that should be used for the selection
+     * @return bool true if all tests are fine
+     */
+    function assert_load_list_sql_type(sql_db $db_con, object $lst_obj, string $type_code_id): bool
+    {
+        // check the PostgreSQL query syntax
+        $db_con->db_type = sql_db::POSTGRES;
+        $qp = $lst_obj->load_sql_by_type($db_con, $type_code_id, $lst_obj::class);
+        $result = $this->assert_qp($qp, $db_con->db_type);
+
+        // ... and check the MySQL query syntax
+        if ($result) {
+            $db_con->db_type = sql_db::MYSQL;
+            $qp = $lst_obj->load_sql_by_type($db_con, $type_code_id, $lst_obj::class);
             $result = $this->assert_qp($qp, $db_con->db_type);
         }
         return $result;
@@ -1215,11 +931,98 @@ class test_base
     }
 
     /**
+     * check the object loading by id and name
+     *
+     * @param user_sandbox $usr_obj the user sandbox object e.g. a word
+     * @param string $name the name
+     * @return bool true if all tests are fine
+     */
+    function assert_load(db_object $usr_obj, string $name): bool
+    {
+        // check the loading via id and check the name
+        $usr_obj->load_by_id(1, $usr_obj::class);
+        $result = $this->assert($usr_obj::class . '->load', $usr_obj->name(), $name);
+
+        // ... and check the loading via name and check the id
+        if ($result) {
+            $usr_obj->reset();
+            $usr_obj->load_by_name($name, $usr_obj::class);
+            $result = $this->assert($usr_obj::class . '->load', $usr_obj->id(), 1);
+        }
+        return $result;
+    }
+
+    /**
+     * check the not changed SQL statements of a user sandbox object e.g. word, triple, value or formulas
+     *
+     * @param sql_db $db_con does not need to be connected to a real database
+     * @param user_sandbox $usr_obj the user sandbox object e.g. a word
+     * @return bool true if all tests are fine
+     */
+    function assert_not_changed_sql(sql_db $db_con, user_sandbox $usr_obj): bool
+    {
+        // check the PostgreSQL query syntax
+        $usr_obj->owner_id = 0;
+        $db_con->db_type = sql_db::POSTGRES;
+        $qp = $usr_obj->not_changed_sql($db_con);
+        $result = $this->assert_qp($qp, $db_con->db_type);
+
+        // ... and check with owner
+        if ($result) {
+            $usr_obj->owner_id = 1;
+            $qp = $usr_obj->not_changed_sql($db_con);
+            $result = $this->assert_qp($qp, $db_con->db_type);
+        }
+
+        // ... and check the MySQL query syntax
+        if ($result) {
+            $usr_obj->owner_id = 0;
+            $db_con->db_type = sql_db::MYSQL;
+            $qp = $usr_obj->not_changed_sql($db_con);
+            $result = $this->assert_qp($qp, $db_con->db_type);
+        }
+
+        // ... and check with owner
+        if ($result) {
+            $usr_obj->owner_id = 1;
+            $qp = $usr_obj->not_changed_sql($db_con);
+            $result = $this->assert_qp($qp, $db_con->db_type);
+        }
+
+        return $result;
+    }
+
+    /**
+     * check the SQL statements to get the user sandbox changes
+     * e.g. the value a user has changed of word, triple, value or formulas
+     *
+     * @param sql_db $db_con does not need to be connected to a real database
+     * @param user_sandbox $usr_obj the user sandbox object e.g. a word
+     * @return bool true if all tests are fine
+     */
+    function assert_user_config_sql(sql_db $db_con, user_sandbox $usr_obj): bool
+    {
+        // check the PostgreSQL query syntax
+        $db_con->db_type = sql_db::POSTGRES;
+        $qp = $usr_obj->usr_cfg_sql($db_con);
+        $result = $this->assert_qp($qp, $db_con->db_type);
+
+        // ... and check the MySQL query syntax
+        if ($result) {
+            $db_con->db_type = sql_db::MYSQL;
+            $qp = $usr_obj->usr_cfg_sql($db_con);
+            $result = $this->assert_qp($qp, $db_con->db_type);
+        }
+
+        return $result;
+    }
+
+    /**
      * test the SQL statement creation for a value
      *
      * @param sql_par $qp the query parameters that should be tested
      * @param string $dialect if not PostgreSQL the name of the SQL dialect
-     * @return void
+     * @return bool true if the test is fine
      */
     function assert_qp(sql_par $qp, string $dialect = ''): bool
     {
@@ -1258,7 +1061,8 @@ class test_base
      */
     function assert_sql(string $name, string $created, string $expected): bool
     {
-        return $this->assert($name, $this->trim_sql($created), $this->trim_sql($expected));
+        $lib = new library();
+        return $this->assert($name, $lib->trim_sql($created), $lib->trim_sql($expected));
     }
 
     /**
@@ -1269,7 +1073,7 @@ class test_base
      */
     function assert_greater_zero(string $name, int $received): bool
     {
-        $expected = null;
+        $expected = 0;
         if ($received > 0) {
             $expected = $received;
         }
@@ -1296,19 +1100,35 @@ class test_base
     }
 
     /**
+     * just report an assert error without additional check
+     * @param string $msg
+     * @return void
+     */
+    function assert_fail(string $msg): void
+    {
+        log_err('ERROR: ' . $msg);
+        $this->error_counter++;
+        $this->assert_dsp($msg, false);
+    }
+
+    /**
      * display the result of one test e.g. if adding a value has been successful
      *
      * @return bool true if the test result is fine
      */
-    function dsp($msg, $target, $result, $exe_max_time = TIMEOUT_LIMIT, $comment = '', $test_type = ''): bool
+    function dsp(
+        string       $msg,
+        string|array $target,
+        string|array $result,
+        float        $exe_max_time = TIMEOUT_LIMIT,
+        string       $comment = '',
+        string       $test_type = ''): bool
     {
 
         // init the test result vars
         $test_result = false;
         $txt = '';
         $test_diff = '';
-        $new_start_time = microtime(true);
-        $since_start = $new_start_time - $this->exe_start_time;
 
         // do the compare depending on the type
         if (is_array($target) and is_array($result)) {
@@ -1316,9 +1136,13 @@ class test_base
             sort($result);
             // in an array each value needs to be the same
             $test_result = true;
-            foreach ($result as $key => $value) {
-                if ($value != $target[$key]) {
-                    $test_result = false;
+            foreach ($target as $key => $value) {
+                if (array_key_exists($key, $result)) {
+                    if ($value != $result[$key]) {
+                        $test_result = false;
+                    }
+                } else {
+                    log_err('Key ' . $key . ' missing in ' . dsp_array($result, true));
                 }
             }
         } elseif (is_numeric($result) && is_numeric($target)) {
@@ -1339,88 +1163,101 @@ class test_base
                 } else {
                     $diff = str_diff($result, $target);
                     if ($diff == '') {
-                        $target = $result;
                         log_err('Unexpected diff ' . $diff);
+                        $target = $result;
                     }
                 }
             }
         }
 
-        // display the result
-        if ($test_result) {
-            // check if executed in a reasonable time and if the result is fine
-            if ($since_start > $exe_max_time) {
-                $txt .= '<p style="color:orange">TIMEOUT' . $msg;
-                $this->timeout_counter++;
-            } else {
-                $txt .= '<p style="color:green">OK' . $msg;
-                $test_result = true;
-            }
-        } else {
-            $txt .= '<p style="color:red">Error' . $msg;
-            $this->error_counter++;
-            // TODO: create a ticket
-        }
-
-// explain the check
+        // explain the check
         if (is_array($target)) {
             if ($test_type == 'contains') {
-                $txt .= " should contain \"" . dsp_array($target) . "\"";
+                $msg .= " should contain \"" . dsp_array($target) . "\"";
             } else {
-                $txt .= " should be \"" . dsp_array($target) . "\"";
+                $msg .= " should be \"" . dsp_array($target) . "\"";
             }
         } else {
             if ($test_type == 'contains') {
-                $txt .= " should contain \"" . $target . "\"";
+                $msg .= " should contain \"" . $target . "\"";
             } else {
-                $txt .= " should be \"" . $target . "\"";
+                $msg .= " should be \"" . $target . "\"";
             }
         }
         if ($result == $target) {
             if ($test_type == 'contains') {
-                $txt .= " and it contains ";
+                $msg .= " and it contains ";
             } else {
                 $txt .= " and it is ";
             }
         } else {
             if ($test_type == 'contains') {
-                $txt .= ", but does not contain ";
+                $msg .= ", but ";
             } else {
-                $txt .= ", but it is ";
+                $msg .= ", but it is ";
             }
         }
         if (is_array($result)) {
             if ($result != null) {
                 if (is_array($result[0])) {
-                    $txt .= "\"";
-                    foreach ($result as $result_item) {
+                    $msg .= "\"";
+                    foreach ($result[0] as $result_item) {
                         if ($result_item <> $result[0]) {
-                            $txt .= ",";
+                            $msg .= ",";
                         }
-                        $txt .= implode(":", $result_item);
+                        $msg .= implode(":", array_flat($result_item));
                     }
-                    $txt .= "\"";
+                    $msg .= "\"";
                 } else {
-                    $txt .= "\"" . dsp_array($result) . "\"";
+                    $msg .= "\"" . dsp_array($result) . "\"";
                 }
             }
         } else {
-            $txt .= "\"" . $result . "\"";
+            $msg .= "\"" . $result . "\"";
             if ($test_diff != '') {
-                $txt .= ' ' . $test_diff;
+                $msg .= ' ' . $test_diff;
             }
         }
         if ($comment <> '') {
-            $txt .= ' (' . $comment . ')';
+            $msg .= ' (' . $comment . ')';
         }
 
-// show the execution time
-        $txt .= ', took ';
-        $txt .= round($since_start, 4) . ' seconds';
+        return $this->assert_dsp($msg, $test_result, $exe_max_time);
+    }
 
-// --- and finally display the test result
-        $txt .= '</p>';
-        echo $txt;
+    /**
+     * @return void
+     */
+    private function assert_dsp(string $msg, bool $test_result, float $exe_max_time = TIMEOUT_LIMIT): bool
+    {
+        // calculate the execution time
+        $final_msg = '';
+        $new_start_time = microtime(true);
+        $since_start = $new_start_time - $this->exe_start_time;
+
+        // display the result
+        if ($test_result) {
+            // check if executed in a reasonable time and if the result is fine
+            if ($since_start > $exe_max_time) {
+                $final_msg .= '<p style="color:orange">TIMEOUT' . $msg;
+                $this->timeout_counter++;
+            } else {
+                $final_msg .= '<p style="color:green">OK' . $msg;
+                $test_result = true;
+            }
+        } else {
+            $final_msg .= '<p style="color:red">Error' . $msg;
+            $this->error_counter++;
+            // TODO: create a ticket
+        }
+
+        // show the execution time
+        $final_msg .= ', took ';
+        $final_msg .= round($since_start, 4) . ' seconds';
+
+        // --- and finally display the test result
+        $final_msg .= '</p>';
+        echo $final_msg;
         echo "\n";
         flush();
 
@@ -1434,9 +1271,14 @@ class test_base
      * similar to test_show_result, but the target only needs to be part of the result
      * e.g. "Zurich" is part of the canton word list
      */
-    function dsp_contains($test_text, $target, $result, $exe_max_time = TIMEOUT_LIMIT, $comment = ''): bool
+    function dsp_contains(
+        string $test_text,
+        string $target,
+        string $result,
+        float  $exe_max_time = TIMEOUT_LIMIT,
+        string $comment = ''): bool
     {
-        if (strpos($result, $target) === false) {
+        if (!str_contains($result, $target) and $result != '' and $target != '') {
             $result = $target . ' not found in ' . $result;
         } else {
             $result = $target;
@@ -1504,7 +1346,7 @@ class test_base
     /**
      * display the test results in pure test format
      */
-    function dsp_result()
+    function dsp_result(): void
     {
 
         echo "\n";
@@ -1518,6 +1360,61 @@ class test_base
         echo $this->error_counter . ' errors';
     }
 
+    /**
+     * @return int the next sequence number to simulate database auto increase for unit testing
+     */
+    protected function next_seq_nbr(): int
+    {
+        $this->seq_nbr++;
+        return $this->seq_nbr;
+    }
+
+    function api_call(string $method, string $url, array $data): string
+    {
+        $curl = curl_init();
+        $data_json = json_encode($data);
+
+
+        switch ($method) {
+            case "POST":
+                curl_setopt($curl, CURLOPT_CUSTOMREQUEST, "POST");
+                break;
+            case "PUT":
+                curl_setopt($curl,
+                    CURLOPT_HTTPHEADER,
+                    array('Content-Type: application/json', 'Content-Length: ' . strlen($data_json)));
+                curl_setopt($curl, CURLOPT_CUSTOMREQUEST, "PUT");
+                curl_setopt($curl, CURLOPT_POSTFIELDS, $data_json);
+                break;
+            case "DELETE":
+                curl_setopt($curl, CURLOPT_CUSTOMREQUEST, "DELETE");
+                $url = sprintf("%s?%s", $url, http_build_query($data));
+                break;
+            default:
+                $url = sprintf("%s?%s", $url, http_build_query($data));
+
+        }
+
+        // Optional Authentication:
+        curl_setopt($curl, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
+        curl_setopt($curl, CURLOPT_USERPWD, "username:password");
+
+        curl_setopt($curl, CURLOPT_URL, $url);
+        curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
+
+        $result = curl_exec($curl);
+
+        curl_close($curl);
+
+        return $result;
+    }
+
+    private function html_page(string $body): string
+    {
+        $html = new html_base();
+        return $html->header_test('test') . $body . $html->footer();
+    }
 }
 
 
@@ -1527,12 +1424,12 @@ class test_base
 
 function zu_test_time_setup(testing $t): string
 {
-    global $usr, $db_con;
+    global $db_con;
 
     $result = '';
-    $this_year = date('Y');
+    $this_year = intval(date('Y'));
     $prev_year = '';
-    $test_years = cfg_get('test_years', $db_con);
+    $test_years = intval(cfg_get(config::TEST_YEARS, $db_con));
     if ($test_years == '') {
         log_warning('Configuration of test years is missing', 'test_base->zu_test_time_setup');
     } else {
@@ -1541,10 +1438,10 @@ function zu_test_time_setup(testing $t): string
         for ($year = $start_year; $year <= $end_year; $year++) {
             $this_year = $year;
             $t->test_word(strval($this_year));
-            $wrd_lnk = $t->test_word_link(TW_YEAR, verb::IS_A, $this_year);
-            $result = $wrd_lnk->name;
+            $wrd_lnk = $t->test_triple(TW_YEAR, verb::IS_A, $this_year);
+            $result = $wrd_lnk->name();
             if ($prev_year <> '') {
-                $t->test_word_link($prev_year, verb::FOLLOW, $this_year);
+                $t->test_triple($prev_year, verb::FOLLOW, $this_year);
             }
             $prev_year = $this_year;
         }

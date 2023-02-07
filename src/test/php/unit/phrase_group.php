@@ -30,18 +30,22 @@
 
 */
 
+use api\phrase_group_api;
+use api\word_api;
+
 class phrase_group_unit_tests
 {
-    function run(testing $t)
+    function run(testing $t): void
     {
 
         global $usr;
 
         // init
+        $lib = new library();
         $db_con = new sql_db();
         $t->name = 'phrase_group->';
         $t->resource_path = 'db/phrase/';
-        $usr->id = 1;
+        $usr->set_id(1);
 
         $t->header('Unit tests of the phrase group class (src/main/php/model/phrase/word.php)');
 
@@ -49,100 +53,100 @@ class phrase_group_unit_tests
 
         // sql to load the phrase group by id
         $phr_grp = new phrase_group($usr);
-        $phr_grp->id = 1;
-        $t->assert_load_sql($db_con, $phr_grp);
+        $phr_grp->set_id(1);
+        $t->assert_load_sql_obj_vars($db_con, $phr_grp);
 
         // sql to load the phrase group by word ids
         $phr_grp = new phrase_group($usr);
         $phr_lst = new phrase_list($usr);
         $phr_lst->add_by_ids('2,4,3','');
         $phr_grp->phr_lst = $phr_lst;
-        $t->assert_load_sql($db_con, $phr_grp);
+        $t->assert_load_sql_obj_vars($db_con, $phr_grp);
 
         // sql to load the phrase group by triple ids
         $phr_grp = new phrase_group($usr);
         $phr_lst = new phrase_list($usr);
         $phr_lst->add_by_ids(null,'2,4,3');
         $phr_grp->phr_lst = $phr_lst;
-        $t->assert_load_sql($db_con, $phr_grp);
+        $t->assert_load_sql_obj_vars($db_con, $phr_grp);
 
         // sql to load the phrase group by word and triple ids
         $phr_grp = new phrase_group($usr);
         $phr_lst = new phrase_list($usr);
         $phr_lst->add_by_ids('4,1,3','2');
         $phr_grp->phr_lst = $phr_lst;
-        $t->assert_load_sql($db_con, $phr_grp);
+        $t->assert_load_sql_obj_vars($db_con, $phr_grp);
 
         // sql to load the phrase group by name
         $phr_grp = new phrase_group($usr);
-        $phr_grp->grp_name = phrase_group::TN_READ;
-        $t->assert_load_sql($db_con, $phr_grp);
+        $phr_grp->grp_name = phrase_group_api::TN_READ;
+        $t->assert_load_sql_obj_vars($db_con, $phr_grp);
 
         // sql to load the word list ids
         $wrd_lst = new word_list($usr);
         $wrd1 = new word($usr);
-        $wrd1->id = 1;
-        $wrd_lst->lst[] = $wrd1;
+        $wrd1->set_id(1);
+        $wrd_lst->add($wrd1);
         $wrd2 = new word($usr);
-        $wrd2->id = 2;
-        $wrd_lst->lst[] = $wrd2;
+        $wrd2->set_id(2);
+        $wrd_lst->add($wrd2);
         $wrd3 = new word($usr);
-        $wrd3->id = 3;
-        $wrd_lst->lst[] = $wrd3;
+        $wrd3->set_id(3);
+        $wrd_lst->add($wrd3);
         $phr_grp = new phrase_group($usr);
-        $phr_grp->id = null;
+        $phr_grp->set_id(null);
         $phr_grp->phr_lst = $wrd_lst->phrase_lst();
         $db_con->db_type = sql_db::POSTGRES;
         $created_sql = $phr_grp->get_by_wrd_lst_sql();
         $expected_sql = $t->file('db/phrase/phrase_group_by_id_list.sql');
-        $t->assert('phrase_group->get_by_wrd_lst_sql by word list ids', $t->trim($created_sql), $t->trim($expected_sql));
+        $t->assert('phrase_group->get_by_wrd_lst_sql by word list ids', $lib->trim($created_sql), $lib->trim($expected_sql));
 
         // ... and check if the prepared sql name is unique
         $t->assert_sql_name_unique($phr_grp->get_by_wrd_lst_sql(true));
 
         // sql to load the phrase group word link by id
         $grp_wrd_lnk = new phrase_group_word_link();
-        $grp_wrd_lnk->id = 11;
-        $t->assert_load_sql($db_con, $grp_wrd_lnk);
+        $grp_wrd_lnk->set_id(11);
+        $t->assert_load_sql_obj_vars($db_con, $grp_wrd_lnk);
 
         // sql to load the phrase group triple link by id
         $grp_trp_lnk = new phrase_group_triple_link();
-        $grp_trp_lnk->id = 12;
-        $t->assert_load_sql($db_con, $grp_trp_lnk);
+        $grp_trp_lnk->set_id(12);
+        $t->assert_load_sql_obj_vars($db_con, $grp_trp_lnk);
 
         // sql to load all phrase groups linked to a word
         $db_con->db_type = sql_db::POSTGRES;
-        $wrd = $t->load_word(word::TN_CITY);
-        $wrd->id = 1; // dummy number just to test the SQL creation
+        $wrd = $t->load_word(word_api::TN_CITY);
+        $wrd->set_id(1); // dummy number just to test the SQL creation
         $phr_grp_lst = new phrase_group_list($usr);
         $phr_grp_lst->phr = $wrd->phrase();
         $created_sql = $phr_grp_lst->load_sql($db_con)->sql;
         $expected_sql = $t->file('db/phrase/phrase_group_list_by_word.sql');
-        $t->assert('phrase_group_list->load_all_word_linked', $t->trim($created_sql), $t->trim($expected_sql));
+        $t->assert('phrase_group_list->load_all_tripleed', $lib->trim($created_sql), $lib->trim($expected_sql));
 
         // sql to load all phrase groups linked to a triple
-        $lnk = $t->load_word_link(word::TN_ZH, verb::IS_A, word::TN_CITY);
-        $lnk->id = 2; // dummy number just to test the SQL creation
+        $lnk = $t->load_triple(word_api::TN_ZH, verb::IS_A, word_api::TN_CITY);
+        $lnk->set_id(2); // dummy number just to test the SQL creation
         $phr_grp_lst = new phrase_group_list($usr);
         $phr_grp_lst->phr = $lnk->phrase();
         $created_sql = $phr_grp_lst->load_sql($db_con)->sql;
         $expected_sql = $t->file('db/phrase/phrase_group_list_by_triple.sql');
-        $t->assert('phrase_group_list->load_all_triple_linked', $t->trim($created_sql), $t->trim($expected_sql));
+        $t->assert('phrase_group_list->load_all_triple_linked', $lib->trim($created_sql), $lib->trim($expected_sql));
 
 
-        $t->header('Unit tests of the phrase group word link class (src/main/php/model/phrase/phrase_group_word_link.php)');
+        $t->header('Unit tests of the phrase group word link class (src/main/php/model/phrase/phrase_group_triple.php)');
 
         $t->subheader('SQL statement tests');
 
         // sql to load the phrase group word links related to a group
         $grp_wrd_lnk = new phrase_group_word_link();
         $phr_grp = new phrase_group($usr);
-        $phr_grp->id = 13;
+        $phr_grp->set_id(13);
         $this->assert_load_by_group_id_sql($t, $db_con, $grp_wrd_lnk, $phr_grp);
 
         // sql to load the phrase group triple links related to a group
         $grp_trp_lnk = new phrase_group_triple_link();
-        $phr_grp->id = 14;
+        $phr_grp->set_id(14);
         $this->assert_load_by_group_id_sql($t, $db_con, $grp_trp_lnk, $phr_grp);
 
     }

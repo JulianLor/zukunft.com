@@ -30,17 +30,19 @@
   
 */
 
+use html\html_selector;
+
 class user_sandbox_display extends user_sandbox_value
 {
 
     // create the HTML code to display the protection setting (but only if allowed)
     function dsp_share($form_name, $back): string
     {
-        log_debug($this->obj_name . '->dsp_share ' . $this->dsp_id());
+        log_debug($this->dsp_id());
         $result = ''; // reset the html code var
 
         // only the owner can change the share type (TODO or an admin)
-        if ($this->usr->id == $this->owner_id) {
+        if ($this->user()->id() == $this->owner_id) {
             $sel = new html_selector;
             $sel->form = $form_name;
             $sel->name = "share";
@@ -50,29 +52,29 @@ class user_sandbox_display extends user_sandbox_value
             $result .= 'share type ' . $sel->display() . ' ';
         }
 
-        log_debug($this->obj_name . '->dsp_share ' . $this->dsp_id() . ' -> done');
+        log_debug($this->dsp_id() . ' done');
         return $result;
     }
 
     // create the HTML code to display the protection setting (but only if allowed)
     function dsp_protection($form_name, $back): string
     {
-        log_debug($this->obj_name . '->dsp_protection ' . $this->dsp_id());
+        log_debug($this->dsp_id());
         $result = ''; // reset the html code var
 
         // only the owner can change the protection level (TODO or an admin)
-        if ($this->usr->id == $this->owner_id) {
+        if ($this->user()->id() == $this->owner_id) {
             $sel = new html_selector;
             $sel->form = $form_name;
             $sel->name = "protection";
             $sel->sql = sql_lst("protection_type");
             $sel->selected = $this->protection_id;
-            log_debug($this->obj_name . '->dsp_protection ' . $this->dsp_id() . ' id ' . $this->protection_id);
+            log_debug($this->dsp_id() . ' id ' . $this->protection_id);
             $sel->dummy_text = 'please define the protection level';
             $result .= 'protection ' . $sel->display() . ' ';
         }
 
-        log_debug($this->obj_name . '->dsp_protection ' . $this->dsp_id() . ' -> done');
+        log_debug($this->dsp_id() . ' done');
         return $result;
     }
 
@@ -81,6 +83,8 @@ class user_sandbox_display extends user_sandbox_value
      */
     function dsp_sandbox_wrd($user_id, $back_link)
     {
+        global $db_con;
+
         log_debug('zuu_dsp_sandbox_wrd(u' . $user_id . ')');
         $result = ''; // reset the html code var
 
@@ -92,26 +96,26 @@ class user_sandbox_display extends user_sandbox_value
                  words t
            WHERE u.user_id = " . $user_id . "
              AND u.word_id = t.word_id;";
-        $sql_result = zu_sql_get_all($sql);
+        $sql_result = $db_con->get_old($sql);
 
         // prepare to show the word link
         $row_nbr = 0;
         $result .= '<table>';
-        while ($wrd_row = mysqli_fetch_array($sql_result, MySQLi_NUM)) {
+        foreach ($sql_result as $wrd_row) {
             $row_nbr++;
             $result .= '<tr>';
             if ($row_nbr == 1) {
                 $result .= '<th>Your name vs. </th><th>common name</th></tr><tr>';
             }
             $result .= '<td>' . $wrd_row[0] . '</td><td>' . $wrd_row[1] . '</td>';
-            //$result .= '<td><a href="/http/user.php?id='.$user_id.'&undo_word='.$wrd_row[2].'&back='.$id.'"><img src="/images/button_del_small.jpg" alt="undo change"></a></td>';
+            //$result .= '<td><a href="/http/user.php?id='.$user_id.'&undo_word='.$wrd_row[2].'&back='.$id.'"><img src="/src/main/resources/images/button_del_small.jpg" alt="undo change"></a></td>';
             $url = "/http/user.php?id='.$user_id.'&undo_word='.$wrd_row[2].'&back='.$back_link.'";
             $result .= '<td>' . \html\btn_del("Undo your change and use the standard word " . $wrd_row[1], $url) . '</td>';
             $result .= '</tr>';
         }
         $result .= '</table>';
 
-        log_debug('dsp_sandbox_wrd -> done');
+        log_debug('done');
         return $result;
     }
 
@@ -120,6 +124,7 @@ class user_sandbox_display extends user_sandbox_value
      */
     function dsp_sandbox_frm($user_id, $back_link)
     {
+        global $db_con;
         log_debug('dsp_sandbox_frm(u' . $user_id . ')');
         $result = ''; // reset the html code var
 
@@ -132,12 +137,12 @@ class user_sandbox_display extends user_sandbox_value
                  formulas f
            WHERE u.user_id = " . $user_id . "
              AND u.formula_id = f.formula_id;";
-        $sql_result = zu_sql_get_all($sql);
+        $sql_result = $db_con->get_old($sql);
 
         // prepare to show the word link
         $row_nbr = 0;
         $result .= '<table>';
-        while ($wrd_row = mysqli_fetch_array($sql_result, MySQLi_NUM)) {
+        foreach ($sql_result as $wrd_row) {
             $row_nbr++;
             $result .= '<tr>';
             if ($row_nbr == 1) {
@@ -149,14 +154,14 @@ class user_sandbox_display extends user_sandbox_value
             $result .= '<td>' . $wrd_row[0] . '</td>';
             $result .= '<td>' . $wrd_row[1] . '</td>';
             $result .= '<td>' . $wrd_row[2] . '</td>';
-            //$result .= '<td><a href="/http/user.php?id='.$user_id.'&undo_formula='.$wrd_row[3].'&back='.$id.'"><img src="/images/button_del_small.jpg" alt="undo change"></a></td>';
+            //$result .= '<td><a href="/http/user.php?id='.$user_id.'&undo_formula='.$wrd_row[3].'&back='.$id.'"><img src="/src/main/resources/images/button_del_small.jpg" alt="undo change"></a></td>';
             $url = "/http/user.php?id='.$user_id.'&undo_formula='.$wrd_row[3].'&back='.$back_link.'";
             $result .= '<td>' . \html\btn_del("Undo your change and use the standard formula " . $wrd_row[2], $url) . '</td>';
             $result .= '</tr>';
         }
         $result .= '</table>';
 
-        log_debug('dsp_sandbox_frm -> done');
+        log_debug('done');
         return $result;
     }
 }

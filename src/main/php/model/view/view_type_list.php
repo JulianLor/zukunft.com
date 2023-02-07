@@ -31,14 +31,17 @@
 
 global $view_types;
 
-class view_type_list extends user_type_list
+use cfg\type_list;
+use cfg\type_object;
+
+class view_type_list extends type_list
 {
     /**
      * overwrite the general user type list load function to keep the link to the table type capsuled
      * @param sql_db $db_con the database connection that can be either the real database connection or a simulation used for testing
      * @return bool true if load was successful
      */
-    function load(sql_db $db_con, string $db_type = DB_TYPE_VIEW_TYPE): bool
+    function load(sql_db $db_con, string $db_type = sql_db::TBL_VIEW_TYPE): bool
     {
         return parent::load($db_con, $db_type);
     }
@@ -46,13 +49,11 @@ class view_type_list extends user_type_list
     /**
      * adding the view types used for unit tests to the dummy list
      */
-    function load_dummy() {
+    function load_dummy(): void
+    {
         parent::load_dummy();
-        $type = new user_type();
-        $type->name = view_type::DEFAULT;
-        $type->code_id = view_type::DEFAULT;
-        $this->lst[2] = $type;
-        $this->hash[view_type::DEFAULT] = 2;
+        $type = new type_object(view_type::DEFAULT, view_type::DEFAULT, '', 2);
+        $this->add($type);
     }
 
     /**
@@ -68,7 +69,8 @@ class view_type_list extends user_type_list
 /**
  * ENUM for the view types
  */
-class view_type {
+class view_type
+{
     // list of the view types that have a coded functionality
     const DEFAULT = "default";
     const ENTRY = "entry";

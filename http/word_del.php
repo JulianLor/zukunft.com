@@ -31,7 +31,8 @@
 
 // standard zukunft header for callable php files to allow debugging and lib loading
 $debug = $_GET['debug'] ?? 0;
-include_once '../src/main/php/zu_lib.php';
+const ROOT_PATH = __DIR__ . '/../';
+include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 
 // open database
 $db_con = prg_start("word_del");
@@ -44,14 +45,13 @@ $usr = new user;
 $result .= $usr->get();
 
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
-if ($usr->id > 0) {
+if ($usr->id() > 0) {
 
     load_usr_data();
 
     // prepare the display
     $dsp = new view_dsp_old($usr);
-    $dsp->id = cl(db_cl::VIEW, view::WORD_DEL);
-    $dsp->load();
+    $dsp->load_by_code_id(view::WORD_DEL);
     $back = $_GET['back']; // the original calling page that should be shown after the change if finished
 
     // get the parameters
@@ -62,8 +62,7 @@ if ($usr->id > 0) {
 
         // create the word object to have an object to update the parameters
         $wrd = new word($usr);
-        $wrd->id = $wrd_id;
-        $wrd->load();
+        $wrd->load_by_id($wrd_id);
 
         if ($confirm == 1) {
             $wrd->del();
@@ -73,7 +72,7 @@ if ($usr->id > 0) {
             // display the view header
             $result .= $dsp->dsp_navbar($back);
 
-            $result .= \html\btn_yesno("Delete " . $wrd->name . "? ", "/http/word_del.php?id=" . $wrd_id . "&back=" . $back);
+            $result .= \html\btn_yesno("Delete " . $wrd->name() . "? ", "/http/word_del.php?id=" . $wrd_id . "&back=" . $back);
         }
     } else {
         $result .= dsp_go_back($back, $usr);

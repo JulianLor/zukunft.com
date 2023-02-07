@@ -31,7 +31,8 @@
 
 // standard zukunft header for callable php files to allow debugging and lib loading
 $debug = $_GET['debug'] ?? 0;
-include_once '../src/main/php/zu_lib.php';
+const ROOT_PATH = __DIR__ . '/../';
+include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 
 // open database
 $db_con = prg_start("values_paste");
@@ -43,14 +44,13 @@ $usr = new user;
 $result .= $usr->get();
 
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
-if ($usr->id > 0) {
+if ($usr->id() > 0) {
 
     load_usr_data();
 
     // prepare the display
     $dsp = new view_dsp_old($usr);
-    $dsp->id = cl(db_cl::VIEW, view::VALUE_ADD);
-    $dsp->load();
+    $dsp->load_by_code_id(view::VALUE_ADD);
     /*
         // get the fixed parameters
         $new_tbl   = $_GET['table'];    // the value table as pasted by the user
@@ -84,22 +84,22 @@ if ($usr->id > 0) {
         if ($confirm > 0 AND $new_tbl <> '') {
 
           // adjust the user entries for the database
-          $new_tbl = v_convert($new_tbl, $usr->id);
+          $new_tbl = v_convert($new_tbl, $usr->id());
 
           // add the new value to the database
           $val_wrd_lst = New word_list;
           $val_wrd_lst->ids = $wrd_ids;
-          $val_wrd_lst->usr = $usr;
+          $val_wrd_lst->set_user($usr);
           $val_wrd_lst->load();
           $val = New value;
           $val->
-          $val_id = v_db_add($new_tbl, $wrd_ids, $usr->id);
+          $val_id = v_db_add($new_tbl, $wrd_ids, $usr->id());
 
           if ($val_id > 0) {
             // save the source
             if ($src_id > 0) {
-              zuv_db_add($val_id, $src_id, $usr->id);
-              zuu_set_source ($usr->id, $src_id);
+              zuv_db_add($val_id, $src_id, $usr->id());
+              zuu_set_source ($usr->id(), $src_id);
             }
           } else {
             zu_err("Adding ".$new_tbl." for words ".implode(",",$wrd_ids)." failed.","value_add");
@@ -110,7 +110,7 @@ if ($usr->id > 0) {
           // display the view header
           $result .= $dsp->dsp_navbar($back);
 
-          $result .= zuv_dsp_edit_or_add (0, $wrd_ids, $type_ids, $db_ids, $src_id, $back, $usr->id);
+          $result .= zuv_dsp_edit_or_add (0, $wrd_ids, $type_ids, $db_ids, $src_id, $back, $usr->id());
 
         } */
 }

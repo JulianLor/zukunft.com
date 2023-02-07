@@ -2,10 +2,13 @@
 
 /*
 
-    test_units.php - for fast internal code consistency TESTing of the technical library functions without database connection
-    ------------
+    test_units.php - interface for fast internal code consistency TESTing
+    --------------
 
-    because these tests are done without the database, we don't care if the is called by anybody, so we don't need the admin user test
+    the technical library functions without database connection
+    because these tests are done without the database,
+    we don't care if the is called by anybody,
+    so we don't need the admin user test
 
 
     This file is part of zukunft.com - calc with words
@@ -34,7 +37,8 @@
 
 // standard zukunft header for callable php files to allow debugging and lib loading
 $debug = $_GET['debug'] ?? 0;
-include_once '../src/main/php/zu_lib.php';
+const ROOT_PATH = __DIR__ . '/../';
+include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 
 
 // load the testing functions
@@ -44,13 +48,13 @@ include_once '../src/test/php/utils/test_base.php';
 // prepare testing
 // ---------------
 
-$t = new testing();
+$t = new test_unit();
 
 // ------------------
 // start unit testing
 // ------------------
 
-run_unit_tests($t);
+$t->run_unit();
 
 // display the test results
 $t->dsp_result_html();

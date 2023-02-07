@@ -2,9 +2,9 @@
 
 /*
 
-  test_lib.php - TESTing the general zukunft.com Library functions
-  ------------
-  
+    test_lib.php - TESTing the general zukunft.com Library functions
+    ------------
+
 
     This file is part of zukunft.com - calc with words
 
@@ -35,83 +35,80 @@ global $db_con;
 
 class string_unit_tests
 {
-    function run(testing $t)
+    function run(testing $t): void
     {
 
-        $t->header('Test the zukunft.com base functions (zu_lib.php)');
+        $t->header('Test the zukunft.com base functions (model/helper/library.php)');
 
         $t->subheader('strings');
+
+        $lib = new library();
 
         // test zu_trim
         $text = "  This  text  has  many  spaces  ";
         $target = "This text has many spaces";
-        $result = $t->trim($text);
+        $result = $lib->trim($text);
         $t->dsp(", zu_trim", $target, $result);
 
-        // test zu_str_left
+        // test str_left
         $text = "This are the left 4";
         $pos = 4;
         $target = "This";
-        $result = zu_str_left($text, $pos);
-        $t->dsp(", zu_str_left: What are the left \"" . $pos . "\" chars of \"" . $text . "\"", $target, $result);
+        $result = $lib->str_left($text, $pos);
+        $t->dsp(", str_left: What are the left \"" . $pos . "\" chars of \"" . $text . "\"", $target, $result);
 
-        // test zu_str_right
+        // test str_right
         $text = "This are the right 7";
         $pos = 7;
         $target = "right 7";
-        $result = zu_str_right($text, $pos);
-        $t->dsp(", zu_str_right: What are the right \"" . $pos . "\" chars of \"" . $text . "\"", $target, $result);
+        $result = $lib->str_right($text, $pos);
+        $t->dsp(", str_right: What are the right \"" . $pos . "\" chars of \"" . $text . "\"", $target, $result);
 
-        // test zu_str_left_of
+        // test str_left_of
         $text = "This is left of that ";
         $maker = " of that";
         $target = "This is left";
-        $result = zu_str_left_of($text, $maker);
-        $t->dsp(", zu_str_left_of: What is left of \"" . $maker . "\" in \"" . $text . "\"", $target, $result);
+        $result = $lib->str_left_of($text, $maker);
+        $t->dsp(", str_left_of: What is left of \"" . $maker . "\" in \"" . $text . "\"", $target, $result);
 
-        // test zu_str_left_of
+        // test str_left_of
         $text = "This is left of that, but not of that";
-        $maker = " of that";
-        $target = "This is left";
-        $result = zu_str_left_of($text, $maker);
-        $t->dsp(", zu_str_left_of: What is left of \"" . $maker . "\" in \"" . $text . "\"", $target, $result);
+        $result = $lib->str_left_of($text, $maker);
+        $t->dsp(", str_left_of: What is left of \"" . $maker . "\" in \"" . $text . "\"", $target, $result);
 
-        // test zu_str_right_of
+        // test str_right_of
         $text = "That is right of this";
         $maker = "That is right ";
         $target = "of this";
-        $result = zu_str_right_of($text, $maker);
-        $t->dsp(", zu_str_right_of: What is right of \"" . $maker . "\" in \"" . $text . "\"", $target, $result);
+        $result = $lib->str_right_of($text, $maker);
+        $t->dsp(", str_right_of: What is right of \"" . $maker . "\" in \"" . $text . "\"", $target, $result);
 
-        // test zu_str_right_of
+        // test str_right_of
         $text = "00000";
         $maker = "0";
         $target = "0000";
-        $result = zu_str_right_of($text, $maker);
-        $t->dsp(", zu_str_right_of: What is right of \"" . $maker . "\" in \"" . $text . "\"", $target, $result);
+        $result = $lib->str_right_of($text, $maker);
+        $t->dsp(", str_right_of: What is right of \"" . $maker . "\" in \"" . $text . "\"", $target, $result);
 
-        // test zu_str_right_of
+        // test str_right_of
         $text = "The formula id of {f23}.";
         $maker = "{f";
         $target = "23}.";
-        $result = zu_str_right_of($text, $maker);
-        $t->dsp(", zu_str_right_of: What is right of \"" . $maker . "\" in \"" . $text . "\"", $target, $result);
+        $result = $lib->str_right_of($text, $maker);
+        $t->dsp(", str_right_of: What is right of \"" . $maker . "\" in \"" . $text . "\"", $target, $result);
 
-        // test zu_str_between
-        $text = "The formula id of {f23}.";
+        // test str_between
         $maker_start = "{f";
         $maker_end = "}";
         $target = "23";
-        $result = zu_str_between($text, $maker_start, $maker_end);
-        $t->dsp(", zu_str_between: " . $text . "", $target, $result);
+        $result = $lib->str_between($text, $maker_start, $maker_end);
+        $t->dsp(", str_between: " . $text, $target, $result);
 
-        // test zu_str_between
+        // test str_between
         $text = "The formula id of {f4} / {f5}.";
-        $maker_start = "{f";
-        $maker_end = "}";
         $target = "4";
-        $result = zu_str_between($text, $maker_start, $maker_end);
-        $t->dsp(", zu_str_between: " . $text . "", $target, $result);
+        $result = $lib->str_between($text, $maker_start, $maker_end);
+        $t->dsp(", str_between: " . $text, $target, $result);
 
         $t->subheader('arrays and lists');
 
@@ -132,7 +129,6 @@ class string_unit_tests
         $t->dsp(", dsp_array: ", $target, $result);
 
         $test_array = null;
-        $target = 'null';
         $result = dsp_array($test_array);
         $t->dsp(", dsp_array: ", $target, $result);
 
@@ -168,11 +164,84 @@ class string_unit_tests
   ],
   "keep non empty field": "with value"
 }';
+        $json_needle = '{
+  "text field": "text value",
+  "number field": 2,
+  "array": [
+    {
+      "id": 1,
+      "text field": "text value"
+    }
+  ],
+  "footer field": "footer value"
+}';
+        $json_needle_without_array = '{
+  "text field": "text value",
+  "number field": 2,
+  "footer field": "footer value"
+}';
+        $json_haystack = '{
+  "text field": "text value",
+  "number field": 2,
+  "array": [
+    {
+      "id": 0,
+      "text field": "additional ignored text value"
+    },
+    {
+      "id": 1,
+      "text field": "text value"
+    },
+    {
+      "id": 2,
+      "text field": "additional ignored text value"
+    }
+  ],
+  "footer field": "footer value"
+}';
+        $json_haystack_with_diff = '{
+  "text field": "text value",
+  "number field": 2,
+  "array": [
+    {
+      "id": 0,
+      "text field": "additional ignored text value"
+    },
+    {
+      "id": 1,
+      "text field": "diff text value"
+    },
+    {
+      "id": 2,
+      "text field": "additional ignored text value"
+    }
+  ],
+  "footer field": "footer value"
+}';
+        $json_haystack_without_match = '{
+  "text field": "text value",
+  "number field": 2,
+  "array": [
+    {
+      "id": 0,
+      "text field": "additional ignored text value"
+    },
+    {
+      "id": 2,
+      "text field": "additional ignored text value"
+    }
+  ],
+  "footer field": "footer value"
+}';
+        $json_haystack_without_array = '{
+  "text field": "text value",
+  "number field": 2,
+  "footer field": "footer value"
+}';
         $json_array = json_decode($json_text, true);
         $json_clean = json_clean($json_array);
         $result = $json_clean == json_decode($json_target, true);
-        $target = true;
-        $t->dsp(", json_clean", $target, $result);
+        $t->dsp(", json_clean", true, $result);
 
         // ... plausibility check
         $result = $json_clean == json_decode($json_check, true);
@@ -187,6 +256,84 @@ class string_unit_tests
         $t->dsp(", count_recursive - count level 0", 8, $result);
         $result = count_recursive($json_array, 20);
         $t->dsp(", count_recursive - count level 0", 8, $result);
+
+        // recursive diff
+        $result = json_encode(array_recursive_diff(
+            json_decode($json_needle, true),
+            json_decode($json_haystack, true)));
+        $t->dsp(", array_recursive_diff - contains", '[]', $result);
+        $result = json_encode(array_recursive_diff(
+            json_decode($json_needle_without_array, true),
+            json_decode($json_haystack, true)));
+        $t->dsp(", array_recursive_diff - contains without array", '[]', $result);
+        $result = json_encode(array_recursive_diff(
+            json_decode($json_needle, true),
+            json_decode($json_haystack_with_diff, true)));
+        $expected = '{"array":{"text field":"text value"}}';
+        $t->dsp(", array_recursive_diff - diff expected", $expected, $result);
+        $result = json_encode(array_recursive_diff(
+            json_decode($json_needle, true),
+            json_decode($json_haystack_without_match, true)));
+        $expected = '{"array":{"id":1,"text field":"text value","0":{"id":1,"text field":"text value"}}}';
+        $t->dsp(", array_recursive_diff - without match", $expected, $result);
+        $result = json_encode(array_recursive_diff(
+            json_decode($json_needle, true),
+            json_decode($json_haystack_without_array, true)));
+        $expected = '{"array":[{"id":1,"text field":"text value"}]}';
+        $t->dsp(", array_recursive_diff - without array", $expected, $result);
+
+
+        $t->subheader('json remove volatile fields');
+
+        // remove timestamp from main json
+        $path = 'unit/json/';
+        $json_with_timestamp = $t->file($path . 'json_with_timestamp.json');
+        $json_without_timestamp = $t->file($path . 'json_without_timestamp.json');
+        $result = $t->json_remove_volatile(json_decode($json_with_timestamp, true));
+        $target = json_decode($json_without_timestamp, true);
+        $t->assert("json remove volatile timestamp", $result, $target);
+
+        // remove timestamp from sub json
+        $json_with_timestamp_in_array = $t->file($path . 'json_with_timestamp_in_array.json');
+        $json_without_timestamp_in_array = $t->file($path . 'json_without_timestamp_in_array.json');
+        $result = $t->json_remove_volatile(json_decode($json_with_timestamp_in_array, true));
+        $target = json_decode($json_without_timestamp_in_array, true);
+        $t->assert("json remove volatile timestamp in a sub array", $result, $target);
+
+        // remove timestamp from array in sub json
+        $json_with_timestamp_in_array = $t->file($path . 'json_with_timestamp_in_array_array.json');
+        $json_without_timestamp_in_array = $t->file($path . 'json_without_timestamp_in_array_array.json');
+        $result = $t->json_remove_volatile(json_decode($json_with_timestamp_in_array, true));
+        $target = json_decode($json_without_timestamp_in_array, true);
+        $t->assert("json remove volatile timestamp in a array of a sub array", $result, $target);
+
+        // remove id from json
+        $json_with_id_in_array = $t->file($path . 'json_with_id.json');
+        $json_without_id_in_array = $t->file($path . 'json_without_id.json');
+        $result = $t->json_remove_volatile(json_decode($json_with_id_in_array, true), true);
+        $target = json_decode($json_without_id_in_array, true);
+        $t->assert("json remove volatile id", $result, $target);
+
+        // remove id from array in sub json
+        $json_with_id_in_array = $t->file($path . 'json_with_id_in_array_array.json');
+        $json_without_id_in_array = $t->file($path . 'json_without_id_in_array_array.json');
+        $result = $t->json_remove_volatile(json_decode($json_with_id_in_array, true), true);
+        $target = json_decode($json_without_id_in_array, true);
+        $t->assert("json remove volatile id in a array of a sub array", $result, $target);
+
+        // replace username from array in sub json
+        $json_with_id_in_array = $t->file($path . 'json_with_username_local_in_array_array.json');
+        $json_without_id_in_array = $t->file($path . 'json_with_username_test_in_array_array.json');
+        $result = $t->json_remove_volatile(json_decode($json_with_id_in_array, true), true);
+        $target = json_decode($json_without_id_in_array, true);
+        $t->assert("json remove volatile id in a array of a sub array", $result, $target);
+
+        // replace user id from array in sub json
+        $json_with_id_in_array = $t->file($path . 'json_with_user_id_local_in_array_array.json');
+        $json_without_id_in_array = $t->file($path . 'json_with_user_id_test_in_array_array.json');
+        $result = $t->json_remove_volatile(json_decode($json_with_id_in_array, true), true);
+        $target = json_decode($json_without_id_in_array, true);
+        $t->assert("json remove volatile id in a array of a sub array", $result, $target);
 
 
         $t->subheader('user message tests');

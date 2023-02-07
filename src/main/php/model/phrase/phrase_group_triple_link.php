@@ -39,7 +39,7 @@ class phrase_group_triple_link extends phrase_group_link
     // all database field names excluding the id
     const FLD_NAMES = array(
         phrase_group::FLD_ID,
-        word_link::FLD_ID_NEW
+        triple::FLD_ID
     );
 
     // database fields
@@ -57,7 +57,7 @@ class phrase_group_triple_link extends phrase_group_link
         if ($db_row != null) {
             $this->id = $db_row[self::FLD_ID];
             $this->grp_id = $db_row[phrase_group::FLD_ID];
-            $this->trp_id = $db_row[word_link::FLD_ID_NEW];
+            $this->trp_id = $db_row[triple::FLD_ID];
             $result = true;
         }
         return $result;
@@ -72,8 +72,8 @@ class phrase_group_triple_link extends phrase_group_link
      */
     function load_by_group_id_sql(sql_db $db_con, phrase_group $grp): sql_par
     {
+        $db_con->set_type(sql_db::TBL_PHRASE_GROUP_TRIPLE_LINK);
         $qp = new sql_par(self::class);
-        $db_con->set_type(DB_TYPE_PHRASE_GROUP_TRIPLE_LINK);
 
         if ($grp->id > 0) {
             $qp->name .= 'grp_id';
@@ -83,8 +83,8 @@ class phrase_group_triple_link extends phrase_group_link
                 'to load a ' . self::class, self::class . '->load_by_group_id_sql');
 
         }
-        $db_con->set_fields(self::FLD_NAMES);
         $db_con->set_name($qp->name);
+        $db_con->set_fields(self::FLD_NAMES);
         $qp->sql = $db_con->select_by_field(phrase_group::FLD_ID);
         $qp->par = $db_con->get_par();
 
@@ -97,10 +97,10 @@ class phrase_group_triple_link extends phrase_group_link
      * @param sql_db $db_con the db connection object as a function parameter for unit testing
      * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
      */
-    function load_sql(sql_db $db_con): sql_par
+    function load_sql_obj_vars(sql_db $db_con): sql_par
     {
+        $db_con->set_type(sql_db::TBL_PHRASE_GROUP_TRIPLE_LINK);
         $qp = new sql_par(self::class);
-        $db_con->set_type(DB_TYPE_PHRASE_GROUP_TRIPLE_LINK);
 
         if ($this->id > 0) {
             $qp->name .= 'id';
@@ -112,7 +112,8 @@ class phrase_group_triple_link extends phrase_group_link
         }
         $db_con->set_fields(self::FLD_NAMES);
         $db_con->set_name($qp->name);
-        $qp->sql = $db_con->select_by_id();
+        //$db_con->set_usr($this->user()->id());
+        $qp->sql = $db_con->select_by_set_id();
         $qp->par = $db_con->get_par();
 
         return $qp;
@@ -124,7 +125,7 @@ class phrase_group_triple_link extends phrase_group_link
     function load(): bool
     {
         global $db_con;
-        $qp = $this->load_sql($db_con);
+        $qp = $this->load_sql_obj_vars($db_con);
         return $this->row_mapper($db_con->get1($qp));
     }
 

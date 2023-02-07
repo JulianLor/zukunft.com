@@ -26,6 +26,8 @@
 
 */
 
+use api\triple_api;
+use api\word_api;
 use cfg\phrase_type;
 
 class phrase_list_unit_tests
@@ -44,8 +46,15 @@ class phrase_list_unit_tests
      * TODO create a common test result object to return
      * TODO capsule all unit tests in a class like this example
      */
-    function run(testing $t)
+    function run(testing $t): void
     {
+
+        global $usr;
+
+        // init
+        $db_con = new sql_db();
+        $t->name = 'phrase_list->';
+        $t->resource_path = 'db/phrase/';
 
         $t->header('Unit tests of the phrase list class (src/main/php/model/phrase/phrase_list.php)');
 
@@ -59,18 +68,32 @@ class phrase_list_unit_tests
         $this->assert_by_ids_sql($ids, sql_db::MYSQL);
         $this->test->assert_sql_name_unique($qp->name);
 
+        $phr_lst = new phrase_list($usr);
+        $wrd = new word($usr);
+        $wrd->set(1, word_api::TN_CH);
+        $phr_lst->add($wrd->phrase());
+        $this->assert_load_sql_linked_phrases(
+            $db_con, $t, $phr_lst, 3, word_select_direction::UP
+        );
+
+
         $t->subheader('Selection tests');
 
         // check that a time phrase is correctly removed from a phrase list
         $phr_lst = $this->get_phrase_list();
         $phr_lst_ex_time = clone $phr_lst;
         $phr_lst_ex_time->ex_time();
-        $result = true;
-        $target = true;
-        $t->dsp('phrase_list->ex_time', $target, $result);
+        $t->dsp('phrase_list->ex_time', true, true);
         $result = $phr_lst_ex_time->dsp_id();
         $target = $this->get_phrase_list_ex_time()->dsp_id();
         $t->dsp('phrase_list->ex_time names', $target, $result);
+
+
+        $t->subheader('API unit tests');
+
+        $phr_lst = $this->get_phrase_list_related();
+        $t->assert_api($phr_lst);
+
 
     }
 
@@ -81,8 +104,21 @@ class phrase_list_unit_tests
     {
         global $usr;
         $phr_lst = new phrase_list($usr);
-        $phr_lst->add($this->get_phrase());
+        $phr_lst->add($this->get_phrase_add());
         $phr_lst->add($this->get_time_phrase());
+        return $phr_lst;
+    }
+
+    /**
+     * create a phrase list test object without using a database connection
+     * that matches the all members of word with id 1 (math const)
+     */
+    public function get_phrase_list_related(): phrase_list
+    {
+        global $usr;
+        $phr_lst = new phrase_list($usr);
+        $phr_lst->add($this->get_phrase(1, word_api::TN_READ));
+        $phr_lst->add($this->get_phrase(2, triple_api::TN_READ));
         return $phr_lst;
     }
 
@@ -93,19 +129,18 @@ class phrase_list_unit_tests
     {
         global $usr;
         $phr_lst = new phrase_list($usr);
-        $phr_lst->add($this->get_phrase());
+        $phr_lst->add($this->get_phrase_add());
         return $phr_lst;
     }
 
     /**
      * create the standard filled phrase object
      */
-    private function get_phrase(): phrase
+    private function get_phrase_add(): phrase
     {
         global $usr;
         $wrd = new word($usr);
-        $wrd->id = 1;
-        $wrd->name = word::TN_ADD;
+        $wrd->set(1, word_api::TN_ADD);
         return $wrd->phrase();
     }
 
@@ -116,9 +151,19 @@ class phrase_list_unit_tests
     {
         global $usr;
         $wrd = new word($usr);
-        $wrd->id = 2;
-        $wrd->name = word::TN_RENAMED;
-        $wrd->type_id = cl(db_cl::WORD_TYPE, phrase_type::TIME);
+        $wrd->set(2, word_api::TN_RENAMED);
+        $wrd->type_id = cl(db_cl::PHRASE_TYPE, phrase_type::TIME);
+        return $wrd->phrase();
+    }
+
+    /**
+     * create the standard filled phrase object
+     */
+    private function get_phrase(int $id, string $name): phrase
+    {
+        global $usr;
+        $wrd = new word($usr);
+        $wrd->set($id, $name);
         return $wrd->phrase();
     }
 
@@ -133,6 +178,8 @@ class phrase_list_unit_tests
     {
         global $usr;
 
+        $lib = new library();
+
         $lst = new phrase_list($usr);
         $db_con = new sql_db();
         $db_con->db_type = $dialect;
@@ -144,17 +191,49 @@ class phrase_list_unit_tests
         $expected_sql = $this->test->file(self::PATH . $qp->name . $dialect_ext . self::FILE_EXT);
         $this->test->assert(
             self::TEST_NAME . $qp->name . $dialect,
-            $this->test->trim($qp->sql),
-            $this->test->trim($expected_sql)
+            $lib->trim($qp->sql),
+            $lib->trim($expected_sql)
         );
         $qp = $lst->load_by_trp_ids_sql($db_con, $ids);
         $expected_sql = $this->test->file(self::PATH . $qp->name . $dialect_ext . self::FILE_EXT);
         $this->test->assert(
             self::TEST_NAME . $qp->name . $dialect,
-            $this->test->trim($qp->sql),
-            $this->test->trim($expected_sql)
+            $lib->trim($qp->sql),
+            $lib->trim($expected_sql)
         );
         return $qp;
+    }
+
+    /**
+     * similar to assert_load_sql_name from test_base but to test the SQL statement creation
+     * to get the linked phrases
+     *
+     * @param sql_db $db_con does not need to be connected to a real database
+     * @param testing $t the testing object with the error counting of this test run
+     * @param object $usr_obj the user sandbox object e.g. a word
+     * @param int $verb_id to select only words linked with this verb
+     * @param string $direction to define the link direction
+     * @return bool true if all tests are fine
+     */
+    function assert_load_sql_linked_phrases(
+        sql_db $db_con,
+        testing $t,
+        object $usr_obj,
+        int $verb_id,
+        string $direction): bool
+    {
+        // check the PostgreSQL query syntax
+        $db_con->db_type = sql_db::POSTGRES;
+        $qp = $usr_obj->load_sql_linked_phrases($db_con, $verb_id, $direction);
+        $result = $t->assert_qp($qp, $db_con->db_type);
+
+        // ... and check the MySQL query syntax
+        if ($result) {
+            $db_con->db_type = sql_db::MYSQL;
+            $qp = $usr_obj->load_sql_linked_phrases($db_con, $verb_id, $direction);
+            $result = $t->assert_qp($qp, $db_con->db_type);
+        }
+        return $result;
     }
 
 }

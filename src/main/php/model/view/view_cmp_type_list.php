@@ -31,7 +31,10 @@
 
 global $view_component_types;
 
-class view_cmp_type_list extends user_type_list
+use cfg\type_list;
+use cfg\type_object;
+
+class view_cmp_type_list extends type_list
 {
 
     /**
@@ -39,7 +42,7 @@ class view_cmp_type_list extends user_type_list
      * @param sql_db $db_con the database connection that can be either the real database connection or a simulation used for testing
      * @return bool true if load was successful
      */
-    function load(sql_db $db_con, string $db_type = DB_TYPE_VIEW_COMPONENT_TYPE): bool
+    function load(sql_db $db_con, string $db_type = sql_db::TBL_VIEW_COMPONENT_TYPE): bool
     {
         return parent::load($db_con, $db_type);
     }
@@ -47,13 +50,12 @@ class view_cmp_type_list extends user_type_list
     /**
      * adding the view component types used for unit tests to the dummy list
      */
-    function load_dummy() {
+    function load_dummy(): void {
         parent::load_dummy();
-        $type = new user_type();
-        $type->name = view_cmp_type::TEXT;
-        $type->code_id = view_cmp_type::TEXT;
-        $this->lst[2] = $type;
-        $this->hash[view_cmp_type::TEXT] = 2;
+        $type = new type_object(view_cmp_type::TEXT, view_cmp_type::TEXT, '', 2);
+        $this->add($type);
+        $type = new type_object(view_cmp_type::PHRASE_NAME, view_cmp_type::PHRASE_NAME, '', 8);
+        $this->add($type);
     }
 
     /**

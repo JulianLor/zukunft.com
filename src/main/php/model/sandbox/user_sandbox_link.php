@@ -7,6 +7,10 @@
 
     This superclass should be used by the class word links, formula links and view link
 
+    TODO add weight with int and 100'000 as 100% because
+         humans usually cannot handle more than 100'000 words
+         so weight sorted list has a single place for each word
+
 
     This file is part of zukunft.com - calc with words
 
@@ -38,6 +42,11 @@ class user_sandbox_link extends user_sandbox
     public ?object $fob = null;        // the object from which this linked object is creating the connection
     public ?object $tob = null;        // the object to   which this linked object is creating the connection
 
+    // database fields only used for objects that link two objects
+    // TODO create a more specific object that covers all the objects that could be linked e.g. linkable_object
+    public ?string $from_name = null;  // the name of the from object type e.g. view for view_component_links
+    public ?string $to_name = '';      // the name of the  to  object type e.g. view for view_component_links
+
     /**
      * reset the search values of this object
      * needed to search for the standard object, because the search is work, value, formula or ... specific
@@ -51,18 +60,90 @@ class user_sandbox_link extends user_sandbox
     }
 
     /**
+     * create an SQL statement to retrieve a user sandbox link by the ids of the linked objects from the database
+     *
+     * @param sql_db $db_con the db connection object as a function parameter for unit testing
+     * @param int $from the subject object id
+     * @param int $type the predicate object id
+     * @param int $to the object (grammar) object id
+     * @param string $class the name of the child class from where the call has been triggered
+     * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
+     */
+    function load_sql_by_link(sql_db $db_con, int $from, int $type, int $to, string $class): sql_par
+    {
+        if ($type > 0) {
+            $qp = $this->load_sql($db_con, 'link_type_obj_ids', $class);
+            $db_con->set_where_link($from, $type, $to, $this->from_field(), $this->type_field(), $this->to_field());
+        } else {
+            $qp = $this->load_sql($db_con, 'link_obj_ids', $class);
+            $db_con->set_where_link($from, 0, $to, $this->from_field(), '', $this->to_field());
+        }
+        $qp->sql = $db_con->select_by_set_id();
+        $qp->par = $db_con->get_par();
+
+        return $qp;
+    }
+
+    /**
+     * load a named user sandbox object by name
+     * @param int $from the subject object id
+     * @param int $type the predicate object id
+     * @param int $to the object (grammar) object id
+     * @param string $class the name of the child class from where the call has been triggered
+     * @return int the id of the object found and zero if nothing is found
+     */
+    function load_by_link(int $from, int $type, int $to, string $class): int
+    {
+        global $db_con;
+
+        log_debug(dsp_array(array($from, $type, $to)));
+        $qp = $this->load_sql_by_link($db_con, $from, $type, $to, $class);
+        return parent::load($qp);
+    }
+
+    /**
+     * dummy function for the subject object that should always be overwritten by the child object
+     * @return string
+     */
+    function from_field(): string
+    {
+        return '';
+    }
+
+    /**
+     * dummy function for the predicate object that should always be overwritten by the child object
+     * @return string
+     */
+    function type_field(): string
+    {
+        return '';
+    }
+
+    /**
+     * dummy function for the object (grammar) object (computer science)
+     * that should always be overwritten by the child object
+     * @return string
+     */
+    function to_field(): string
+    {
+        return '';
+    }
+
+    /**
      * fill a similar object that is extended with display interface functions
      *
      * @return object the object fill with all user sandbox value
      */
-    function fill_dsp_obj(object $dsp_obj): object
+    function fill_dsp_obj(object $dsp_obj): void
     {
         parent::fill_dsp_obj($dsp_obj);
 
-        $dsp_obj->fob = $this->fob;
-        $dsp_obj->tob = $this->tob;
-
-        return $dsp_obj;
+        if ($this->fob != null) {
+            $dsp_obj->fob = $this->fob->dsp_obj();
+        }
+        if ($this->fob != null) {
+            $dsp_obj->tob = $this->tob->dsp_obj();
+        }
     }
 
     /**
@@ -101,8 +182,8 @@ class user_sandbox_link extends user_sandbox
             $result .= $this->name . ' (' . $this->id . ') of type ';
         }
         $result .= $this->obj_name . ' ' . $this->obj_type;
-        if (isset($this->usr)) {
-            $result .= ' for user ' . $this->usr->id . ' (' . $this->usr->name . ')';
+        if ($this->user()->is_set()) {
+            $result .= ' for user ' . $this->user()->id() . ' (' . $this->user()->name . ')';
         }
         return $result;
     }
@@ -111,20 +192,20 @@ class user_sandbox_link extends user_sandbox
      * set the log entry parameter for a new link object
      * for all not named objects like links, this function is overwritten
      * e.g. that the user can see "added formula 'scale millions' to word 'mio'"
-     * @returns user_log_link with the object presets e.g. th object name
+     * @returns change_log_link with the object presets e.g. th object name
      */
-    function log_link_add(): user_log_link
+    function log_link_add(): change_log_link
     {
-        log_debug($this->obj_name . '->log_add ' . $this->dsp_id());
+        log_debug($this->dsp_id());
 
-        $log = new user_log_link;
+        $log = new change_log_link;
         $log->new_from = $this->fob;
         $log->new_to = $this->tob;
 
-        $log->usr = $this->usr;
-        $log->action = 'add';
+        $log->usr = $this->user();
+        $log->action = change_log_action::ADD;
         // TODO add the table exceptions from sql_db
-        $log->table = $this->obj_name . 's';
+        $log->set_table($this->obj_name . 's');
         $log->row_id = 0;
         $log->add();
 
@@ -133,19 +214,19 @@ class user_sandbox_link extends user_sandbox
 
     /**
      * set the log entry parameter to delete a object
-     * @returns user_log_link with the object presets e.g. th object name
+     * @returns change_log_link with the object presets e.g. th object name
      */
-    function log_del_link(): user_log_link
+    function log_del_link(): change_log_link
     {
-        log_debug($this->obj_name . '->log_del ' . $this->dsp_id());
+        log_debug($this->dsp_id());
 
-        $log = new user_log_link;
+        $log = new change_log_link;
+        $log->usr = $this->user();
+        $log->action = change_log_action::DELETE;
+        $log->set_table($this->obj_name . 's');
         $log->old_from = $this->fob;
         $log->old_to = $this->tob;
 
-        $log->usr = $this->usr;
-        $log->action = 'del';
-        $log->table = $this->obj_name . 's';
         $log->row_id = $this->id;
         $log->add();
 
@@ -156,11 +237,12 @@ class user_sandbox_link extends user_sandbox
      * create a new link object
      * @returns int the id of the creates object
      */
-    function add_insert(): int {
+    function add_insert(): int
+    {
         global $db_con;
         return $db_con->insert(
-            array($this->from_name . '_id', $this->to_name . '_id', "user_id"),
-            array($this->fob->id, $this->tob->id, $this->usr->id));
+            array($this->from_name . sql_db::FLD_EXT_ID, $this->to_name . sql_db::FLD_EXT_ID, "user_id"),
+            array($this->fob->id, $this->tob->id, $this->user()->id));
     }
 
     /**
@@ -173,24 +255,24 @@ class user_sandbox_link extends user_sandbox
      */
     function add(): user_message
     {
-        log_debug($this->obj_name . '->add ' . $this->dsp_id());
+        log_debug($this->dsp_id());
 
         global $db_con;
         $result = new user_message();
 
         // log the insert attempt first
         $log = $this->log_link_add();
-        if ($log->id > 0) {
+        if ($log->id() > 0) {
 
             // insert the new object and save the object key
             // TODO check that always before a db action is called the db type is set correctly
             $db_con->set_type($this->obj_name);
-            $db_con->set_usr($this->usr->id);
+            $db_con->set_usr($this->user()->id);
             $this->id = $this->add_insert();
 
             // save the object fields if saving the key was successful
             if ($this->id > 0) {
-                log_debug($this->obj_name . '->add ' . $this->obj_type . ' ' . $this->dsp_id() . ' has been added');
+                log_debug($this->obj_type . ' ' . $this->dsp_id() . ' has been added');
                 // update the id in the log
                 if (!$log->add_ref($this->id)) {
                     $result->add_message('Updating the reference in the log failed');
@@ -203,7 +285,7 @@ class user_sandbox_link extends user_sandbox
                     $db_rec->reset();
                     $db_rec->fob = $this->fob;
                     $db_rec->tob = $this->tob;
-                    $db_rec->usr = $this->usr;
+                    $db_rec->set_user($this->user());
                     $std_rec = clone $db_rec;
                     // save the object fields
                     $result->add_message($this->save_fields($db_con, $db_rec, $std_rec));
@@ -226,7 +308,7 @@ class user_sandbox_link extends user_sandbox
     function is_id_updated_link(user_sandbox $db_rec): bool
     {
         $result = False;
-        log_debug($this->obj_name . '->is_id_updated ' . $this->dsp_id());
+        log_debug($this->dsp_id());
 
         if ($db_rec->fob->id <> $this->fob->id
             or $db_rec->tob->id <> $this->tob->id) {
@@ -258,10 +340,10 @@ class user_sandbox_link extends user_sandbox
     function save_id_fields_link(sql_db $db_con, user_sandbox $db_rec, user_sandbox $std_rec): string
     {
         $result = '';
-        log_debug($this->obj_name . '->save_id_fields_link ' . $this->dsp_id());
+        log_debug($this->dsp_id());
 
         if ($this->is_id_updated_link($db_rec)) {
-            log_debug($this->obj_name . '->save_id_fields_link to ' . $this->dsp_id() . ' from ' . $db_rec->dsp_id() . ' (standard ' . $std_rec->dsp_id() . ')');
+            log_debug('to ' . $this->dsp_id() . ' from ' . $db_rec->dsp_id() . ' (standard ' . $std_rec->dsp_id() . ')');
 
             $log = $this->log_upd_link();
             $log->old_from = $db_rec->fob;
@@ -274,15 +356,15 @@ class user_sandbox_link extends user_sandbox
             $log->row_id = $this->id;
             if ($log->add()) {
                 $db_con->set_type($this->obj_name);
-                $db_con->set_usr($this->usr->id);
+                $db_con->set_usr($this->user()->id);
                 if (!$db_con->update($this->id,
-                    array($this->from_name . '_id', $this->from_name . '_id'),
+                    array($this->from_name . sql_db::FLD_EXT_ID, $this->from_name . sql_db::FLD_EXT_ID),
                     array($this->fob->id, $this->tob->id))) {
                     $result .= 'update from link to ' . $this->from_name . 'failed';
                 }
             }
         }
-        log_debug($this->obj_name . '->save_id_fields_link for ' . $this->dsp_id() . ' done');
+        log_debug('for ' . $this->dsp_id() . ' done');
         return $result;
     }
 
@@ -315,11 +397,12 @@ class user_sandbox_link extends user_sandbox
      *      but a word with the same name already exists, a term with the word "millions" is returned
      *      in this case the calling function should suggest the user to name the formula "scale millions"
      *      to prevent confusion when writing a formula where all words, phrases, verbs and formulas should be unique
-     * @returns string a filled object that links the same objects
+     * @returns string|null a filled object that links the same objects
+     *                            or null if nothing similar has been found
      */
-    function get_similar(): user_sandbox
+    function get_similar(): ?user_sandbox
     {
-        $result = new user_sandbox($this->usr);
+        $result = new user_sandbox($this->user());
 
         // check potential duplicate by name
         // check for linked objects
@@ -332,15 +415,15 @@ class user_sandbox_link extends user_sandbox
             $db_chk->tob = $this->tob;
             if ($db_chk->load_standard()) {
                 if ($db_chk->id > 0) {
-                    log_debug($this->obj_name . '->get_similar the ' . $this->fob->name . ' "' . $this->fob->name . '" is already linked to "' . $this->tob->name . '" of the standard linkspace');
+                    log_debug('the ' . $this->fob->name() . ' "' . $this->fob->name() . '" is already linked to "' . $this->tob->name() . '" of the standard linkspace');
                     $result = $db_chk;
                 }
             }
             // check with the user linkspace
-            $db_chk->usr = $this->usr;
-            if ($db_chk->load()) {
+            $db_chk->set_user($this->user());
+            if ($db_chk->load_obj_vars()) {
                 if ($db_chk->id > 0) {
-                    log_debug($this->obj_name . '->get_similar the ' . $this->fob->name . ' "' . $this->fob->name . '" is already linked to "' . $this->tob->name . '" of the user linkspace');
+                    log_debug('the ' . $this->fob->name() . ' "' . $this->fob->name() . '" is already linked to "' . $this->tob->name() . '" of the user linkspace');
                     $result = $db_chk;
                 }
             }

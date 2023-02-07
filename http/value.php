@@ -31,7 +31,8 @@
 
 // standard zukunft header for callable php files to allow debugging and lib loading
 $debug = $_GET['debug'] ?? 0;
-include_once '../src/main/php/zu_lib.php';
+const ROOT_PATH = __DIR__ . '/../';
+include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 
 // open database
 $db_con = prg_start("value");
@@ -47,14 +48,13 @@ $usr = new user;
 $result .= $usr->get();
 
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
-if ($usr->id > 0) {
+if ($usr->id() > 0) {
 
     load_usr_data();
 
     // prepare the display
     $dsp = new view_dsp_old($usr);
-    $dsp->id = cl(db_cl::VIEW, view::VALUE_DISPLAY);
-    $dsp->load();
+    $dsp->load_by_code_id(view::VALUE_DISPLAY);
     $back = $_GET['back']; // the page (or phrase id) from which formula testing has been called
 
     $result .= $dsp->dsp_navbar($back);
@@ -65,7 +65,7 @@ if ($usr->id > 0) {
         $wrd_lst = new word_list($usr);
         $wrd_lst->load_by_names(explode(",", $wrd_names));
 
-        $result .= $wrd_lst->name_linked();
+        $result .= $wrd_lst->dsp_obj()->dsp();
         $result .= ' = ';
         $val = $wrd_lst->value();
         $result .= $val->display_linked($back);

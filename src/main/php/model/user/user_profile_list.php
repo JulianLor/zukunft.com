@@ -32,7 +32,10 @@
 
 global $user_profiles;
 
-class user_profile_list extends user_type_list
+use cfg\type_list;
+use cfg\type_object;
+
+class user_profile_list extends type_list
 {
 
     /**
@@ -40,7 +43,7 @@ class user_profile_list extends user_type_list
      * @param sql_db $db_con the database connection that can be either the real database connection or a simulation used for testing
      * @return bool true if load was successful
      */
-    function load(sql_db $db_con, string $db_type = DB_TYPE_USER_PROFILE): bool
+    function load(sql_db $db_con, string $db_type = sql_db::TBL_USER_PROFILE): bool
     {
         return parent::load($db_con, $db_type);
     }
@@ -48,20 +51,14 @@ class user_profile_list extends user_type_list
     /**
      * create dummy type list for the unit tests without database connection
      */
-    function load_dummy()
+    function load_dummy(): void
     {
         $this->lst = array();
         $this->hash = array();
-        $type = new user_type();
-        $type->name = user_profile::NORMAL;
-        $type->code_id = user_profile::NORMAL;
-        $this->lst[2] = $type;
-        $this->hash[user_profile::NORMAL] = 2;
-        $type = new user_type();
-        $type->name = user_profile::ADMIN;
-        $type->code_id = user_profile::ADMIN;
-        $this->lst[3] = $type;
-        $this->hash[user_profile::ADMIN] = 3;
+        $type = new type_object(user_profile::NORMAL, user_profile::NORMAL, '', 2);
+        $this->add($type);
+        $type = new type_object(user_profile::ADMIN, user_profile::ADMIN, '', 3);
+        $this->add($type);
     }
 
     /**

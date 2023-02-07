@@ -30,7 +30,8 @@
 */
 
 $debug = $_GET['debug'] ?? 0;
-include_once '../src/main/php/zu_lib.php';
+const ROOT_PATH = __DIR__ . '/../';
+include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 
 // open database
 $db_con = prg_start("link_del");
@@ -43,14 +44,13 @@ $usr = new user;
 $result .= $usr->get();
 
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
-if ($usr->id > 0) {
+if ($usr->id() > 0) {
 
     load_usr_data();
 
     // prepare the display
     $dsp = new view_dsp_old($usr);
-    $dsp->id = cl(db_cl::VIEW, view::LINK_DEL);
-    $dsp->load();
+    $dsp->load_by_code_id(view::LINK_DEL);
     $back = $_GET['back']; // the original calling page that should be shown after the change if finished
 
     // get the parameters
@@ -61,9 +61,8 @@ if ($usr->id > 0) {
     if ($link_id > 0) {
 
         // create the source object to have an object to update the parameters
-        $lnk = new word_link($usr);
-        $lnk->id = $link_id;
-        $lnk->load();
+        $lnk = new triple($usr);
+        $lnk->load_by_id($link_id);
 
         if ($confirm == 1) {
             $lnk->del();

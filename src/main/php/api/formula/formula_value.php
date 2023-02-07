@@ -2,7 +2,7 @@
 
 /*
 
-    api\formula_value.php - the minimal result value object
+    api/formula/formula_value.php - the minimal result value object
     ---------------------
 
 
@@ -46,8 +46,9 @@ class formula_value_api extends user_sandbox_value_api
         parent::__construct($id);
     }
 
+
     /*
-     * casting objects
+     * cast
      */
 
     /**
@@ -57,7 +58,7 @@ class formula_value_api extends user_sandbox_value_api
     {
         $dsp_obj = new formula_value_dsp($this->id);
         $dsp_obj->set_grp($this->grp());
-        $dsp_obj->set_val($this->val());
+        $dsp_obj->set_number($this->number());
         return $dsp_obj;
     }
 

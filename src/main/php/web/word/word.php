@@ -2,7 +2,7 @@
 
 /*
 
-    \web\word\word.php - the extension of the word API objects to create word base html code
+    /web/word/word.php - the extension of the word API objects to create word base html code
     ------------------
 
     This file is part of the frontend of zukunft.com - calc with words
@@ -33,7 +33,9 @@ namespace html;
 
 use api\word_api;
 use api\phrase_api;
-use html\phrase_dsp;
+use back_trace;
+use cfg\phrase_type;
+use word;
 
 class word_dsp extends word_api
 {
@@ -41,8 +43,17 @@ class word_dsp extends word_api
     // default view settings
     const TIME_MIN_COLS = 3; // minimum number of same time type word to display in a table e.g. if at least 3 years exist use a table to display
     const TIME_MAX_COLS = 10; // maximum number of same time type word to display in a table e.g. if more the 10 years exist, by default show only the lst 10 years
+    const TIME_FUT_PCT = 20; // the default number of future outlook e.g. if there are 10 years of hist and 3 years of outlook display 8 years of hist and 2 years outlook
 
+    // the form names to change the word
+    const FORM_ADD = 'word_add';
     const FORM_EDIT = 'word_edit';
+    const FORM_DEL = 'word_del';
+
+
+    /*
+     * base elements
+     */
 
     /**
      * @returns string simply the word name, but later with mouse over that shows the description
@@ -54,15 +65,15 @@ class word_dsp extends word_api
 
     /**
      * display a word with a link to the main page for the word
-     * @param string $back the back trace url for the undo functionality
+     * @param string|null $back the back trace url for the undo functionality
      * @param string $style the CSS style that should be used
      * @returns string the html code
      */
-    function dsp_link(string $back = '', string $style = ''): string
+    function dsp_link(?string $back = '', string $style = ''): string
     {
         $html = new html_base();
         $url = $html->url(api::VIEW, $this->id, $back, api::PAR_VIEW_WORDS);
-        return $html->ref($url, $this->name(), $this->description, $style);
+        return $html->ref($url, $this->name(), $this->description(), $style);
     }
 
     /**
@@ -132,26 +143,65 @@ class word_dsp extends word_api
     }
 
 
-    /**
-     * @returns string html code to display a single word in a column and allow to delete it
+    /*
+     * select
      */
-    function dsp_del(): string
-    {
-        $html = new html_base();
-        $name = $this->td();
-        $btn = $html->td($this->btn_del());
-        return $html->tr($name . $btn);
-    }
 
     /**
-     * allow the user to unlink a word
+     * @param string $script
+     * @param string $bs_class
+     * @return string
      */
-    function dsp_unlink(int $link_id): string
+    private function type_selector(string $script, string $bs_class): string
+    {
+        $result = '';
+        $sel = new html_selector;
+        $sel->form = $script;
+        $sel->name = 'type';
+        $sel->label = "Word type:";
+        $sel->bs_class = $bs_class;
+        $sel->sql = sql_lst("word_type");
+        $sel->selected = $this->type()->id();
+        $sel->dummy_text = '';
+        $result .= $sel->display();
+        return $result;
+    }
+
+    function dsp_type_selector(string $script, string $back = ''): string
+    {
+        $result = '';
+        if ($this->type()->code_id() == phrase_type::FORMULA_LINK) {
+            $result .= ' type: ' . $this->type()->name();
+        } else {
+            $result .= $this->type_selector($script, "col-sm-4");
+        }
+        return $result;
+    }
+
+
+    /*
+     * change forms
+     */
+
+    /**
+     * HTML code to add a word with all fields
+     * @param string $back the html code to be opened in case of a back action
+     * @return string the html code to display the add page
+     */
+    function form_add(string $back = ''): string
     {
         $html = new html_base();
-        $name = $this->td();
-        $btn = $html->td($this->btn_unlink($link_id));
-        return $html->tr($name . $btn);
+        $ui_msg = new msg();
+
+        $header = $html->text_h2($ui_msg->txt(msg::FORM_WORD_ADD_TITLE));
+        $hidden_fields = $html->form_hidden("back", $back);
+        $hidden_fields .= $html->form_hidden("confirm", '1');
+        $detail_fields = $html->form_text("word_name", $this->plural(), $ui_msg->txt(msg::FORM_WORD_FLD_NAME));
+        $detail_row = $html->fr($detail_fields) . '<br>';
+
+        // TODO complete
+
+        return $header . $html->form(self::FORM_ADD, $hidden_fields . $detail_row);
     }
 
     /**
@@ -163,7 +213,7 @@ class word_dsp extends word_api
      * @param string $back the html code to be opened in case of a back action
      * @return string the html code to display the edit page
      */
-    function dsp_edit(string $dsp_graph, string $dsp_log, string $dsp_frm, string $dsp_type, string $back = ''): string
+    function form_edit(string $dsp_graph, string $dsp_log, string $dsp_frm, string $dsp_type, string $back = ''): string
     {
         $html = new html_base();
         $result = '';
@@ -187,6 +237,54 @@ class word_dsp extends word_api
 
         return $result;
     }
+
+    /**
+     * HTML code to delete or exclude a word
+     * @param string $back the html code to be opened in case of a back action
+     * @return string the html code to display the delete page
+     */
+    function form_del(string $back = ''): string
+    {
+        $html = new html_base();
+
+        $header = $html->text_h2('Delete "' . $this->name . '"');
+        $hidden_fields = $html->form_hidden("id", $this->id);
+        $hidden_fields .= $html->form_hidden("back", $back);
+        $hidden_fields .= $html->form_hidden("confirm", '1');
+        $detail_row = $this->btn_del() . '<br>';
+
+        // TODO complete
+
+        return $header . $html->form(self::FORM_DEL, $hidden_fields . $detail_row);
+    }
+
+
+    /*
+     * change action
+     */
+
+    /**
+     * @returns string html code to display a single word in a column and allow to delete it
+     */
+    function dsp_del(): string
+    {
+        $html = new html_base();
+        $name = $this->td();
+        $btn = $html->td($this->btn_del());
+        return $html->tr($name . $btn);
+    }
+
+    /**
+     * allow the user to unlink a word
+     */
+    function dsp_unlink(int $link_id): string
+    {
+        $html = new html_base();
+        $name = $this->td();
+        $btn = $html->td($this->btn_unlink($link_id));
+        return $html->tr($name . $btn);
+    }
+
 
     /*
      * buttons
@@ -212,6 +310,21 @@ class word_dsp extends word_api
     }
 
     /*
+     * change log
+     */
+
+    /**
+     * @param back_trace $back the last changes to allow undo actions by the user
+     * @return string with the HTML code to show the last changes of the view of this word
+     */
+    public function log_view(back_trace $back): string
+    {
+        $log_dsp = new change_log_dsp();
+        return '';
+    }
+
+
+    /*
      * casting
      */
 
@@ -221,6 +334,11 @@ class word_dsp extends word_api
     function phrase_dsp(): phrase_dsp
     {
         return new phrase_dsp($this->id(), $this->name());
+    }
+
+    function term(): term_dsp
+    {
+        return new term_dsp($this->id, $this->name, word::class);
     }
 
 }

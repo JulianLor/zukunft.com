@@ -30,24 +30,26 @@
 
 */
 
+use api\phrase_api;
+use api\word_api;
+
 function run_phrase_list_test(testing $t)
 {
 
     global $usr;
+    global $verbs;
 
     $t->header('Test the phrase list class (src/main/php/model/phrase/phrase_list.php)');
 
-    // load the main test word
-    $wrd_company = $t->test_word(word::TN_READ);
+    // load the main test word and verb
+    $wrd_company = $t->test_word(word_api::TN_READ);
+    $is_id = $verbs->id(verb::IS_A);
 
     // prepare test by loading Insurance Zurich
-    $wrd_zh = $t->load_word(word::TN_ZH);
-    $lnk_company = new word_link($usr);
-    $lnk_company->from->id = $wrd_zh->id;
-    $lnk_company->verb->id = cl(db_cl::VERB, verb::IS_A);
-    $lnk_company->to->id = $wrd_company->id;
-    $lnk_company->load();
-    $triple_sample_id = $lnk_company->id;
+    $wrd_zh = $t->load_word(word_api::TN_ZH);
+    $lnk_company = new triple($usr);
+    $lnk_company->load_by_link($wrd_zh->id(), $is_id, $wrd_company->id());
+    $triple_sample_id = $lnk_company->id();
 
     // test the phrase loading via id
     $wrd_lst = new word_list($usr);
@@ -56,13 +58,13 @@ function run_phrase_list_test(testing $t)
     $id_lst[] = $triple_sample_id * -1;
     $phr_lst = new phrase_list($usr);
     $phr_lst->load_by_ids(new phr_ids($id_lst));
-    $target = '"' . TW_ABB . '","' . TW_VESTAS . '","' . phrase::TN_ZH_COMPANY . '"';
+    $target = '"' . TW_ABB . '","' . TW_VESTAS . '","' . phrase_api::TN_ZH_COMPANY . '"';
     $result = $phr_lst->dsp_name();
     $t->dsp('phrase->load via id', $target, $result);
 
     // ... the complete word list, which means split the triples into single words
     $wrd_lst_all = $phr_lst->wrd_lst_all();
-    $target = '"' . TW_ABB . '","' . TW_VESTAS . '","' . word::TN_ZH . '","' . TEST_WORD . '"';
+    $target = '"' . TW_ABB . '","' . TW_VESTAS . '","' . word_api::TN_ZH . '","' . TEST_WORD . '"';
     $result = $wrd_lst_all->name();
     $t->dsp('phrase->wrd_lst_all of list above', $target, $result);
 

@@ -63,23 +63,67 @@ A user updates a formula
       -> get all depending formulas
       -> based on the formula
       -> exclude / delete formula results????
-    -> create all depending calculation requests
+    -> create all calculation depending on requests
     -> sort the calculation request by dependency and priority
     -> execute the calculation requests
 
 */
 
-class batch_job
+use api\batch_job_api;
+
+class batch_job extends db_object
 {
 
+    const STATUS_NEW = 'new'; // the job is not yet assigned to any calc engine
+    const STATUS_ASSIGNED = 'assigned'; // the job has been assigned to a calc engine
+    const STATUS_WORKING = 'working'; // the calc engine is reporting the progress
+    const STATUS_NOT_RESPONDING = 'not_responding'; // the calc engine is not reporting the progress
+    const STATUS_WAITING = 'waiting'; // the task is waiting for user input of other jobs
+    const STATUS_DONE = 'done'; // the task has been completed successfully
+    const STATUS_FAILED = 'failed'; // the task has been completed unsuccessful
+
+    const PRIO_HIGHEST = 1;
+    const PRIO_LOWEST = 10;
+
+
+    /*
+     * database link
+     */
+
+    // object specific database object field names
+    const FLD_ID = 'calc_and_cleanup_task_id';
+    const FLD_TIME_REQUEST = 'request_time';
+    const FLD_TIME_START = 'start_time';
+    const FLD_TIME_END = 'end_time';
+    const FLD_TYPE = 'calc_and_cleanup_task_type_id';
+    const FLD_ROW = 'row_id';
+    const FLD_CHANGE_FIELD = 'change_field_id';
+
+    // all database field names excluding the id used to identify if there are some user specific changes
+    const FLD_NAMES = array(
+        self::FLD_ID,
+        self::FLD_TIME_REQUEST,
+        self::FLD_TIME_START,
+        self::FLD_TIME_END,
+        self::FLD_TYPE,
+        self::FLD_ROW,
+        self::FLD_CHANGE_FIELD
+    );
+
+
+    /*
+     * object vars
+     */
+
     // database fields
-    public ?int $id = null;  // the database id of the request
     public ?DateTime $request_time = null;  // time when the job has been requested
     public ?DateTime $start_time = null;    // start time of the job execution
     public ?DateTime $end_time = null;      // end time of the job execution
     public ?user $usr = null;               // the user who has done the request and whose data needs to be updated
     public ?string $type = null;            // "update value", "add formula" or ... reference to the type table
     public ?int $row_id = null;             // the id of the related object e.g. if a value has been updated the value_id
+    public string $status;
+    public string $priority;
 
     // in memory only fields
     public ?object $obj = null;             // the updated object
@@ -89,46 +133,224 @@ class batch_job
     public ?formula $frm = null;           // the formula object that should be used for updating the result
     public ?phrase_list $phr_lst = null;   //
 
+    /*
+     * construct and map
+     */
 
-    // request a new calculation
-    function add(): int
+    /**
+     * always set the user because a term is always user specific
+     * @param user $usr the user who requested to see this term
+     */
+    function __construct(user $usr)
+    {
+        parent::__construct();
+        $this->request_time = new DateTime();
+        $this->usr = $usr;
+        $this->status = self::STATUS_NEW;
+        $this->priority = self::PRIO_LOWEST;
+    }
+
+    /**
+     * @return bool true if a job is found
+     */
+    function row_mapper(array $db_row): bool
+    {
+        global $job_types;
+        if ($db_row[self::FLD_ID] > 0) {
+            $this->id = $db_row[self::FLD_ID];
+            //$this->request_time = $db_row[self::FLD_TIME_REQUEST];
+            //$this->start_time = $db_row[self::FLD_TIME_START];
+            //$this->end_time = $db_row[self::FLD_TIME_END];
+            $this->type = $db_row[self::FLD_TYPE];
+            //$this->status = $db_row[self::FLD_ID];
+            //$this->priority = $db_row[self::FLD_ID];
+            log_debug('Batch job ' . $this->id() . ' loaded');
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+
+    /*
+     * set and get
+     */
+
+    public function set_type(string $code_id): void
+    {
+        global $job_types;
+        $this->type = $job_types->id($code_id);
+    }
+
+    public function type_code_id(): string
+    {
+        global $job_types;
+        $result = '';
+        if ($this->type != null) {
+            $type = $job_types->get_by_id($this->type);
+            if ($type != null) {
+                $result = $type->code_id();
+            }
+        }
+        return $result;
+    }
+
+    /*
+     * cast
+     */
+
+    /**
+     * @return batch_job_api the batch job frontend api object
+     */
+    function api_obj(): batch_job_api
+    {
+        $api_obj = new batch_job_api($this->usr);
+        $api_obj->id = $this->id;
+        $api_obj->request_time = $this->request_time;
+        $api_obj->start_time = $this->start_time;
+        $api_obj->end_time = $this->end_time;
+        $api_obj->type = $this->type;
+        $api_obj->status = $this->status;
+        $api_obj->priority = $this->priority;
+        return $api_obj;
+    }
+
+
+    /*
+     * load
+     */
+
+    /**
+     * create the common part of an SQL statement to retrieve the parameters of a batch job from the database
+     *
+     * @param sql_db $db_con the db connection object as a function parameter for unit testing
+     * @param string $class the name of the child class from where the call has been triggered
+     * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
+     */
+    public function load_sql(sql_db $db_con, string $query_name, string $class = self::class): sql_par
+    {
+        $db_con->set_type(sql_db::TBL_TASK);
+        $qp = new sql_par($class);
+        $qp->name .= $query_name;
+
+        $db_con->set_name($qp->name);
+        $db_con->set_usr($this->usr->id);
+        $db_con->set_fields(self::FLD_NAMES);
+
+        return $qp;
+    }
+
+    /**
+     * create an SQL statement to retrieve a batch job by id from the database
+     *
+     * @param sql_db $db_con the db connection object as a function parameter for unit testing
+     * @param int $id the id of the user sandbox object
+     * @param string $class the name of the child class from where the call has been triggered
+     * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
+     */
+    function load_sql_by_id(sql_db $db_con, int $id, string $class = self::class): sql_par
+    {
+        $qp = $this->load_sql($db_con, 'id', $class);
+        $db_con->add_par_int($id);
+        $qp->sql = $db_con->select_by_field($this->id_field());
+        $qp->par = $db_con->get_par();
+
+        return $qp;
+    }
+
+    /**
+     * load a batch job from the database
+     * @param sql_par $qp the query parameters created by the calling function
+     * @return int the id of the object found and zero if nothing is found
+     */
+    protected function load(sql_par $qp): int
+    {
+        global $db_con;
+
+        $db_row = $db_con->get1($qp);
+        $this->row_mapper($db_row);
+        return $this->id();
+    }
+
+    /**
+     * load a batch job by database id
+     * @param int $id the id of the batch job
+     * @param string $class the name of the child class from where the call has been triggered
+     * @return int the id of the object found and zero if nothing is found
+     */
+    function load_by_id(int $id, string $class = self::class): int
+    {
+        global $db_con;
+
+        log_debug($id);
+        $qp = $this->load_sql_by_id($db_con, $id, $class);
+        return $this->load($qp);
+    }
+
+    /**
+     * function that can be overwritten by the child object
+     * @return string the field name of the prime database index of the object
+     */
+    private function id_field(): string
+    {
+        return self::FLD_ID;
+    }
+
+
+    /*
+     * modify
+     */
+
+    /**
+     * request a new calculation
+     * @return int the id of the added batch job
+     */
+    function add(string $code_id = ''): int
     {
 
         global $db_con;
 
         $result = 0;
-        log_debug('batch_job->add');
+        log_debug();
+
         // create first the database entry to make sure the update is done
         if ($this->type <= 0) {
-            // invalid type?
-            log_debug('batch_job->type invalid');
-        } else {
-            log_debug('batch_job->type ok');
+            if ($code_id == '') {
+                log_debug('invalid batch job type');
+            } else {
+                $this->set_type($code_id);
+            }
+        }
+
+        if ($this->type > 0) {
+            log_debug('ok');
             if ($this->row_id <= 0) {
                 if (isset($this->obj)) {
-                    $this->row_id = $this->obj->id;
+                    $this->row_id = $this->obj->id();
                 }
             }
-            if ($this->row_id <= 0) {
-                log_debug('batch_job->add row id missing?');
+            if ($this->row_id <= 0 and $code_id != job_type_list::BASE_IMPORT) {
+                log_debug('row id missing?');
             } else {
-                log_debug('batch_job->row_id ok');
-                if (isset($this->obj)) {
+                log_debug('row_id ok');
+                if (isset($this->obj) or $code_id == job_type_list::BASE_IMPORT) {
                     if (!isset($this->usr)) {
                         $this->usr = $this->obj->usr;
                     }
-                    $this->row_id = $this->obj->id;
-                    log_debug('batch_job->add connect');
+                    if (isset($this->obj)) {
+                        $this->row_id = $this->obj->id();
+                    }
+                    log_debug('connect');
                     //$db_con = New mysql;
                     $db_type = $db_con->get_type();
-                    $db_con->set_type(DB_TYPE_TASK);
+                    $db_con->set_type(sql_db::TBL_TASK);
                     $db_con->set_usr($this->usr->id);
-                    $job_id = $db_con->insert(array(user::FLD_ID, 'request_time', 'calc_and_cleanup_task_type_id', 'row_id'),
+                    $job_id = $db_con->insert(array(user::FLD_ID, self::FLD_TIME_REQUEST, self::FLD_TYPE, self::FLD_ROW),
                         array($this->usr->id, 'Now()', $this->type, $this->row_id));
                     $this->request_time = new DateTime();
 
                     // execute the job if possible
-                    if ($job_id > 0) {
+                    if ($job_id > 0 and $code_id != job_type_list::BASE_IMPORT) {
                         $this->id = $job_id;
                         $this->exe();
                         $result = $job_id;
@@ -137,27 +359,29 @@ class batch_job
                 }
             }
         }
-        log_debug('batch_job->add done');
+        log_debug('done');
         return $result;
     }
 
-    // update all result depending on one value
-    function exe_val_upd()
+    /**
+     * update all result depending on one value
+     */
+    function exe_val_upd(): void
     {
-        log_debug('batch_job->exe_val_upd ...');
+        log_debug();
         global $db_con;
 
         // load all depending formula results
         if (isset($this->obj)) {
-            log_debug('batch_job->exe_val_upd -> get list for user ' . $this->obj->usr->name);
+            log_debug('get list for user ' . $this->obj->user()->name);
             $fv_lst = $this->obj->fv_lst_depending();
             if ($fv_lst != null) {
-                log_debug('batch_job->exe_val_upd -> got ' . $fv_lst->dsp_id());
+                log_debug('got ' . $fv_lst->dsp_id());
                 if ($fv_lst->lst != null) {
                     foreach ($fv_lst->lst as $fv) {
-                        log_debug('batch_job->exe_val_upd -> update ' . get_class($fv) . ' ' . $fv->dsp_id());
+                        log_debug('update ' . get_class($fv) . ' ' . $fv->dsp_id());
                         $fv->update();
-                        log_debug('batch_job->exe_val_upd -> update ' . get_class($fv) . ' ' . $fv->dsp_id() . ' done');
+                        log_debug('update ' . get_class($fv) . ' ' . $fv->dsp_id() . ' done');
                     }
                 }
             }
@@ -165,25 +389,27 @@ class batch_job
 
         //$db_con = New mysql;
         $db_type = $db_con->get_type();
-        $db_con->set_type(DB_TYPE_TASK);
+        $db_con->set_type(sql_db::TBL_TASK);
         $db_con->usr_id = $this->usr->id;
         $result = $db_con->update($this->id, 'end_time', 'Now()');
         $db_con->set_type($db_type);
 
-        log_debug('batch_job->exe_val_upd -> done with ' . $result);
+        log_debug('done with ' . $result);
     }
 
-    // execute all open requests
+    /**
+     * execute all open requests
+     */
     function exe()
     {
         global $db_con;
         //$db_con = New mysql;
         $db_type = $db_con->get_type();
         $db_con->usr_id = $this->usr->id;
-        $db_con->set_type(DB_TYPE_TASK);
+        $db_con->set_type(sql_db::TBL_TASK);
         $result = $db_con->update($this->id, 'start_time', 'Now()');
 
-        log_debug('batch_job->exe -> ' . $this->type . ' with ' . $result);
+        log_debug($this->type . ' with ' . $result);
         if ($this->type == cl(db_cl::JOB_TYPE, job_type_list::VALUE_UPDATE)) {
             $this->exe_val_upd();
         } else {
@@ -198,12 +424,12 @@ class batch_job
     }
 
     /*
+     * debug
+     */
 
-    display functions
-
-    */
-
-    // return best possible identification for this formula mainly used for debugging
+    /**
+     * @return string best possible identification for this formula mainly used for debugging
+     */
     function dsp_id(): string
     {
         $result = $this->type;

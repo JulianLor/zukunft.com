@@ -29,12 +29,17 @@
   
 */
 
+namespace export;
+
 class source_exp extends user_sandbox_exp_named
 {
 
+    // object specific database and JSON object field names
+    const FLD_REF = 'source';
+
     // field names used for JSON creation
     public ?string $url = null;
-    public ?string $comment = null;
+    public ?string $description = null;
     public ?string $type = null;
     public ?string $code_id = null;
 
@@ -43,7 +48,7 @@ class source_exp extends user_sandbox_exp_named
         parent::reset();
 
         $this->url = '';
-        $this->comment = '';
+        $this->description = '';
         $this->type = '';
         $this->code_id = '';
     }

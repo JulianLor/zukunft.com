@@ -12,11 +12,11 @@ FROM (SELECT DISTINCT id, name, excluded
                                               CASE
                                                   WHEN (u.excluded IS NULL) THEN COALESCE(l.excluded, 0)
                                                   ELSE COALESCE(u.excluded, 0) END AS excluded
-                              FROM word_links l
-                                       LEFT JOIN user_word_links u ON u.word_link_id = l.word_link_id
+                              FROM triples l
+                                       LEFT JOIN user_triples u ON u.triple_id = l.triple_id
                                   AND u.user_id = 1
                               WHERE l.to_phrase_id = 2
-                                AND l.verb_id = 2) AS a
+                                AND l.verb_id = 1) AS a
                      WHERE excluded = 0) a,
                     words w
                         LEFT JOIN user_words u ON u.word_id = w.word_id
@@ -28,11 +28,11 @@ FROM (SELECT DISTINCT id, name, excluded
                                                                     WHEN (u.excluded IS NULL)
                                                                         THEN COALESCE(l.excluded, 0)
                                                                     ELSE COALESCE(u.excluded, 0) END AS excluded
-                                                FROM word_links l
-                                                         LEFT JOIN user_word_links u ON u.word_link_id = l.word_link_id
+                                                FROM triples l
+                                                         LEFT JOIN user_triples u ON u.triple_id = l.triple_id
                                                     AND u.user_id = 1
                                                 WHERE l.to_phrase_id <> 2
-                                                  AND l.verb_id = 2
+                                                  AND l.verb_id = 1
                                                   AND l.from_phrase_id IN (SELECT from_phrase_id AS id
                                                                            FROM (
                                                                                     SELECT DISTINCT l.from_phrase_id,
@@ -40,14 +40,14 @@ FROM (SELECT DISTINCT id, name, excluded
                                                                                                         WHEN (u.excluded IS NULL)
                                                                                                             THEN COALESCE(l.excluded, 0)
                                                                                                         ELSE COALESCE(u.excluded, 0) END AS excluded
-                                                                                    FROM word_links l
-                                                                                             LEFT JOIN user_word_links u
-                                                                                                       ON u.word_link_id =
-                                                                                                          l.word_link_id
+                                                                                    FROM triples l
+                                                                                             LEFT JOIN user_triples u
+                                                                                                       ON u.triple_id =
+                                                                                                          l.triple_id
                                                                                                            AND
                                                                                                           u.user_id = 1
                                                                                     WHERE l.to_phrase_id = 2
-                                                                                      AND l.verb_id = 2) AS a
+                                                                                      AND l.verb_id = 1) AS a
                                                                            WHERE excluded = 0)) AS o
                                        WHERE excluded = 0)
                  AND w.word_id = a.id) AS w
@@ -55,15 +55,15 @@ FROM (SELECT DISTINCT id, name, excluded
       UNION
       SELECT DISTINCT id, name, excluded
       FROM (
-               SELECT DISTINCT l.word_link_id * -1                                                                AS id,
+               SELECT DISTINCT l.triple_id * -1                                                                AS id,
                                CASE
                                    WHEN (u.name_given <> '' IS NOT TRUE) THEN l.name_given
                                    ELSE u.name_given END                                                          AS name,
                                CASE
                                    WHEN (u.excluded IS NULL) THEN COALESCE(l.excluded, 0)
                                    ELSE COALESCE(u.excluded, 0) END                                               AS excluded
-               FROM word_links l
-                        LEFT JOIN user_word_links u ON u.word_link_id = l.word_link_id
+               FROM triples l
+                        LEFT JOIN user_triples u ON u.triple_id = l.triple_id
                    AND u.user_id = 1
                WHERE l.from_phrase_id IN (SELECT from_phrase_id
                                           FROM (
@@ -72,12 +72,12 @@ FROM (SELECT DISTINCT id, name, excluded
                                                                        WHEN (u.excluded IS NULL)
                                                                            THEN COALESCE(l.excluded, 0)
                                                                        ELSE COALESCE(u.excluded, 0) END AS excluded
-                                                   FROM word_links l
-                                                            LEFT JOIN user_word_links u
-                                                                      ON u.word_link_id = l.word_link_id
+                                                   FROM triples l
+                                                            LEFT JOIN user_triples u
+                                                                      ON u.triple_id = l.triple_id
                                                                           AND u.user_id = 1
                                                    WHERE l.to_phrase_id <> 2
-                                                     AND l.verb_id = 2
+                                                     AND l.verb_id = 1
                                                      AND l.from_phrase_id IN (SELECT from_phrase_id AS id
                                                                               FROM (
                                                                                        SELECT DISTINCT l.from_phrase_id,
@@ -85,18 +85,18 @@ FROM (SELECT DISTINCT id, name, excluded
                                                                                                            WHEN (u.excluded IS NULL)
                                                                                                                THEN COALESCE(l.excluded, 0)
                                                                                                            ELSE COALESCE(u.excluded, 0) END AS excluded
-                                                                                       FROM word_links l
-                                                                                                LEFT JOIN user_word_links u
-                                                                                                          ON u.word_link_id =
-                                                                                                             l.word_link_id
+                                                                                       FROM triples l
+                                                                                                LEFT JOIN user_triples u
+                                                                                                          ON u.triple_id =
+                                                                                                             l.triple_id
                                                                                                               AND
                                                                                                              u.user_id =
                                                                                                              1
                                                                                        WHERE l.to_phrase_id = 2
-                                                                                         AND l.verb_id = 2) AS a
+                                                                                         AND l.verb_id = 1) AS a
                                                                               WHERE excluded = 0)) AS o
                                           WHERE excluded = 0)
-                 AND l.verb_id = 2
+                 AND l.verb_id = 1
                  AND l.to_phrase_id = 2) AS t
       WHERE excluded = 0) AS p
 WHERE excluded = 0

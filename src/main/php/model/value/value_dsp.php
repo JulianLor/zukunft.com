@@ -31,6 +31,7 @@
 */
 
 use html\api;
+use html\word_dsp;
 
 class value_dsp_old extends value
 {
@@ -47,13 +48,14 @@ class value_dsp_old extends value
     }
 
     /*
-    display functions
-    -------
-  */
+     * display functions
+     */
 
-    // return the html code to display a value
-    // this is the opposite of the convert function
-    function display(string $back = ''): string
+    /**
+     * @return string the html code to display a value
+     * this is the opposite of the convert function
+     */
+    function display(): string
     {
         $result = '';
         if (!is_null($this->number)) {
@@ -69,16 +71,18 @@ class value_dsp_old extends value
         return $result;
     }
 
-    // html code to show the value with the possibility to click for the result explanation
-    function display_linked($back)
+    /**
+     * @return string html code to show the value with the possibility to click for the result explanation
+     */
+    function display_linked($back): string
     {
         $result = '';
 
-        log_debug('value->display_linked (' . $this->id . ',u' . $this->usr->id . ')');
+        log_debug('value->display_linked (' . $this->id . ',u' . $this->user()->id() . ')');
         if (!is_null($this->number)) {
             $num_text = $this->val_formatted();
             $link_format = '';
-            if (isset($this->usr)) {
+            if ($this->user()->is_set()) {
                 if (!$this->is_std()) {
                     $link_format = ' class="user_specific"';
                 }
@@ -86,7 +90,7 @@ class value_dsp_old extends value
             // to review
             $result .= '<a href="/http/value_edit.php?id=' . $this->id . '&back=' . $back . '" ' . $link_format . ' >' . $num_text . '</a>';
         }
-        log_debug('value->display_linked -> done');
+        log_debug('done');
         return $result;
     }
 
@@ -96,7 +100,7 @@ class value_dsp_old extends value
      * possible future parameters:
      * $fixed_words - words that the user is not suggested to change this time
      * $select_word - suggested words which the user can change
-     * $type_word   - word to preselect the suggested words e.g. "Country" to list all ther countries first for the suggested word
+     * $type_word   - word to preselect the suggested words e.g. "Country" to list all their countries first for the suggested word
      *
      * @param string $back the id of the word from which the page has been called (TODO to be replace with the back trace object)
      * @returns string the HTML code for a button to add a value related to this value
@@ -109,7 +113,7 @@ class value_dsp_old extends value
         $url_phr = '';
         $this->load_phrases();
         if (isset($this->phr_lst)) {
-            if (!empty($this->phr_lst->lst)) {
+            if (!empty($this->phr_lst->lst())) {
                 $val_btn_title = "add new value similar to " . htmlentities($this->phr_lst->dsp_name());
             } else {
                 $val_btn_title = "add new value";
@@ -123,25 +127,31 @@ class value_dsp_old extends value
         return $result;
     }
 
-    // depending on the word list format the numeric value
-    // format the value for on screen display
-    // similar to the corresponding function in the "formula_value" class
-    function val_formatted()
+    /**
+     * depending on the word list format the numeric value
+     * format the value for on screen display
+     * similar to the corresponding function in the "formula_value" class
+     * @returns string the HTML code to display this value
+     */
+    function val_formatted(): string
     {
         $result = '';
 
         $this->load_phrases();
 
         if (!is_null($this->number)) {
+            // load the list of phrases if needed
+            $this->reload_if_needed();
             if (is_null($this->wrd_lst)) {
-                $this->load();
+                $phr_grp = $this->wrd_lst->phrase_lst()->get_grp();
+                $this->load_by_grp($phr_grp);
             }
             if ($this->wrd_lst != null) {
                 if ($this->wrd_lst->has_percent()) {
-                    $result = round($this->number * 100, $this->usr->percent_decimals) . "%";
+                    $result = round($this->number * 100, $this->user()->percent_decimals) . "%";
                 } else {
                     if ($this->number >= 1000 or $this->number <= -1000) {
-                        $result .= number_format($this->number, 0, $this->usr->dec_point, $this->usr->thousand_sep);
+                        $result .= number_format($this->number, 0, $this->user()->dec_point, $this->user()->thousand_sep);
                     } else {
                         $result = round($this->number, 2);
                     }
@@ -152,14 +162,13 @@ class value_dsp_old extends value
     }
 
     // the same as \html\btn_del_value, but with another icon
-    function btn_undo_add_value($back)
+    function btn_undo_add_value($back): string
     {
-        $result = btn_undo('delete this value', '/http/value_del.php?id=' . $this->id . '&back=' . $back . '');
-        return $result;
+        return \html\btn_undo('delete this value', '/http/value_del.php?id=' . $this->id . '&back=' . $back . '');
     }
 
     // display a value, means create the HTML code that allows to edit the value
-    function dsp_tbl_std($back)
+    function dsp_tbl_std($back): string
     {
         log_debug('value->dsp_tbl_std ');
         $result = '';
@@ -170,7 +179,7 @@ class value_dsp_old extends value
     }
 
     // same as dsp_tbl_std, but in the user specific color
-    function dsp_tbl_usr($back)
+    function dsp_tbl_usr($back): string
     {
         log_debug('value->dsp_tbl_usr');
         $result = '';
@@ -180,7 +189,7 @@ class value_dsp_old extends value
         return $result;
     }
 
-    function dsp_tbl($back)
+    function dsp_tbl($back): string
     {
         log_debug('value->dsp_tbl_std ');
         $result = '';
@@ -194,12 +203,12 @@ class value_dsp_old extends value
     }
 
     // display the history of a value
-    function dsp_hist($page, $size, $call, $back)
+    function dsp_hist($page, $size, $call, $back): string
     {
         log_debug("value->dsp_hist for id " . $this->id . " page " . $size . ", size " . $size . ", call " . $call . ", back " . $back . ".");
         $result = ''; // reset the html code var
 
-        $log_dsp = new user_log_display($this->usr);
+        $log_dsp = new user_log_display($this->user());
         $log_dsp->id = $this->id;
         $log_dsp->obj = $this;
         $log_dsp->type = value::class;
@@ -209,17 +218,17 @@ class value_dsp_old extends value
         $log_dsp->back = $back;
         $result .= $log_dsp->dsp_hist();
 
-        log_debug("value->dsp_hist -> done");
+        log_debug("done");
         return $result;
     }
 
     // display the history of a value
-    function dsp_hist_links($page, $size, $call, $back)
+    function dsp_hist_links($page, $size, $call, $back): string
     {
-        log_debug("value->dsp_hist_links (" . $this->id . ",size" . $size . ",b" . $size . ")");
+        log_debug($this->id . ",size" . $size . ",b" . $size);
         $result = ''; // reset the html code var
 
-        $log_dsp = new user_log_display($this->usr);
+        $log_dsp = new user_log_display($this->user());
         $log_dsp->id = $this->id;
         $log_dsp->type = value::class;
         $log_dsp->page = $page;
@@ -228,14 +237,20 @@ class value_dsp_old extends value
         $log_dsp->back = $back;
         $result .= $log_dsp->dsp_hist_links();
 
-        log_debug("value->dsp_hist_links -> done");
+        log_debug("done");
         return $result;
     }
+
+    // lists all words related to a given value except the given word
+    // and offer to add a formula to the value as an alternative
+    // $wrd_add is only optional to display the last added word at the end
+    // TODO: take user unlink of words into account
+    // save data to the database only if "save" is pressed add and remove the word links "on the fly", which means that after the first call the edit view is more or less the same as the add view
 
     // display some value samples related to the wrd_id
     // with a preference of the start_word_ids
     // TODO use value_phrase_link_list as a base
-    function dsp_samples($wrd_id, $start_wrd_ids, $size, $back)
+    function dsp_samples($wrd_id, $start_wrd_ids, $size, $back): string
     {
         log_debug("value->dsp_samples (" . $wrd_id . ",rt" . implode(",", $start_wrd_ids) . ",size" . $size . ")");
 
@@ -250,8 +265,8 @@ class value_dsp_old extends value
               FROM value_phrase_links l,
                    value_phrase_links lt,
                    words t,
-                   " . $db_con->get_table_name_esc(DB_TYPE_VALUE) . " v
-         LEFT JOIN user_values u ON v.value_id = u.value_id AND u.user_id = " . $this->usr->id . " 
+                   " . $db_con->get_table_name_esc(sql_db::TBL_VALUE) . " v
+         LEFT JOIN user_values u ON v.value_id = u.value_id AND u.user_id = " . $this->user()->id() . " 
              WHERE l.phrase_id = " . $wrd_id . "
                AND l.value_id = v.value_id
                AND v.value_id = lt.value_id
@@ -260,7 +275,7 @@ class value_dsp_old extends value
                AND (u.excluded IS NULL OR u.excluded = 0) 
              LIMIT " . $size . ";";
         //$db_con = New mysql;
-        $db_con->usr_id = $this->usr->id;
+        $db_con->usr_id = $this->user()->id();
         $db_lst = $db_con->get_old($sql);
 
         // prepare to show where the user uses different value than a normal viewer
@@ -280,7 +295,7 @@ class value_dsp_old extends value
 
             $new_value_id = $db_row["value_id"];
             $wrd = new word_dsp();
-            $wrd->id = $db_row["word_id"];
+            $wrd->set_id($db_row["word_id"]);
             $wrd->set_name($db_row["word_name"]);
             if ($value_id <> $new_value_id) {
                 if ($word_names <> "") {
@@ -308,12 +323,12 @@ class value_dsp_old extends value
         }
         $result .= dsp_tbl_end();
 
-        log_debug("value->dsp_samples -> done.");
+        log_debug("done.");
         return $result;
     }
 
     // simple modal box to add a value
-    function dsp_add_fast($back)
+    function dsp_add_fast($back): string
     {
         $result = '';
 
@@ -339,17 +354,14 @@ class value_dsp_old extends value
             $script = "value_add";
             $result .= dsp_form_start($script);
             $result .= dsp_text_h3("Add value for");
-            log_debug("value->dsp_edit new for phrase ids " . implode(",", $this->ids) . " and user " . $this->usr->id . ".");
+            log_debug("value->dsp_edit new for phrase ids " . implode(",", $this->ids) . " and user " . $this->user()->id() . ".");
         } else {
             $script = "value_edit";
             $result .= dsp_form_start($script);
             $result .= dsp_text_h3("Change value for");
             if (count($this->ids) <= 0) {
                 $this->load_phrases();
-                log_debug('value->dsp_edit id ' . $this->id . ' with "' . $this->grp->name() . '"@"' . $this->time_phr->name . '"and user ' . $this->usr->id);
-            } else {
-                $this->load_time_phrase();
-                log_debug('value->dsp_edit id ' . $this->id . ' with phrase ids ' . dsp_array($this->ids) . ' and user ' . $this->usr->id);
+                log_debug('value->dsp_edit id ' . $this->id . ' with "' . $this->grp->name() . '"and user ' . $this->user()->id());
             }
         }
         $this_url = '/http/' . $script . '.php?id=' . $this->id . '&back=' . $back; // url to call this display again to display the user changes
@@ -367,20 +379,15 @@ class value_dsp_old extends value
             log_debug("value->dsp_edit main wrd");
 
             // rebuild the value ids if needed
-            // 1. load the phrases parameters based on the ids
+            // load the phrases parameters based on the ids
             $result .= $this->set_phr_lst_by_ids($type_ids);
-            // 2. extract the time from the phrase list
-            $result .= $this->set_time_by_phr_lst();
-            log_debug("value->dsp_edit phrase list incl. time " . $this->phr_lst->dsp_name());
-            $result .= $this->set_phr_lst_ex_time();
-            log_debug("value->dsp_edit phrase list excl. time " . $this->phr_lst->dsp_name());
             $phr_lst = $this->phr_lst;
 
             /*
       // load the phrase list
       $phr_lst = New phrase_list;
       $phr_lst->ids = $this->ids;
-      $phr_lst->usr = $this->usr;
+      $phr_lst->usr = $this->user();
       $phr_lst->load();
 
       // separate the time if needed
@@ -392,35 +399,35 @@ class value_dsp_old extends value
       */
 
             // assign the type to the phrases
-            foreach ($phr_lst->lst as $phr) {
-                $phr->usr = $this->usr;
+            foreach ($phr_lst->lst() as $phr) {
+                $phr->set_user($this->user());
                 foreach (array_keys($this->ids) as $pos) {
                     if ($phr->id == $this->ids[$pos]) {
                         $phr->is_wrd_id = $type_ids[$pos];
                         $is_wrd = new word_dsp();
-                        $is_wrd->id = $phr->is_wrd_id;
+                        $is_wrd->set_id($phr->is_wrd_id);
                         $phr->is_wrd = $is_wrd;
                         $phr->dsp_pos = $pos;
                     }
                 }
                 // guess the missing phrase types
                 if ($phr->is_wrd_id == 0) {
-                    log_debug('value->dsp_edit -> guess type for "' . $phr->name . '"');
+                    log_debug('guess type for "' . $phr->name() . '"');
                     $phr->is_wrd = $phr->is_mainly();
                     if ($phr->is_wrd->id > 0) {
                         $phr->is_wrd_id = $phr->is_wrd->id;
-                        log_debug('value->dsp_edit -> guessed type for ' . $phr->name . ': ' . $phr->is_wrd->name);
+                        log_debug('guessed type for ' . $phr->name() . ': ' . $phr->is_wrd->name);
                     }
                 }
             }
 
             // show first the phrases, that are not supposed to be changed
             //foreach (array_keys($this->ids) AS $pos) {
-            log_debug('value->dsp_edit -> show fixed phrases');
-            foreach ($phr_lst->lst as $phr) {
+            log_debug('show fixed phrases');
+            foreach ($phr_lst->lst() as $phr) {
                 //if ($type_ids[$pos] < 0) {
                 if ($phr->is_wrd_id < 0) {
-                    log_debug('value->dsp_edit -> show fixed phrase "' . $phr->name . '"');
+                    log_debug('show fixed phrase "' . $phr->name() . '"');
                     // allow the user to change also the fixed phrases
                     $type_ids_adj = $type_ids;
                     $type_ids_adj[$phr->dsp_pos] = 0;
@@ -432,30 +439,32 @@ class value_dsp_old extends value
                 }
             }
 
-            // show the phrases that the user can change: first the non specific ones, that the phrases of a selective type and new phrases at the end
-            log_debug('value->dsp_edit -> show phrases');
+            // show the phrases that the user can change:
+            // first the non-specific ones, that the phrases of a selective type
+            // and new phrases at the end
+            log_debug('show phrases');
             for ($dsp_type = 0; $dsp_type <= 1; $dsp_type++) {
-                foreach ($phr_lst->lst as $phr) {
+                foreach ($phr_lst->lst() as $phr) {
                     /*
           // build a list of suggested phrases
           $phr_lst_sel_old = array();
           if ($phr->is_wrd_id > 0) {
             // prepare the selector for the type phrase
-            $phr->is_wrd->usr = $this->usr;
+            $phr->is_wrd->usr = $this->user();
             $phr_lst_sel = $phr->is_wrd->children();
-            zu_debug("value->dsp_edit -> suggested phrases for ".$phr->name.": ".$phr_lst_sel->name().".");
+            zu_debug("value->dsp_edit -> suggested phrases for ".$phr->name().": ".$phr_lst_sel->name().".");
           } else {
             // if no phrase group is found, use the phrase type time if the phrase is a time phrase
             if ($phr->is_time()) {
               $phr_lst_sel = New phrase_list;
-              $phr_lst_sel->usr = $this->usr;
+              $phr_lst_sel->usr = $this->user();
               $phr_lst_sel->phrase_type_id = cl(SQL_WORD_TYPE_TIME);
               $phr_lst_sel->load();
             }
           } */
 
                     // build the url for the case that this phrase should be removed
-                    log_debug('value->dsp_edit -> build url');
+                    log_debug('build url');
                     $phr_ids_adj = $this->ids;
                     $type_ids_adj = $type_ids;
                     array_splice($phr_ids_adj, $phr->dsp_pos, 1);
@@ -477,7 +486,7 @@ class value_dsp_old extends value
                     // show the phrases that have a type
                     if ($dsp_type == 0) {
                         if ($phr->is_wrd->id > 0) {
-                            log_debug('value->dsp_edit -> id ' . $phr->id . ' has a type');
+                            log_debug('id ' . $phr->id . ' has a type');
                             $result .= '    <td>';
                             $result .= $phr->is_wrd->name . ':';
                             $result .= '    </td>';
@@ -491,15 +500,15 @@ class value_dsp_old extends value
                             $url_pos++;
 
                             $result .= '    </td>';
-                            $result .= '    <td>' . \html\btn_del("Remove " . $phr->name, $used_url) . '</td>';
-                            $result .= '    <td>' . \html\btn_edit("Rename " . $phr->name, $phrase_url) . '</td>';
+                            $result .= '    <td>' . \html\btn_del("Remove " . $phr->name(), $used_url) . '</td>';
+                            $result .= '    <td>' . \html\btn_edit("Rename " . $phr->name(), $phrase_url) . '</td>';
                         }
                     }
 
                     // show the phrases that don't have a type
                     if ($dsp_type == 1) {
                         if ($phr->is_wrd->id == 0 and $phr->id > 0) {
-                            log_debug('value->dsp_edit -> id ' . $phr->id . ' has no type');
+                            log_debug('id ' . $phr->id . ' has no type');
                             if (!isset($main_wrd)) {
                                 $main_wrd = $phr;
                             }
@@ -509,8 +518,8 @@ class value_dsp_old extends value
                             $url_pos++;
 
                             $result .= '    </td>';
-                            $result .= '    <td>' . \html\btn_del("Remove " . $phr->name, $used_url) . '</td>';
-                            $result .= '    <td>' . \html\btn_edit("Rename " . $phr->name, $phrase_url) . '</td>';
+                            $result .= '    <td>' . \html\btn_del("Remove " . $phr->name(), $used_url) . '</td>';
+                            $result .= '    <td>' . \html\btn_edit("Rename " . $phr->name(), $phrase_url) . '</td>';
                         }
                     }
 
@@ -519,33 +528,48 @@ class value_dsp_old extends value
                 }
             }
 
-            // show the time word
-            log_debug('value->dsp_edit -> show time');
-            if ($this->get_time_id() <> 0) {
-                if (isset($this->time_phr)) {
-                    $result .= '  <tr>';
-                    if ($this->time_phr->id == 0) {
-                        $result .= '    <td colspan="2">';
+            // show the time phrase
+            log_debug('show time');
+            $time_lst = $this->grp->phr_lst->time_lst();
+            $has_time = false;
+            foreach ($time_lst->lst() as $time_phr) {
+                $result .= '  <tr>';
+                if ($time_phr->id() <> 0) {
+                    $has_time = true;
+                    $result .= '    <td colspan="2">';
 
-                        log_debug('value->dsp_edit -> show time selector');
-                        $result .= $this->time_phr->dsp_time_selector(0, $script, $url_pos, $back);
-                        $url_pos++;
+                    log_debug('show time selector');
+                    $result .= $time_phr->dsp_time_selector(0, $script, $url_pos, $back);
+                    $url_pos++;
 
-                        $result .= '    </td>';
-                        $result .= '    <td>' . \html\btn_del("Remove " . $this->time_phr->name, $used_url) . '</td>';
-                    }
-                    $result .= '  </tr>';
+                    $result .= '    </td>';
+                    $result .= '    <td>' . \html\btn_del("Remove " . $time_phr->name(), $used_url) . '</td>';
                 }
+                $result .= '  </tr>';
+            }
+            // show an empty time selector
+            if (!$has_time) {
+                $time_phr = new phrase($this->user());
+                $result .= '  <tr>';
+                $result .= '    <td colspan="2">';
+
+                log_debug('show time selector');
+                $result .= $time_phr->dsp_time_selector(0, $script, $url_pos, $back);
+                $url_pos++;
+
+                $result .= '    </td>';
+                $result .= '    <td>' . \html\btn_del("Remove " . $time_phr->name(), $used_url) . '</td>';
+                $result .= '  </tr>';
             }
 
             // show the new phrases
-            log_debug('value->dsp_edit -> show new phrases');
+            log_debug('show new phrases');
             foreach ($this->ids as $phr_id) {
                 $result .= '  <tr>';
                 if ($phr_id == 0) {
                     $result .= '    <td colspan="2">';
 
-                    $phr_new = new phrase($this->usr);
+                    $phr_new = new phrase($this->user());
                     $result .= $phr_new->dsp_selector(0, $script, $url_pos, '', $back);
                     $url_pos++;
 
@@ -558,7 +582,7 @@ class value_dsp_old extends value
 
         $result .= dsp_tbl_end();
 
-        log_debug('value->dsp_edit -> table ended');
+        log_debug('table ended');
         $phr_ids_new = $this->ids;
         //$phr_ids_new[]  = $new_phrase_default;
         $phr_ids_new[] = 0;
@@ -576,10 +600,10 @@ class value_dsp_old extends value
         }
         $result .= dsp_form_end("Save", $back);
         $result .= '<br><br>';
-        log_debug('value->dsp_edit -> load source');
+        log_debug('load source');
         $src = $this->load_source();
         if (isset($src)) {
-            $result .= $src->dsp_select($script, $back);
+            $result .= $src->dsp_obj()->dsp_select($script, $back);
             $result .= '<br><br>';
         }
 
@@ -593,7 +617,7 @@ class value_dsp_old extends value
         $result .= \html\btn_back($back);
 
         // display the user changes
-        log_debug('value->dsp_edit -> user changes');
+        log_debug('user changes');
         if ($this->id > 0) {
             $changes = $this->dsp_hist(0, SQL_ROW_LIMIT, '', $back);
             if (trim($changes) <> "") {
@@ -618,7 +642,45 @@ class value_dsp_old extends value
             }
         }
 
-        log_debug("value->dsp_edit -> done");
+        log_debug("done");
+        return $result;
+    }
+
+    /**
+     * @return user_message
+     */
+    private function reload(): user_message
+    {
+        $msg = new user_message();
+        if ($this->id() != 0) {
+            $this->load_by_id($this->id());
+        }
+        return $msg;
+    }
+
+    /**
+     * reload the value object from the database, but only if some related objects
+     * e,g, the phrase list is probably missing
+     * @return user_message
+     */
+    private function reload_if_needed(): user_message
+    {
+        $msg = new user_message();
+        if (!$this->is_loaded()) {
+            $msg = $this->reload();
+        }
+        return $msg;
+    }
+
+    /**
+     * @return bool true if all related objects are loaded
+     */
+    private function is_loaded(): bool
+    {
+        $result = true;
+        if ($this->grp->phr_lst->is_empty()) {
+            $result = false;
+        }
         return $result;
     }
 

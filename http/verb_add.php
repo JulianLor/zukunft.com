@@ -32,7 +32,8 @@
 
 /* standard zukunft header for callable php files to allow debugging and lib loading */
 $debug = $_GET['debug'] ?? 0;
-include_once '../src/main/php/zu_lib.php';
+const ROOT_PATH = __DIR__ . '/../';
+include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 
 /* open database */
 $db_con = prg_start("link_type_add");
@@ -45,14 +46,13 @@ $usr = new user;
 echo $usr->get(); // if the usr identification fails, show any message immediately because this should never happen
 
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
-if ($usr->id > 0) {
+if ($usr->id() > 0) {
 
     load_usr_data();
 
     // prepare the display
     $dsp = new view_dsp_old($usr);
-    $dsp->id = cl(db_cl::VIEW, view::VERB_ADD);
-    $dsp->load();
+    $dsp->load_by_code_id(view::VERB_ADD);
     $back = $_GET['back']; // the calling word which should be displayed after saving
 
     if (!$usr->is_admin()) {
@@ -61,11 +61,11 @@ if ($usr->id > 0) {
 
         // create the object to store the parameters so that if the add form is shown again it is already filled
         $vrb = new verb;
-        $vrb->usr = $usr;
+        $vrb->set_user($usr);
 
         // load the parameters to the verb object to display it again in case of an error
         if (isset($_GET['name'])) {
-            $vrb->name = $_GET['name'];
+            $vrb->set_name($_GET['name']);
         }
         if (isset($_GET['plural'])) {
             $vrb->plural = $_GET['plural'];
@@ -80,16 +80,14 @@ if ($usr->id > 0) {
         if ($_GET['confirm'] > 0) {
 
             // check essential parameters
-            if ($vrb->name == "") {
+            if ($vrb->name() == "") {
                 $msg .= 'Name missing; Please press back and enter a verb name.';
             } else {
 
                 // check if a verb, formula or word with the same name is already in the database
-                $trm = new term;
-                $trm->name = $vrb->name;
-                $trm->usr = $usr;
-                $trm->load();
-                if ($trm->id > 0) {
+                $trm = new term($usr);
+                $trm->load_by_name($vrb->name());
+                if ($trm->id_obj() > 0) {
                     $msg .= $trm->id_used_msg();
                 }
 

@@ -2,8 +2,8 @@
 
 /*
 
-    api\formula_value_List.php - the minimal result value list object
-    --------------------------
+    api/formula/formula_value_List.php - the minimal result value list object
+    ----------------------------------
 
 
     This file is part of zukunft.com - calc with words
@@ -61,8 +61,9 @@ class formula_value_list_api extends list_value_api
         return $result;
     }
 
+
     /*
-     * casting objects
+     * cast
      */
 
     /**

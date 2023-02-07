@@ -7,7 +7,9 @@
   ],
   "verbs": [
     {
-      "name": "not set"
+      "name": "not set",
+      "description": "placeholder verb to enable foreign key checks in the database and for the selection",
+      "code_id": "not_set"
     },
     {
       "name": "is a",
@@ -16,6 +18,22 @@
       "name_plural_reverse": "are",
       "name_plural": "are",
       "name_reverse": "are"
+    },
+    {
+      "name": "is part of",
+      "code_id": "contains",
+      "description": "if several similar term create different views to the same sum; E.g. Cash Flow Paper, Balance Sheet and Income statement are Financial Statements. Or Sectors and Regions are different splittings",
+      "name_plural_reverse": "contains",
+      "name_plural": "is part of",
+      "name_reverse": "contains"
+    },
+    {
+      "name": "with",
+      "code_id": "with",
+      "description": "similar to 'is part of' but where the left phrase is expected to be several times the right phrase e.g. for comparing same by same: 1 hour with full load is the same as 2 hours with half load",
+      "name_plural": "with",
+      "name_plural_reverse": "",
+      "name_reverse": ""
     },
     {
       "name": "has a",
@@ -51,14 +69,6 @@
       "name_plural_reverse": "is followed by",
       "name_plural": "is follower of",
       "name_reverse": "is followed by"
-    },
-    {
-      "name": "is part of",
-      "code_id": "contains",
-      "description": "if several similar term create different views to the same sum; E.g. Cash Flow Paper, Balance Sheet and Income statement are Financial Statements. Or Sectors and Regions are different splittings",
-      "name_plural_reverse": "contains",
-      "name_plural": "is part of",
-      "name_reverse": "contains"
     },
     {
       "name": "uses",
@@ -120,6 +130,30 @@
       "name_plural_reverse": "can be",
       "name_plural": "can be",
       "name_reverse": "can be"
+    },
+    {
+      "name": "can use",
+      "code_id": "can_use",
+      "description": "use indicates that a new result is created e.g. a turbine can use water or wind or any type of liquid or gas to convert energy",
+      "name_plural": "can use",
+      "name_plural_reverse": "can be used by",
+      "name_reverse": "can be used by"
+    },
+    {
+      "name": "scaled by",
+      "code_id": "scaled",
+      "description": "to define the usual scaling e.g. for watt hours usually the scaling kilo (kWh) is used",
+      "name_plural": "scaled by",
+      "name_plural_reverse": "are scaling for",
+      "name_reverse": "is scaling for"
+    },
+    {
+      "name": "per",
+      "code_id": "per",
+      "description": "to define the usual quotient e.g. meter per second is normally used not seconds per meter, that why the reverse name is empty",
+      "name_plural": "per",
+      "name_plural_reverse": "",
+      "name_reverse": ""
     }
   ]
 }

@@ -29,52 +29,9 @@
   
 */
 
-class formula_element_group_list
+class formula_element_group_list extends sandbox_list
 {
 
-    public ?array $lst = null; // the list of formula element groups
-    public ?user $usr = null;  // the person who has requested the formula element groups
-
-    /*
-    display functions
-    */
-
-    // return best possible identification for this element group list mainly used for debugging
-    function dsp_id(): string
-    {
-        $result = dsp_array($this->ids());
-        if (isset($this->usr)) {
-            $result .= ' for user ' . $this->usr->id . ' (' . $this->usr->name . ')';
-        }
-
-        return $result;
-    }
-
-    // to show the element group list name to the user in the most simple form (without any ids)
-    function name(): string
-    {
-        $lst = array();
-        foreach ($this->lst as $elm_grp) {
-            if (isset($elm_grp)) {
-                $lst[] = $elm_grp->name();
-            }
-        }
-        return implode(" / ", $lst);
-    }
-
-    // this function is called from dsp_id, so no other call is allowed
-    function ids(): ?array
-    {
-        $result = null;
-        if (isset($this->lst)) {
-            foreach ($this->lst as $elm_grp) {
-                // use only valid ids
-                if ($elm_grp->lst != null) {
-                    $result[] = $elm_grp->dsp_id();
-                }
-            }
-        }
-        return $result;
-    }
+    // array $lst is the list of formula element groups
 
 }

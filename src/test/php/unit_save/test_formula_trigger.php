@@ -30,7 +30,10 @@
 
 */
 
-function run_formula_trigger_test(testing $t)
+use api\formula_api;
+use api\word_api;
+
+function run_formula_trigger_test(testing $t): void
 {
 
     global $usr;
@@ -39,37 +42,35 @@ function run_formula_trigger_test(testing $t)
 
     // prepare the calculation trigger test
     $phr_lst1 = new phrase_list($usr);
-    $phr_lst1->add_name(word::TN_CH);
-    $phr_lst1->add_name(word::TN_INHABITANT);
-    $phr_lst1->add_name(word::TN_MIO);
+    $phr_lst1->add_name(word_api::TN_CH);
+    $phr_lst1->add_name(word_api::TN_INHABITANTS);
+    $phr_lst1->add_name(word_api::TN_MIO);
     $phr_lst2 = clone $phr_lst1;
-    $phr_lst1->add_name(word::TN_2019);
-    $phr_lst2->add_name(word::TN_2020);
-    $frm = $t->load_formula(formula::TN_INCREASE);
+    $phr_lst1->add_name(word_api::TN_2019);
+    $phr_lst2->add_name(word_api::TN_2020);
+    $frm = $t->load_formula(formula_api::TN_ADD);
 
     // add a number to the test word
     $val_add1 = new value($usr);
     $val_add1->grp = $phr_lst1->get_grp();
-    $val_add1->number = TV_TEST_SALES_2016;
+    $val_add1->set_number(TV_TEST_SALES_2016);
     $result = $val_add1->save();
     // add a second number to the test word
     $val_add2 = new value($usr);
     $val_add2->grp = $phr_lst2->get_grp();
-    $val_add2->number = TV_TEST_SALES_2017;
+    $val_add2->set_number(TV_TEST_SALES_2017);
     $result = $val_add2->save();
 
     // check if the first number have been saved correctly
     $added_val = new value($usr);
-    $added_val->grp = $phr_lst1->get_grp();
-    $added_val->load();
-    $result = $added_val->number;
+    $added_val->load_by_grp($phr_lst1->get_grp());
+    $result = $added_val->number();
     $target = TV_TEST_SALES_2016;
     $t->dsp('value->check added test value for "' . $phr_lst1->dsp_id() . '"', $target, $result, TIMEOUT_LIMIT_DB_MULTI);
     // check if the second number have been saved correctly
     $added_val2 = new value($usr);
-    $added_val2->grp = $phr_lst2->get_grp();
-    $added_val2->load();
-    $result = $added_val2->number;
+    $added_val2->load_by_grp($phr_lst2->get_grp());
+    $result = $added_val2->number();
     $target = TV_TEST_SALES_2017;
     $t->dsp('value->check added test value for "' . $phr_lst2->dsp_id() . '"', $target, $result, TIMEOUT_LIMIT_DB_MULTI);
 
@@ -77,19 +78,19 @@ function run_formula_trigger_test(testing $t)
     $best_val = new value($usr);
     $best_val->grp = $phr_lst1->get_grp();
     $best_val->load_best();
-    $result = $best_val->number;
+    $result = $best_val->number();
     $target = TV_TEST_SALES_2016;
     $t->dsp('value->check best value for "' . $phr_lst1->dsp_id() . '"', $target, $result, TIMEOUT_LIMIT_DB_MULTI);
     // check if requesting the best number for the second number returns a useful value
     $best_val2 = new value($usr);
     $best_val2->grp = $phr_lst2->get_grp();
     $best_val2->load_best();
-    $result = $best_val2->number;
+    $result = $best_val2->number();
     $target = TV_TEST_SALES_2017;
     $t->dsp('value->check best value for "' . $phr_lst2->dsp_id() . '"', $target, $result, TIMEOUT_LIMIT_DB_MULTI);
 
     // calculate the increase and check the result
-    $fv_lst = $frm->calc($phr_lst2, 0);
+    $fv_lst = $frm->calc($phr_lst2);
     if ($fv_lst != null) {
         if (count($fv_lst) > 0) {
             $fv = $fv_lst[0];

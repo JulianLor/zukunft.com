@@ -2,8 +2,8 @@
 
 /*
 
-    api\formula_list.php - a list of minimal/api formula objects
-    --------------------
+    api/formula/formula_list.php - a list of minimal/api formula objects
+    ----------------------------
 
 
     This file is part of zukunft.com - calc with words
@@ -34,7 +34,7 @@ namespace api;
 
 use html\formula_list_dsp;
 
-class formula_list_api extends list_api
+class formula_list_api extends list_api implements \JsonSerializable
 {
 
     /*
@@ -55,8 +55,9 @@ class formula_list_api extends list_api
         return parent::add_obj($frm);
     }
 
+
     /*
-     * casting objects
+     * cast
      */
 
     /**
@@ -81,29 +82,23 @@ class formula_list_api extends list_api
         return $dsp_obj;
     }
 
+
     /*
-     * information functions
+     * interface
      */
 
     /**
-     * @returns int the number of phrases of the protected list
+     * an array of the value vars including the private vars
      */
-    function count(): int
+    public function jsonSerialize(): array
     {
-        return count($this->lst);
-    }
-
-    /**
-     * @returns true if the list does not contain any phrase
-     */
-    function is_empty(): bool
-    {
-        if ($this->count() <= 0) {
-            return true;
-        } else {
-            return false;
+        $vars = [];
+        foreach ($this->lst as $frm) {
+            $vars[] = json_decode(json_encode($frm));
         }
+        return $vars;
     }
+
 
     /*
      * selection functions

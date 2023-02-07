@@ -31,7 +31,8 @@
 
 // standard zukunft header for callable php files to allow debugging and lib loading
 $debug = $_GET['debug'] ?? 0;
-include_once '../src/main/php/zu_lib.php';
+const ROOT_PATH = __DIR__ . '/../';
+include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 
 // open database
 $db_con = prg_start("view_confirm");
@@ -54,7 +55,7 @@ $usr = new user;
 $result .= $usr->get();
 
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
-if ($usr->id > 0) {
+if ($usr->id() > 0) {
 
     load_usr_data();
 
@@ -63,15 +64,14 @@ if ($usr->id > 0) {
         $result .= dsp_err('word not found');
     } else {
         $dsp = new view_dsp_old($usr);
-        //$dsp->id = cl(SQL_VIEW_FORMULA_EXPLAIN);
+        //$dsp->set_id(cl(SQL_VIEW_FORMULA_EXPLAIN));
         $back = $word_id;
         $result .= $dsp->dsp_navbar_no_view($back);
 
         // show the word name
         $wrd = new word($usr);
-        $wrd->id = $word_id;
-        $wrd->load();
-        $result .= dsp_text_h2('Select the display format for "' . $wrd->name . '"');
+        $wrd->load_by_id($word_id);
+        $result .= dsp_text_h2('Select the display format for "' . $wrd->name() . '"');
     }
 
     // allow to change to type
@@ -79,7 +79,7 @@ if ($usr->id > 0) {
         $result .= dsp_err('view not found');
     } else {
         $dsp = new view($usr);
-        $dsp->id = $view_id;
+        $dsp->set_id($view_id);
         $result .= $dsp->selector_page($word_id, $back);
     }
 }

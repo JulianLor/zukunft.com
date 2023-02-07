@@ -33,7 +33,8 @@
 */
 
 $debug = $_GET['debug'] ?? 0;
-include_once '../src/main/php/zu_lib.php';
+const ROOT_PATH = __DIR__ . '/../';
+include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 
 // open database
 $db_con = prg_start("calculate");
@@ -43,7 +44,7 @@ $usr = new user;
 $usr_id = $_GET['user']; // to force another user view for testing the formula calculation
 
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
-if ($usr->id > 0) {
+if ($usr->id() > 0) {
 
     load_usr_data();
 
@@ -57,7 +58,7 @@ if ($usr->id > 0) {
     log_debug("create the calculation queue ... ");
 
     // estimate the block size for useful UI updates
-    $total_formulas = $db_con->count(DB_TYPE_FORMULA);
+    $total_formulas = $db_con->count(sql_db::TBL_FORMULA);
     $calc_blocks = (new formula_list($usr))->calc_blocks($db_con, $total_formulas);
     $block_size = max(1, round($total_formulas / $calc_blocks, 0));
 
@@ -65,17 +66,17 @@ if ($usr->id > 0) {
         // load the formulas to calculate
         $frm_lst = new formula_list($usr);
         $frm_lst->load_all($block_size, $page);
-        echo "Calculate " . dsp_count($frm_lst->lst) . " formulas<br>";
+        echo "Calculate " . dsp_count($frm_lst->lst()) . " formulas<br>";
 
         foreach ($frm_lst as $frm_request) {
 
             // build the calculation queue
             $calc_fv_lst = new formula_value_list($usr);
             $calc_lst = $calc_fv_lst->frm_upd_lst($frm_request, $back);
-            log_debug("calculate queue is build (number of values to check: " . dsp_count($calc_lst->lst) . ")");
+            log_debug("calculate queue is build (number of values to check: " . dsp_count($calc_lst->lst()) . ")");
 
             // execute the queue
-            foreach ($calc_lst->lst as $r) {
+            foreach ($calc_lst->lst() as $r) {
 
                 // calculate one formula result
                 $frm = clone $r->frm;
@@ -83,7 +84,7 @@ if ($usr->id > 0) {
 
                 // show the user the progress every two seconds
                 if ($last_msg_time + UI_MIN_RESPONSE_TIME < time()) {
-                    $calc_pct = ($calc_pos / sizeof($calc_lst->lst)) * 100;
+                    $calc_pct = ($calc_pos / sizeof($calc_lst->lst())) * 100;
                     echo "" . round($calc_pct, 2) . "% calculated (" . $r->frm->name . " for " . $r->wrd_lst->name_linked() . " = " . $fv_lst->names() . ")<br>";
                     ob_flush();
                     flush();

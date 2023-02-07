@@ -32,20 +32,19 @@
 
 global $protection_types;
 
-class protection_type_list extends user_type_list
+use cfg\protection_type;
+use cfg\type_list;
+use cfg\type_object;
+
+class protection_type_list extends type_list
 {
-    // list of the ref types that have a coded functionality
-    const DBL_NO = "no_protection";
-    const DBL_USER = "user_protection";
-    const DBL_ADMIN = "admin_protection";
-    const DBL_NO_CHANGE = "no_change";
 
     /**
      * overwrite the general user type list load function to keep the link to the table type capsuled
      * @param sql_db $db_con the database connection that can be either the real database connection or a simulation used for testing
      * @return bool true if load was successful
      */
-    function load(sql_db $db_con, string $db_type = DB_TYPE_PROTECTION): bool
+    function load(sql_db $db_con, string $db_type = sql_db::TBL_PROTECTION): bool
     {
         return parent::load($db_con, $db_type);
     }
@@ -53,20 +52,14 @@ class protection_type_list extends user_type_list
     /**
      * create dummy type list for the unit tests without database connection
      */
-    function load_dummy()
+    function load_dummy(): void
     {
         $this->lst = array();
         $this->hash = array();
-        $type = new user_type();
-        $type->name = protection_type_list::DBL_NO;
-        $type->code_id = protection_type_list::DBL_NO;
-        $this->lst[2] = $type;
-        $this->hash[protection_type_list::DBL_NO] = 2;
-        $type = new user_type();
-        $type->name = protection_type_list::DBL_ADMIN;
-        $type->code_id = protection_type_list::DBL_ADMIN;
-        $this->lst[3] = $type;
-        $this->hash[protection_type_list::DBL_ADMIN] = 3;
+        $type = new type_object(protection_type::NO_PROTECT, protection_type::NO_PROTECT, '', 2);
+        $this->add($type);
+        $type = new type_object(protection_type::ADMIN, protection_type::ADMIN, '', 3);
+        $this->add($type);
 
     }
 
@@ -75,7 +68,7 @@ class protection_type_list extends user_type_list
      */
     function default_id(): int
     {
-        return parent::id(protection_type_list::DBL_NO);
+        return parent::id(protection_type::NO_PROTECT);
     }
 
 }

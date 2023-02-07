@@ -30,7 +30,11 @@
 
 */
 
-function run_term_test(testing $t)
+use api\formula_api;
+use api\phrase_api;
+use api\word_api;
+
+function run_term_test(testing $t): void
 {
 
     global $usr;
@@ -38,43 +42,35 @@ function run_term_test(testing $t)
     $t->header('est the term class (classes/term.php)');
 
     // load the main test word
-    $wrd_zh = $t->test_word(word::TN_ZH);
+    $wrd_zh = $t->test_word(word_api::TN_ZH);
 
     // check that adding the predefined word "Company" creates an error message
-    $term = new term;
-    $term->name = word::TN_ZH;
-    $term->usr = $usr;
-    $term->load();
-    $target = 'A word with the name "' . word::TN_ZH . '" already exists. Please use another name.';
+    $term = new term($usr);
+    $term->load_by_obj_name(word_api::TN_ZH);
+    $target = 'A word with the name "' . word_api::TN_ZH . '" already exists. Please use another name.';
     $result = $term->id_used_msg();
-    $t->dsp_contains(', term->load for id ' . $wrd_zh->id, $target, $result);
+    $t->dsp_contains(', term->load for id ' . $wrd_zh->id(), $target, $result);
 
     // ... check also for a triple
-    $term = new term;
-    $term->name = phrase::TN_ZH_CITY;
-    $term->usr = $usr;
-    $term->load();
-    $target = 'A triple with the name "' . phrase::TN_ZH_CITY . '" already exists. Please use another name.';
+    $term = new term($usr);
+    $term->load_by_obj_name(phrase_api::TN_ZH_CITY);
+    $target = 'A triple with the name "' . phrase_api::TN_ZH_CITY . '" already exists. Please use another name.';
     $result = $term->id_used_msg();
-    $t->dsp_contains(', term->load for id ' . $wrd_zh->id, $target, $result);
+    $t->dsp_contains(', term->load for id ' . $wrd_zh->id(), $target, $result);
 
     // ... check also for a verb
-    $term = new term;
-    $term->name = 'is a';
-    $term->usr = $usr;
-    $term->load();
+    $term = new term($usr);
+    $term->load_by_obj_name(verb::IS_A);
     $target = 'A verb with the name "is a" already exists. Please use another name.';
     $result = $term->id_used_msg();
-    $t->dsp_contains(', term->load for id ' . $wrd_zh->id, $target, $result);
+    $t->dsp_contains(', term->load for id ' . $wrd_zh->id(), $target, $result);
 
     // ... check also for a formula
-    $term = new term;
-    $term->name = formula::TN_INCREASE;
-    $term->usr = $usr;
-    $term->load();
+    $term = new term($usr);
+    $term->load_by_obj_name(formula_api::TN_ADD);
     // each formula name has also a word
-    $target = 'A formula with the name "' . formula::TN_INCREASE . '" already exists. Please use another name.';
+    $target = 'A formula with the name "' . formula_api::TN_ADD . '" already exists. Please use another name.';
     $result = $term->id_used_msg();
-    $t->dsp_contains(', term->load for id ' . $wrd_zh->id, $target, $result);
+    $t->dsp_contains(', term->load for id ' . $wrd_zh->id(), $target, $result);
 
 }

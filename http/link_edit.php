@@ -30,7 +30,8 @@
 */
 
 $debug = $_GET['debug'] ?? 0;
-include_once '../src/main/php/zu_lib.php';
+const ROOT_PATH = __DIR__ . '/../';
+include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 
 // open database
 $db_con = prg_start("link_edit");
@@ -43,32 +44,30 @@ $usr = new user;
 $result .= $usr->get();
 
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
-if ($usr->id > 0) {
+if ($usr->id() > 0) {
 
     load_usr_data();
 
     // prepare the display
     $dsp = new view_dsp_old($usr);
-    $dsp->id = cl(db_cl::VIEW, view::LINK_EDIT);
-    $dsp->load();
+    $dsp->load_by_code_id(view::LINK_EDIT);
     $back = $_GET['back']; // the original calling page that should be shown after the change if finished
 
-    // create the link object to have an place to update the parameters
-    $lnk = new word_link($usr);
-    $lnk->id = $_GET['id'];
-    $lnk->load();
+    // create the link object to have a place to update the parameters
+    $lnk = new triple($usr);
+    $lnk->load_by_id($_GET['id']);
 
     // edit the link or ask for confirmation
-    if ($lnk->id <= 0) {
+    if ($lnk->id() <= 0) {
         $result .= log_err("No triple found to change because the id is missing.", "link_edit.php");
     } else {
 
         if ($_GET['confirm'] == 1) {
 
             // get the parameters
-            $lnk->from->id = $_GET['phrase1']; // the word or triple linked from
-            $lnk->verb->id = $_GET['verb'];    // the link type (verb)
-            $lnk->to->id = $_GET['phrase2']; // the word or triple linked to
+            $lnk->from->set_id($_GET['phrase1']); // the word or triple linked from
+            $lnk->verb->set_id($_GET['verb']);    // the link type (verb)
+            $lnk->to->set_id($_GET['phrase2']); // the word or triple linked to
 
             // save the changes
             $upd_result = $lnk->save();
@@ -90,7 +89,7 @@ if ($usr->id > 0) {
             $result .= dsp_err($msg);
 
             // display the word link to allow the user to change it
-            $result .= $lnk->dsp_edit($back);
+            $result .= $lnk->dsp_obj()->form_edit($back);
         }
     }
 }

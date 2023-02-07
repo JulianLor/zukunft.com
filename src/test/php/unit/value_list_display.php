@@ -52,7 +52,7 @@ class value_list_display_unit_tests
         $phr_ch = new phrase_api($phr_id, word_api::TN_CH); $phr_id++;
         $phr_inhabitant = new phrase_api($phr_id, word_api::TN_INHABITANT); $phr_id++;
         $phr_2019 = new phrase_api($phr_id, word_api::TN_2019); $phr_id++;
-        $phr_mio = new phrase_api($phr_id, word_api::TN_MIO);
+        $phr_mio = new phrase_api($phr_id, word_api::TN_MIO_SHORT);
 
         // create a test set of phrase groups
         $grp_id = 1;
@@ -79,17 +79,17 @@ class value_list_display_unit_tests
         $val_id = 1;
         $val_city = new \api\value_api($val_id); $val_id++;
         $val_city->set_grp($phr_grp_city);
-        $val_city->set_val(value::TV_CITY_ZH_INHABITANTS_2019);
+        $val_city->set_number(value_api::TV_CITY_ZH_INHABITANTS_2019);
 
         // create the value for the inhabitants of the city of zurich
         $val_canton = new \api\value_api($val_id); $val_id++;
         $val_canton->set_grp($phr_grp_canton);
-        $val_canton->set_val(value::TV_CANTON_ZH_INHABITANTS_2020_IN_MIO);
+        $val_canton->set_number(value_api::TV_CANTON_ZH_INHABITANTS_2020_IN_MIO);
 
         // create the value for the inhabitants of Switzerland
         $val_ch = new \api\value_api($val_id);
         $val_ch->set_grp($phr_grp_ch);
-        $val_ch->set_val(value::TV_CH_INHABITANTS_2019_IN_MIO);
+        $val_ch->set_number(value_api::TV_CH_INHABITANTS_2019_IN_MIO);
 
         // create the value list and the table to display the results
         // TODO link phrases

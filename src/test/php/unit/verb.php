@@ -32,7 +32,7 @@
 
 class verb_unit_tests
 {
-    function run(testing $t)
+    function run(testing $t): void
     {
 
         global $usr;
@@ -41,27 +41,17 @@ class verb_unit_tests
         $db_con = new sql_db();
         $t->name = 'verb->';
         $t->resource_path = 'db/verb/';
-        $usr->id = 1;
+        $usr->set_id(1);
 
 
         $t->header('Unit tests of the verb class (src/main/php/model/verb/verb.php)');
 
         $t->subheader('SQL statement tests');
 
-        // sql to load a verb by id
         $vrb = new verb();
-        $vrb->id = 4;
-        $t->assert_load_sql($db_con, $vrb);
-
-        // sql to load a verb by code id
-        $vrb = new verb();
-        $vrb->code_id = verb::FOLLOW;
-        $t->assert_load_sql($db_con, $vrb);
-
-        // sql to load a source by name
-        $vrb = new verb();
-        $vrb->name = verb::FOLLOW;
-        $t->assert_load_sql($db_con, $vrb);
+        $t->assert_load_sql_id($db_con, $vrb);
+        $t->assert_load_sql_name($db_con, $vrb);
+        $t->assert_load_sql_code_id($db_con, $vrb);
 
 
         $t->header('Unit tests of the verb list class (src/main/php/model/verb/verb_list.php)');
@@ -70,12 +60,12 @@ class verb_unit_tests
 
         // sql to load a list with all verbs
         $vrb_lst = new verb_list($usr);
-        $t->assert_load_sql($db_con, $vrb_lst);
+        $t->assert_load_sql_all($db_con, $vrb_lst);
 
         // sql to load a verb list by phrase id and direction up
         $vrb_lst = new verb_list($usr);
         $phr = new phrase($usr);
-        $phr->id = 5;
+        $phr->set_id(5);
         $this->assert_load_by_linked_phrases_sql($t, $db_con, $vrb_lst, $phr, word_select_direction::UP);
 
         // ... same for direction down
@@ -92,7 +82,9 @@ class verb_unit_tests
      * @param phrase $phr the phrase used for testing
      * @param string $direction
      */
-    private function assert_load_by_linked_phrases_sql(testing $t, sql_db $db_con, verb_list $vrb_lst, phrase $phr, string $direction)
+    private function assert_load_by_linked_phrases_sql(
+        testing $t, sql_db $db_con, verb_list $vrb_lst, phrase $phr, string $direction
+    ): void
     {
         // check the PostgreSQL query syntax
         $db_con->db_type = sql_db::POSTGRES;

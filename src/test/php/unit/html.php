@@ -31,17 +31,21 @@
 */
 
 use api\phrase_list_api;
+use api\value_api;
+use api\view_cmp_api;
 use api\word_api;
 use html\button;
 use html\html_base;
 use html\html_selector;
+use html\view_dsp;
 
 class html_unit_tests
 {
-    function run(testing $t)
+    function run(testing $t): void
     {
 
         global $usr;
+        $lib = new library();
         $html = new html_base();
 
         $t->header('Unit tests of the html classes (src/main/php/web/html/*)');
@@ -51,7 +55,7 @@ class html_unit_tests
 
         $created_html = $html->about();
         $expected_html = $t->file('web/html/about.html');
-        $t->dsp('html_selector', $t->trim_html($expected_html), $t->trim_html($created_html));
+        $t->dsp('html_selector', $lib->trim_html($expected_html), $lib->trim_html($created_html));
 
 
         $t->subheader('Selector tests');
@@ -89,6 +93,16 @@ class html_unit_tests
         $lst->add_verb(new verb(2, verb::IS_PART_OF));
         $t->html_test($lst->dsp_obj()->list(verb::class, 'Verbs'), 'list_verbs', $t);
 
+        $dsp = new view($usr);
+        $dsp->set_id(1);
+        $cmp1 = new view_cmp($usr);
+        $cmp1->set_id(1);
+        $cmp1->set_name(view_cmp_api::TN_READ);
+        $cmp1->set_type(view_cmp_type::TEXT);
+        $dsp->add_cmp($cmp1);
+        $t->html_test($dsp->dsp_obj()->list_sort(), 'list_view_cmp', $t);
+
+
         $t->subheader('HTML table tests');
 
         // create a test set of phrase
@@ -99,7 +113,7 @@ class html_unit_tests
         $phr_ch = new \api\phrase_api($phr_id, word_api::TN_CH); $phr_id++;
         $phr_inhabitant = new \api\phrase_api($phr_id, word_api::TN_INHABITANT); $phr_id++;
         $phr_2019 = new \api\phrase_api($phr_id, word_api::TN_2019); $phr_id++;
-        $phr_mio = new \api\phrase_api($phr_id, word_api::TN_MIO);
+        $phr_mio = new \api\phrase_api($phr_id, word_api::TN_MIO_SHORT);
         $phr_pct = new \api\phrase_api($phr_id, word_api::TN_PCT);
 
         // create a test set of phrase groups
@@ -139,29 +153,29 @@ class html_unit_tests
         $val_id = 1;
         $val_city = new \api\value_api($val_id); $val_id++;
         $val_city->set_grp($phr_grp_city);
-        $val_city->set_val(value::TV_CITY_ZH_INHABITANTS_2019);
+        $val_city->set_number(value_api::TV_CITY_ZH_INHABITANTS_2019);
 
         // create the value for the inhabitants of the city of zurich
         $val_canton = new \api\value_api($val_id); $val_id++;
         $val_canton->set_grp($phr_grp_canton);
-        $val_canton->set_val(value::TV_CANTON_ZH_INHABITANTS_2020_IN_MIO);
+        $val_canton->set_number(value_api::TV_CANTON_ZH_INHABITANTS_2020_IN_MIO);
 
         // create the value for the inhabitants of Switzerland
         $val_ch = new \api\value_api($val_id);
         $val_ch->set_grp($phr_grp_ch);
-        $val_ch->set_val(value::TV_CH_INHABITANTS_2019_IN_MIO);
+        $val_ch->set_number(value_api::TV_CH_INHABITANTS_2019_IN_MIO);
 
         // create the formula result for the inhabitants of the city of zurich
         $fv_id = 1;
         $fv_city = new \api\formula_value_api($fv_id); $fv_id++;
         $fv_city->set_grp($phr_grp_city_pct);
-        $ch_val_scaled = value::TV_CH_INHABITANTS_2019_IN_MIO * 1000000;
-        $fv_city->set_val(value::TV_CITY_ZH_INHABITANTS_2019 / $ch_val_scaled);
+        $ch_val_scaled = value_api::TV_CH_INHABITANTS_2019_IN_MIO * 1000000;
+        $fv_city->set_number(value_api::TV_CITY_ZH_INHABITANTS_2019 / $ch_val_scaled);
 
         // create the formula result for the inhabitants of the city of zurich
         $fv_canton = new \api\formula_value_api($fv_id); $fv_id++;
         $fv_canton->set_grp($phr_grp_canton_pct);
-        $fv_canton->set_val(value::TV_CANTON_ZH_INHABITANTS_2020_IN_MIO / value::TV_CH_INHABITANTS_2019_IN_MIO);
+        $fv_canton->set_number(value_api::TV_CANTON_ZH_INHABITANTS_2020_IN_MIO / value_api::TV_CH_INHABITANTS_2019_IN_MIO);
 
         // create the formula result list and the table to display the results
         $fv_lst = new \api\formula_value_list_api();
@@ -176,13 +190,11 @@ class html_unit_tests
         $t->subheader('View component tests');
 
         $cmp = new view_cmp($usr);
-        $cmp->set_type(view_cmp_type::TEXT);
-        $cmp->set_id(1);
-        $cmp->name = 'View component text';
+        $cmp->set(1, view_cmp_api::TN_ADD, view_cmp_type::TEXT);
         $t->html_test($cmp->dsp_obj()->html(), 'view_cmp_text', $t);
 
         $wrd = new \api\word_api();
-        $wrd->set_name('View component word name');
+        $wrd->set_name(word_api::TN_ADD);
         $cmp->obj = $wrd;
 
     }

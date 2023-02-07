@@ -31,7 +31,8 @@
 
 // standard zukunft header for callable php files to allow debugging and lib loading
 $debug = $_GET['debug'] ?? 0;
-include_once '../src/main/php/zu_lib.php';
+const ROOT_PATH = __DIR__ . '/../';
+include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 
 // open database
 $db_con = prg_start("view_add");
@@ -44,14 +45,13 @@ $usr = new user;
 $result .= $usr->get();
 
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
-if ($usr->id > 0) {
+if ($usr->id() > 0) {
 
     load_usr_data();
 
     // prepare the display
     $dsp = new view_dsp_old($usr);
-    $dsp->id = cl(db_cl::VIEW, view::ADD);
-    $dsp->load();
+    $dsp->load_by_id(cl(db_cl::VIEW, view::ADD));
     $back = $_GET['back']; // 
 
     // create the object to store the parameters so that if the add form is shown again it is already filled
@@ -59,10 +59,10 @@ if ($usr->id > 0) {
 
     // load the parameters to the view object to display the user input again in case of an error
     if (isset($_GET['name'])) {
-        $dsp_add->name = $_GET['name'];
+        $dsp_add->set_name($_GET['name']);
     }    // name of the new view to add
     if (isset($_GET['comment'])) {
-        $dsp_add->comment = $_GET['comment'];
+        $dsp_add->description = $_GET['comment'];
     }
     if (isset($_GET['type'])) {
         $dsp_add->type_id = $_GET['type'];
@@ -93,14 +93,13 @@ if ($usr->id > 0) {
     if ($result == '') {
         // sample word that is used to simulate the view changes
         $wrd = new word($usr);
-        $wrd->id = $_GET['word'];
         //$wrd->type_id = $view_type;
-        if ($wrd->id > 0) {
-            $wrd->load();
+        if ($_GET['word'] > 0) {
+            $wrd->load_by_id($_GET['word']);
         }
 
         // show the header (in view edit views the view cannot be changed)
-        $result .= $dsp->dsp_navbar_no_view($wrd->id);
+        $result .= $dsp->dsp_navbar_no_view($wrd->id());
         $result .= dsp_err($msg);
 
         // show the form to create a new view

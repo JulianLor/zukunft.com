@@ -30,11 +30,15 @@
 
 */
 
+use api\word_api;
 use cfg\phrase_type;
 
 class formula_value_unit_tests
 {
-    function run(testing $t)
+
+    CONST TN_INCREASE_CH_CAPITA_2020 = '0.0078718332961637';
+
+    function run(testing $t): void
     {
 
         global $usr;
@@ -43,7 +47,7 @@ class formula_value_unit_tests
         $db_con = new sql_db();
         $t->name = 'formula_value->';
         $t->resource_path = 'db/result/';
-        $usr->id = 1;
+        $usr->set_id(1);
 
         $t->header('Unit tests of the formula value class (src/main/php/model/formula/formula_value.php)');
 
@@ -51,14 +55,13 @@ class formula_value_unit_tests
 
         // check the sql to load a formula value by the id
         $fv = new formula_value($usr);
-        $fv->id = 1;
         $db_con->db_type = sql_db::POSTGRES;
-        $qp = $fv->load_by_id_sql($db_con);
+        $qp = $fv->load_sql_by_id($db_con, 1);
         $t->assert_qp($qp, sql_db::POSTGRES);
 
         // ... and the same for MySQL databases instead of PostgreSQL
         $db_con->db_type = sql_db::MYSQL;
-        $qp = $fv->load_by_id_sql($db_con);
+        $qp = $fv->load_sql_by_id($db_con, 1);
         $t->assert_qp($qp, sql_db::MYSQL);
 
         // check the sql to load a formula value by the phrase group
@@ -88,7 +91,7 @@ class formula_value_unit_tests
 
         // test phrase based default formatter
         // ... for big values
-        $wrd_const = $t->create_word(word::TN_READ);
+        $wrd_const = $t->new_word(word_api::TN_READ);
         $phr_lst = new phrase_list($usr);
         $phr_lst->add($wrd_const->phrase());
         $fv->phr_lst = $phr_lst;
@@ -101,7 +104,8 @@ class formula_value_unit_tests
 
         // ... for percent values
         $fv = new formula_value($usr);
-        $wrd_pct = $t->create_word(word::TN_PCT, phrase_type::PERCENT);
+        $wrd_pct = $t->new_word(word_api::TN_PCT, 0, phrase_type::PERCENT);
+        $phr_lst = new phrase_list($usr);
         $phr_lst->add($wrd_pct->phrase());
         $fv->phr_lst = $phr_lst;
         $fv->value = 0.01234;
@@ -115,39 +119,31 @@ class formula_value_unit_tests
         // sql to load a list of formula values by the formula id
         $fv_lst = new formula_value_list($usr);
         $frm = new formula($usr);
-        $frm->id = 1;
+        $frm->set_id(1);
         $t->assert_load_list_sql($db_con, $fv_lst, $frm);
 
         // sql to load a list of formula values by the phrase group id
         $fv_lst = new formula_value_list($usr);
         $grp = new phrase_group($usr);
-        $grp->id = 2;
+        $grp->set_id(2);
         $t->assert_load_list_sql($db_con, $fv_lst, $grp);
-
-        // ... and additional select by time
-        $time_phr = new phrase($usr);
-        $time_phr->id = 3;
-        $t->assert_load_list_sql($db_con, $fv_lst, $grp, $time_phr);
 
         // sql to load a list of formula values by the source phrase group id
         $fv_lst = new formula_value_list($usr);
         $grp = new phrase_group($usr);
-        $grp->id = 2;
-        $t->assert_load_list_sql($db_con, $fv_lst, $grp, null, true);
-
-        // ... and additional select by time
-        $t->assert_load_list_sql($db_con, $fv_lst, $grp, $time_phr, true);
+        $grp->set_id(2);
+        $t->assert_load_list_sql($db_con, $fv_lst, $grp, true);
 
         // sql to load a list of formula values by the word id
         $fv_lst = new formula_value_list($usr);
         $wrd = new word($usr);
-        $wrd->id = 2;
+        $wrd->set_id(2);
         $t->assert_load_list_sql($db_con, $fv_lst, $wrd);
 
         // sql to load a list of formula values by the triple id
         $fv_lst = new formula_value_list($usr);
-        $trp = new word_link($usr);
-        $trp->id = 3;
+        $trp = new triple($usr);
+        $trp->set_id(3);
         $t->assert_load_list_sql($db_con, $fv_lst, $trp);
 
     }

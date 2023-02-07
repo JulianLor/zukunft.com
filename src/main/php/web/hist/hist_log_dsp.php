@@ -39,16 +39,16 @@ class hist_log_dsp
     // show the changes of the view
     function dsp_log_view(word $wrd, string $back = ''): string
     {
-        log_debug('word_dsp->dsp_log_view (' . $wrd->id . ')');
+        log_debug($wrd->id());
         $result = '';
 
         // if ($this->id <= 0 OR !is_null($this->usr_id)) {
-        if ($wrd->id <= 0) {
+        if ($wrd->id() <= 0) {
             $result .= 'no word selected';
         } else {
             // load the word parameters if not yet done
-            if ($wrd->name == "") {
-                $wrd->load();
+            if ($wrd->name() == "") {
+                $wrd->load_by_id($wrd->id());
             }
 
             $changes = $wrd->dsp_hist(1, 20, '', $back);

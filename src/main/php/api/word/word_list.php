@@ -2,8 +2,8 @@
 
 /*
 
-    api\word_list.php - a list object of minimal/api word objects
-    -----------------
+    api/word/word_list.php - a list object of minimal/api word objects
+    ----------------------
 
 
     This file is part of zukunft.com - calc with words
@@ -49,15 +49,16 @@ class word_list_api extends list_api
 
     /**
      * add a word to the list
-     * @returns bool true if the phrase has been added
+     * @returns bool true if the word has been added
      */
     function add(word_api $phr): bool
     {
         return parent::add_obj($phr);
     }
 
+
     /*
-     * casting objects
+     * cast
      */
 
     /**
@@ -82,29 +83,6 @@ class word_list_api extends list_api
         return $dsp_obj;
     }
 
-    /*
-     * information functions
-     */
-
-    /**
-     * @returns int the number of phrases of the protected list
-     */
-    function count(): int
-    {
-        return count($this->lst);
-    }
-
-    /**
-     * @returns true if the list does not contain any phrase
-     */
-    function is_empty(): bool
-    {
-        if ($this->count() <= 0) {
-            return true;
-        } else {
-            return false;
-        }
-    }
 
     /*
      * selection functions

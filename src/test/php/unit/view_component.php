@@ -30,9 +30,12 @@
 
 */
 
+use api\view_api;
+use api\view_cmp_api;
+
 class view_component_unit_tests
 {
-    function run(testing $t)
+    function run(testing $t): void
     {
 
         global $usr;
@@ -42,24 +45,41 @@ class view_component_unit_tests
         $t->name = 'view_component->';
         $t->resource_path = 'db/view/';
         $json_file = 'unit/view/car_costs.json';
-        $usr->id = 1;
+        $usr->set_id(1);
 
-        $t->header('Unit tests of the view class (src/main/php/model/value/view_component.php)');
+        $t->header('Unit tests of the view component class (src/main/php/model/view/view_component.php)');
+
+
+        $t->subheader('SQL user sandbox statement tests');
+
+        $cmp = new view_cmp($usr);
+        $t->assert_load_sql_id($db_con, $cmp);
+        $t->assert_load_sql_name($db_con, $cmp);
 
 
         $t->subheader('SQL statement tests');
 
         // sql to load the view components by id
         $cmp = new view_cmp($usr);
-        $cmp->id = 2;
-        $t->assert_load_sql($db_con, $cmp);
+        $cmp->set_id(2);
+        //$t->assert_load_sql($db_con, $cmp);
         $t->assert_load_standard_sql($db_con, $cmp);
+        $t->assert_user_config_sql($db_con, $cmp);
 
         // sql to load the view components by name
         $cmp = new view_cmp($usr);
-        $cmp->name = view::TN_ADD;
-        $t->assert_load_sql($db_con, $cmp);
+        $cmp->set_name(view_api::TN_ADD);
+        //$t->assert_load_sql($db_con, $cmp);
         $t->assert_load_standard_sql($db_con, $cmp);
+
+
+        $t->subheader('Convert tests');
+
+        // casting API
+        $cmp = new view_cmp($usr);
+        $cmp->set(1, view_cmp_api::TN_READ, view_cmp_type::PHRASE_NAME);
+        $cmp->description = view_cmp_api::TD_READ;
+        $t->assert_api($cmp);
 
 
         $t->subheader('Im- and Export tests');

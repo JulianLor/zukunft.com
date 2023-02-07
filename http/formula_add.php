@@ -33,7 +33,8 @@
 
 // header for all zukunft.com code 
 $debug = $_GET['debug'] ?? 0;
-include_once '../src/main/php/zu_lib.php';
+const ROOT_PATH = __DIR__ . '/../';
+include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 
 // open database
 $db_con = prg_start("formula_add");
@@ -46,14 +47,13 @@ $usr = new user;
 $result .= $usr->get();
 
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
-if ($usr->id > 0) {
+if ($usr->id() > 0) {
 
     load_usr_data();
 
     // prepare the display
     $dsp = new view_dsp_old($usr);
-    $dsp->id = cl(db_cl::VIEW, view::FORMULA_ADD);
-    $dsp->load();
+    $dsp->load_by_code_id(view::FORMULA_ADD);
     $back = $_GET['back'];
 
     // init the formula object
@@ -61,7 +61,7 @@ if ($usr->id > 0) {
 
     // load the parameters to the formula object to display the user input again in case of an error
     if (isset($_GET['formula_name'])) {
-        $frm->name = $_GET['formula_name'];
+        $frm->set_name($_GET['formula_name']);
     } // the new formula name
     if (isset($_GET['formula_text'])) {
         $frm->usr_text = $_GET['formula_text'];
@@ -81,20 +81,19 @@ if ($usr->id > 0) {
     // get the word to which the new formula should be linked to
     $wrd = new word($usr);
     if (isset($_GET['word'])) {
-        $wrd->id = $_GET['word'];
-        $wrd->load();
+        $wrd->load_by_id($_GET['word']);
     }
 
     // if the user has requested to add a new formula
     if ($_GET['confirm'] > 0) {
-        log_debug('formula_add->check ');
+        log_debug();
 
         // check parameters
         if (!isset($wrd)) {
             $msg .= dsp_err('Word missing; Internal error, because a formula should always be linked to a word or a list of words.');
         }
 
-        if ($frm->name == "") {
+        if ($frm->name() == "") {
             $msg .= dsp_err('Formula name missing; Please give the unique name to be able to identify it.');
         }
 
@@ -103,18 +102,16 @@ if ($usr->id > 0) {
         }
 
         // check if a word, verb or formula with the same name already exists
-        log_debug('formula_add->check word ');
-        $trm = $frm->term();
-        if (isset($trm)) {
-            if ($trm->id > 0) {
-                $msg .= $trm->id_used_msg();
-            }
+        log_debug('word');
+        $trm = $frm->get_term();
+        if ($trm->id_obj() > 0) {
+            $msg .= $trm->id_used_msg();
         }
-        log_debug('formula_add->checked ');
+        log_debug('checked');
 
         // if the parameters are fine
         if ($msg == '') {
-            log_debug('formula_add->do ');
+            log_debug('do');
 
             // add to db
             $add_result = $frm->save();
@@ -126,7 +123,7 @@ if ($usr->id > 0) {
 
                 // if adding was successful ...
                 // link the formula to at least one word
-                if ($wrd->id > 0) {
+                if ($wrd->id() > 0) {
                     $phr = $wrd->phrase();
                     $add_result .= $frm->link_phr($phr);
 

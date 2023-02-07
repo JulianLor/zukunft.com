@@ -31,7 +31,10 @@
 
 global $sys_log_stati;
 
-class sys_log_status extends user_type_list
+use cfg\type_list;
+use cfg\type_object;
+
+class sys_log_status extends type_list
 {
     // list of all possible log stati
     const NEW = "new";
@@ -44,7 +47,7 @@ class sys_log_status extends user_type_list
      * @param sql_db $db_con the database connection that can be either the real database connection or a simulation used for testing
      * @return bool true if load was successful
      */
-    function load(sql_db $db_con, string $db_type = DB_TYPE_SYS_LOG_STATUS): bool
+    function load(sql_db $db_con, string $db_type = sql_db::TBL_SYS_LOG_STATUS): bool
     {
         return parent::load($db_con, $db_type);
     }
@@ -52,18 +55,13 @@ class sys_log_status extends user_type_list
     /**
      * adding the system log stati used for unit tests to the dummy list
      */
-    function load_dummy() {
+    function load_dummy(): void
+    {
         parent::load_dummy();
-        $type = new user_type();
-        $type->name = sys_log_status::NEW;
-        $type->code_id = sys_log_status::NEW;
-        $this->lst[2] = $type;
-        $this->hash[sys_log_status::NEW] = 2;
-        $type = new user_type();
-        $type->name = sys_log_status::CLOSED;
-        $type->code_id = sys_log_status::CLOSED;
-        $this->lst[3] = $type;
-        $this->hash[sys_log_status::CLOSED] = 3;
+        $type = new type_object(sys_log_status::NEW, sys_log_status::NEW, '', 2);
+        $this->add($type);
+        $type = new type_object(sys_log_status::CLOSED, sys_log_status::CLOSED, '', 3);
+        $this->add($type);
     }
 
     /**

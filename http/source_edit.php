@@ -31,7 +31,8 @@
 
 // standard zukunft header for callable php files to allow debugging and lib loading
 $debug = $_GET['debug'] ?? 0;
-include_once '../src/main/php/zu_lib.php';
+const ROOT_PATH = __DIR__ . '/../';
+include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 
 // open database
 $db_con = prg_start("source_edit");
@@ -44,22 +45,20 @@ $usr = new user;
 $result .= $usr->get();
 
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
-if ($usr->id > 0) {
+if ($usr->id() > 0) {
 
     load_usr_data();
 
     // prepare the display
     $dsp = new view_dsp_old($usr);
-    $dsp->id = cl(db_cl::VIEW, view::SOURCE_EDIT);
-    $dsp->load();
+    $dsp->load_by_id(cl(db_cl::VIEW, view::SOURCE_EDIT));
     $back = $_GET['back']; // the original calling page that should be shown after the change if finished
 
     // create the source object to have an place to update the parameters
     $src = new source($usr);
-    $src->id = $_GET['id'];
-    $src->load();
+    $src->load_by_id($_GET['id']);
 
-    if ($src->id <= 0) {
+    if ($src->id() <= 0) {
         $result .= log_err("No source found to change because the id is missing.", "source_edit.php");
     } else {
 
@@ -68,13 +67,13 @@ if ($usr->id > 0) {
 
             // get the parameters (but if not set, use the database value)
             if (isset($_GET['name'])) {
-                $src->name = $_GET['name'];
+                $src->set_name($_GET['name']);
             }
             if (isset($_GET['url'])) {
                 $src->url = $_GET['url'];
             }
             if (isset($_GET['comment'])) {
-                $src->comment = $_GET['comment'];
+                $src->description = $_GET['comment'];
             }
 
             // save the changes
@@ -83,7 +82,7 @@ if ($usr->id > 0) {
             // if update was successful ...
             if (str_replace('1', '', $upd_result) == '') {
                 // remember the source for the next values to add
-                $usr->set_source($src->id);
+                $usr->set_source($src->id());
 
                 // ... and display the calling view
                 $result .= dsp_go_back($back, $usr);
@@ -101,7 +100,7 @@ if ($usr->id > 0) {
             $result .= dsp_err($msg);
 
             // show the source and its relations, so that the user can change it
-            $result .= $src->dsp_edit($back);
+            $result .= $src->dsp_obj()->dsp_edit($back);
         }
     }
 }

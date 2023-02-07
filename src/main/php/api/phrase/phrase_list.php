@@ -2,8 +2,8 @@
 
 /*
 
-    api\phrase_list.php - a list object of minimal/api phrase objects
-    -------------------
+    api/phrase/phrase_list.php - a list object of minimal/api phrase objects
+    --------------------------
 
 
     This file is part of zukunft.com - calc with words
@@ -34,7 +34,7 @@ namespace api;
 
 use html\phrase_list_dsp;
 
-class phrase_list_api extends list_api
+class phrase_list_api extends list_api implements \JsonSerializable
 {
 
     /*
@@ -55,27 +55,9 @@ class phrase_list_api extends list_api
         return parent::add_obj($phr);
     }
 
-    /*
-     * info
-     */
-
-    /**
-     * @return bool true if one of the phrases is of type percent
-     */
-    function has_percent(): bool
-    {
-        $result = false;
-        foreach ($this->lst as $phr) {
-            if ($phr->is_percent()) {
-                $result = true;
-            }
-        }
-        return $result;
-    }
-
 
     /*
-     * casting objects
+     * cast
      */
 
     /**
@@ -101,34 +83,47 @@ class phrase_list_api extends list_api
     }
 
     /*
+     * interface
+     */
+
+    /**
+     * an array of the value vars including the private vars
+     */
+    public function jsonSerialize(): array
+    {
+        $vars = [];
+        foreach ($this->lst as $phr) {
+            $vars[] = json_decode(json_encode($phr));
+        }
+        return $vars;
+    }
+
+    /*
      * information functions
      */
 
     /**
-     * @returns int the number of phrases of the protected list
+     * @return bool true if one of the phrases is of type percent
      */
-    function count(): int
+    function has_percent(): bool
     {
-        return count($this->lst);
+        $result = false;
+        foreach ($this->lst as $phr) {
+            if ($phr->is_percent()) {
+                $result = true;
+            }
+        }
+        return $result;
     }
 
-    /**
-     * @returns true if the list does not contain any phrase
-     */
-    function is_empty(): bool
-    {
-        if ($this->count() <= 0) {
-            return true;
-        } else {
-            return false;
-        }
-    }
 
     /*
      * modification functions
      */
 
     /**
+     * removes all terms from this list that are not in the given list
+     * @param term_list_api $new_lst the terms that should remain in this list
      * @returns phrase_list_api with the phrases of this list and the new list
      */
     function intersect(phrase_list_api $new_lst): phrase_list_api

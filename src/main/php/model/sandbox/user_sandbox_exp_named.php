@@ -2,7 +2,7 @@
 
 /*
 
-    user_sandbox_exp_named.php - the superclass for the simple export objects
+    user_sandbox_exp_named.php - extends the the export superclass for named objects such as formulas
     --------------------------
 
 
@@ -30,7 +30,9 @@
 
 */
 
-class user_sandbox_exp_named extends user_sandbox_exp
+namespace export;
+
+class user_sandbox_exp_named extends exp_obj
 {
 
     // field names used for JSON creation

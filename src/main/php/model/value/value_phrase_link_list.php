@@ -32,7 +32,7 @@
   
 */
 
-class value_phrase_link_list extends link_list
+class value_phrase_link_list extends sandbox_list
 {
 
     /**
@@ -45,16 +45,16 @@ class value_phrase_link_list extends link_list
      */
     function load_sql(sql_db $db_con, ?phrase $phr = null, ?value $val = null): sql_par
     {
+        $db_con->set_type(sql_db::TBL_VALUE_PHRASE_LINK);
         $qp = new sql_par(self::class);
         $sql_by = '';
 
-        $db_con->set_type(DB_TYPE_VALUE_PHRASE_LINK);
         if ($val != null) {
-            if ($val->id > 0) {
+            if ($val->id() > 0) {
                 $sql_by = value::FLD_ID;
             }
         } elseif ($phr != null) {
-            if ($phr->id <> 0) {
+            if ($phr->id() <> 0) {
                 $sql_by = phrase::FLD_ID;
             }
         }
@@ -65,21 +65,21 @@ class value_phrase_link_list extends link_list
         } else {
             $qp->name .= $sql_by;
             $db_con->set_name($qp->name);
-            $db_con->set_usr($this->usr->id);
+            $db_con->set_usr($this->user()->id());
             $db_con->set_fields(value_phrase_link::FLD_NAMES);
             if ($val != null) {
-                $db_con->set_join_fields(array(value::FLD_ID), DB_TYPE_VALUE);
+                $db_con->set_join_fields(array(value::FLD_ID), sql_db::TBL_VALUE);
             } else {
-                $db_con->set_join_fields(array(phrase::FLD_ID), DB_TYPE_PHRASE);
+                $db_con->set_join_fields(array(phrase::FLD_ID), sql_db::TBL_PHRASE);
             }
             if ($val != null) {
-                if ($val->id > 0) {
-                    $db_con->add_par(sql_db::PAR_INT, $val->id);
+                if ($val->id() > 0) {
+                    $db_con->add_par(sql_db::PAR_INT, $val->id());
                     $qp->sql = $db_con->select_by_field_list(array(value::FLD_ID));
                 }
             } elseif ($phr != null) {
-                if ($phr->id <> 0) {
-                    $db_con->add_par(sql_db::PAR_INT, $phr->id);
+                if ($phr->id() <> 0) {
+                    $db_con->add_par(sql_db::PAR_INT, $phr->id());
                     $qp->sql = $db_con->select_by_field_list(array(phrase::FLD_ID));
                 }
             }
@@ -103,19 +103,19 @@ class value_phrase_link_list extends link_list
         $result = false;
 
         // check the all minimal input parameters
-        if ($usr->id <= 0) {
+        if ($usr->id() <= 0) {
             log_err('The user must be set to load ' . self::class, self::class . '->load');
         } else {
-            $this->usr = $usr;
+            $this->set_user($usr);
             $qp = $this->load_sql($db_con, $phr, $val);
             if ($qp->name == '') {
                 log_err('A value or phrase must be set to load ' . self::class, self::class . '->load');
             } else {
 
                 if ($val != null) {
-                    $id = $val->id;
+                    $id = $val->id();
                 } else {
-                    $id = $phr->id;
+                    $id = $phr->id();
                 }
 
                 // if $sql is an empty string, the prepared statement should be used
@@ -185,9 +185,9 @@ class value_phrase_link_list extends link_list
     {
         $result = array();
         foreach ($this->lst as $lnk) {
-            if ($lnk->phr->id <> 0) {
-                if (in_array($lnk->phr->id, $result)) {
-                    $result[] = $lnk->phr->id;
+            if ($lnk->phr->id() <> 0) {
+                if (in_array($lnk->phr->id(), $result)) {
+                    $result[] = $lnk->phr->id();
                 }
             }
         }

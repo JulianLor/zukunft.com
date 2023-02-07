@@ -31,7 +31,8 @@
 */
 
 $debug = $_GET['debug'] ?? 0;
-include_once '../src/main/php/zu_lib.php';
+const ROOT_PATH = __DIR__ . '/../';
+include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 
 $result = ''; // reset the html code var
 
@@ -51,13 +52,13 @@ if ($db_con == null) {
     $result .= $usr->get();
 
     // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
-    if ($usr->id > 0) {
+    if ($usr->id() > 0) {
 
         load_usr_data();
 
         // show view header
         $dsp = new view_dsp_old($usr);
-        $dsp->id = cl(db_cl::VIEW, view::WORD_FIND);
+        $dsp->set_id(cl(db_cl::VIEW, view::WORD_FIND));
         $result .= $dsp->dsp_navbar($back);
 
         $find_str = $_GET['pattern'];
@@ -73,12 +74,12 @@ if ($db_con == null) {
 
         // show the matching words to select
         $wrd_lst = new word_list($usr);
-        $result .= $wrd_lst->dsp_like($find_str, $usr->id);
+        $result .= $wrd_lst->dsp_obj()->dsp_like($find_str, $usr);
 
         // show the matching terms to select
         // TODO create a term list object
         //$wrd_lst = new term_list($usr);
-        //$result .= $wrd_lst->dsp_like($find_str, $usr->id);
+        //$result .= $wrd_lst->dsp_like($find_str, $usr);
     }
 }
 

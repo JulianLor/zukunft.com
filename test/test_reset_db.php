@@ -30,7 +30,8 @@
 
 */
 
-include_once '../src/main/php/zu_lib.php';
+const ROOT_PATH = __DIR__ . '/../';
+include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 
 // open database and display header
 $db_con = prg_start("test_reset_db");
@@ -40,7 +41,7 @@ $usr = new user;
 $result = $usr->get();
 
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
-if ($usr->id > 0) {
+if ($usr->id() > 0) {
     if ($usr->is_admin()) {
 
         // load the testing base functions
@@ -48,8 +49,8 @@ if ($usr->id > 0) {
 
         // use the system user for the database updates
         $usr = new user;
-        $usr->id = SYSTEM_USER_ID;
-        $usr->load($db_con);
+        $usr->load_by_id(SYSTEM_USER_ID);
+        $sys_usr = $usr;
 
         // run reset the main database tables
         run_db_truncate();
@@ -72,7 +73,10 @@ if ($usr->id > 0) {
         $db_con = prg_restart("test_reset_db");
 
         // reload the base configuration
-        import_base_config();
+        $job = new batch_job($sys_usr);
+        $job_id = $job->add(job_type_list::BASE_IMPORT);
+
+        import_base_config($sys_usr);
 
         /*
          * For testing the system setup
@@ -91,52 +95,64 @@ if ($usr->id > 0) {
 /**
  * truncate all tables (use only for system testing)
  */
-function run_db_truncate()
+function run_db_truncate(): void
 {
     // the tables in order to avoid the usage of CASCADE
     $table_names = array(
-        DB_TYPE_VALUE_PHRASE_LINK,
-        DB_TYPE_VALUE,
-        DB_TYPE_FORMULA_VALUE,
-        DB_TYPE_FORMULA_ELEMENT,
-        DB_TYPE_FORMULA_ELEMENT_TYPE,
-        DB_TYPE_FORMULA_LINK,
-        DB_TYPE_FORMULA,
-        DB_TYPE_FORMULA_TYPE,
-        DB_TYPE_VIEW_COMPONENT_LINK,
-        DB_TYPE_VIEW_COMPONENT_LINK_TYPE,
-        DB_TYPE_VIEW_COMPONENT,
-        DB_TYPE_VIEW_COMPONENT_TYPE,
-        DB_TYPE_VIEW,
-        DB_TYPE_VIEW_TYPE,
-        DB_TYPE_PHRASE_GROUP,
-        DB_TYPE_PHRASE_GROUP_WORD_LINK,
-        DB_TYPE_PHRASE_GROUP_TRIPLE_LINK,
-        DB_TYPE_VERB,
-        DB_TYPE_TRIPLE,
-        DB_TYPE_WORD,
-        DB_TYPE_WORD_TYPE,
-        DB_TYPE_SOURCE,
-        DB_TYPE_SOURCE_TYPE,
-        DB_TYPE_REF,
-        DB_TYPE_REF_TYPE,
-        DB_TYPE_CHANGE_LINK,
-        DB_TYPE_CHANGE,
-        DB_TYPE_CHANGE_ACTION,
-        DB_TYPE_CHANGE_FIELD,
-        DB_TYPE_CHANGE_TABLE,
-        DB_TYPE_CONFIG,
-        DB_TYPE_TASK,
-        DB_TYPE_TASK_TYPE,
-        DB_TYPE_SYS_SCRIPT,
-        DB_TYPE_TASK,
-        DB_TYPE_SYS_LOG,
-        DB_TYPE_SYS_LOG_STATUS,
-        DB_TYPE_SYS_LOG_FUNCTION,
-        DB_TYPE_SHARE,
-        DB_TYPE_PROTECTION,
-        DB_TYPE_USER,
-        DB_TYPE_USER_PROFILE
+        sql_db::TBL_VALUE_PHRASE_LINK,
+        sql_db::TBL_USER_PREFIX . sql_db::TBL_VALUE,
+        sql_db::TBL_VALUE,
+        sql_db::TBL_FORMULA_VALUE,
+        sql_db::TBL_FORMULA_ELEMENT,
+        sql_db::TBL_FORMULA_ELEMENT_TYPE,
+        sql_db::TBL_USER_PREFIX . sql_db::TBL_FORMULA_LINK,
+        sql_db::TBL_FORMULA_LINK,
+        sql_db::TBL_USER_PREFIX . sql_db::TBL_FORMULA,
+        sql_db::TBL_FORMULA,
+        sql_db::TBL_FORMULA_TYPE,
+        sql_db::TBL_USER_PREFIX . sql_db::TBL_VIEW_COMPONENT_LINK,
+        sql_db::TBL_VIEW_COMPONENT_LINK,
+        sql_db::TBL_VIEW_COMPONENT_LINK_TYPE,
+        sql_db::TBL_USER_PREFIX . sql_db::TBL_VIEW_COMPONENT,
+        sql_db::TBL_VIEW_COMPONENT,
+        sql_db::TBL_VIEW_COMPONENT_TYPE,
+        sql_db::TBL_USER_PREFIX . sql_db::TBL_VIEW,
+        sql_db::TBL_VIEW,
+        sql_db::TBL_VIEW_TYPE,
+        sql_db::TBL_USER_PREFIX . sql_db::TBL_PHRASE_GROUP,
+        sql_db::TBL_PHRASE_GROUP,
+        sql_db::TBL_USER_PREFIX . sql_db::TBL_PHRASE_GROUP_WORD_LINK,
+        sql_db::TBL_PHRASE_GROUP_WORD_LINK,
+        sql_db::TBL_USER_PREFIX . sql_db::TBL_PHRASE_GROUP_TRIPLE_LINK,
+        sql_db::TBL_PHRASE_GROUP_TRIPLE_LINK,
+        sql_db::TBL_VERB,
+        sql_db::TBL_USER_PREFIX . sql_db::TBL_TRIPLE,
+        sql_db::TBL_TRIPLE,
+        sql_db::TBL_USER_PREFIX . sql_db::TBL_WORD,
+        sql_db::TBL_WORD,
+        sql_db::TBL_WORD_TYPE,
+        sql_db::TBL_USER_PREFIX . sql_db::TBL_SOURCE,
+        sql_db::TBL_SOURCE,
+        sql_db::TBL_SOURCE_TYPE,
+        sql_db::TBL_REF,
+        sql_db::TBL_REF_TYPE,
+        sql_db::TBL_CHANGE_LINK,
+        sql_db::TBL_CHANGE,
+        sql_db::TBL_CHANGE_ACTION,
+        sql_db::TBL_CHANGE_FIELD,
+        sql_db::TBL_CHANGE_TABLE,
+        sql_db::TBL_CONFIG,
+        sql_db::TBL_TASK,
+        sql_db::TBL_TASK_TYPE,
+        sql_db::TBL_SYS_SCRIPT,
+        sql_db::TBL_TASK,
+        sql_db::TBL_SYS_LOG,
+        sql_db::TBL_SYS_LOG_STATUS,
+        sql_db::TBL_SYS_LOG_FUNCTION,
+        sql_db::TBL_SHARE,
+        sql_db::TBL_PROTECTION,
+        sql_db::TBL_USER,
+        sql_db::TBL_USER_PROFILE
     );
     echo "\n";
     ui_echo('truncate ');
@@ -145,9 +161,61 @@ function run_db_truncate()
     foreach ($table_names as $table_name) {
         run_table_truncate($table_name);
     }
+
+    // reset the preloaded data
+    run_preloaded_truncate();
 }
 
-function run_table_truncate(string $table_name)
+function run_preloaded_truncate(): void
+{
+    global $system_users;
+    global $user_profiles;
+    global $phrase_types;
+    global $formula_types;
+    global $formula_link_types;
+    global $formula_element_types;
+    global $view_types;
+    global $view_component_types;
+    global $view_component_link_types;
+    global $view_component_position_types;
+    global $ref_types;
+    global $source_types;
+    global $share_types;
+    global $protection_types;
+    global $languages;
+    global $language_forms;
+    global $verbs;
+    global $system_views;
+    global $sys_log_stati;
+    global $job_types;
+    global $change_log_actions;
+    global $change_log_tables;
+    global $change_log_fields;
+
+    //$system_users =[];
+    //$user_profiles =[];
+    $phrase_types = new word_type_list();
+    $formula_types = new formula_type_list();
+    $formula_link_types = new formula_link_type_list();
+    $formula_element_types = new formula_element_type_list();
+    $view_types = new view_type_list();
+    $view_component_types = new view_cmp_type_list();
+    // not yet needed?
+    //$view_component_link_types = new view_component_link_type_list();
+    $view_component_position_types = new view_cmp_pos_type_list();
+    $ref_types = new ref_type_list();
+    $source_types = new source_type_list();
+    $share_types = new share_type_list();
+    $protection_types = new protection_type_list();
+    $languages = new language_list();
+    $language_forms = new language_form_list();
+    $job_types = new job_type_list();
+    $change_log_actions = new change_log_action();
+    $change_log_tables = new change_log_table();
+    $change_log_fields = new change_log_field();
+}
+
+function run_table_truncate(string $table_name): void
 {
     global $db_con;
 
@@ -159,7 +227,7 @@ function run_table_truncate(string $table_name)
     }
 }
 
-function run_db_seq_reset()
+function run_db_seq_reset(): void
 {
     // the sequence names of the tables to reset
     $seq_names = array(
@@ -181,7 +249,7 @@ function run_db_seq_reset()
         'phrase_group_word_links_phrase_group_word_link_id_seq',
         'phrase_group_triple_links_phrase_group_triple_link_id_seq',
         'verbs_verb_id_seq',
-        'word_links_word_link_id_seq',
+        'triples_triple_id_seq',
         'words_word_id_seq',
         'word_types_word_type_id_seq',
         'sources_source_id_seq',

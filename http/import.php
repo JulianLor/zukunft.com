@@ -31,7 +31,8 @@
 */
 
 $debug = $_GET['debug'] ?? 0;
-include_once '../src/main/php/zu_lib.php';
+const ROOT_PATH = __DIR__ . '/../';
+include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 
 // open database
 $db_con = prg_start("import");
@@ -46,14 +47,13 @@ $back = $_GET['back'];     // the word id from which this value change has been 
 
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
 log_debug('import.php check user ');
-if ($usr->id > 0) {
+if ($usr->id() > 0) {
 
     load_usr_data();
 
     // prepare the display
     $dsp = new view_dsp_old($usr);
-    $dsp->id = cl(db_cl::VIEW, view::IMPORT);
-    $dsp->load();
+    $dsp->load_by_code_id(view::IMPORT);
 
     // get the filepath of the data that are supposed to be imported
     $fileName = $_FILES["fileToUpload"]["name"];
@@ -112,13 +112,14 @@ if ($usr->id > 0) {
                 $import->usr = $usr;
                 $import->json_str = $json_str;
                 $import_result = $import->put();
-                if ($import_result == '') {
+                if ($import_result->is_ok()) {
                     $msg .= ' done ('
                         . $import->words_done . ' words, '
                         . $import->verbs_done . ' verbs, '
                         . $import->triples_done . ' triples, '
                         . $import->formulas_done . ' formulas, '
                         . $import->sources_done . ' sources, '
+                        . $import->refs_done . ' references, '
                         . $import->values_done . ' values, '
                         . $import->list_values_done . ' simple values, '
                         . $import->views_done . ' views loaded, '
@@ -131,7 +132,7 @@ if ($usr->id > 0) {
                         $msg .= ' ... and ' . $import->system_done . ' $system objects';
                     }
                 } else {
-                    $msg .= ' failed because ' . $import_result . '.';
+                    $msg .= ' failed because ' . $import_result->all_message_text() . '.';
                 }
             } else {
                 if ($msg == '') {

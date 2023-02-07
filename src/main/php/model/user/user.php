@@ -2,48 +2,55 @@
 
 /*
 
-  user.php - a person who uses zukunft.com
-  --------
+    user.php - a person who uses zukunft.com
+    --------
 
-  if a user has done 3 value edits he can add new values (adding a word to a value also creates a new value)
-  if a user has added 3 values and at least one is accepted by another user, he can add words and formula and he must have a valid email
-  if a user has added 2 formula and both are accepted by at least one other user and no one has complained, he can change formulas and words, including linking of words
-  if a user has linked a 10 words and all got accepted by one other user and no one has complained, he can request new verbs and he must have an validated address
+    if a user has done 3 value edits he can add new values (adding a word to a value also creates a new value)
+    if a user has added 3 values and at least one is accepted by another user, he can add words and formula and he must have a valid email
+    if a user has added 2 formula and both are accepted by at least one other user and no one has complained, he can change formulas and words, including linking of words
+    if a user has linked a 10 words and all got accepted by one other user and no one has complained, he can request new verbs and he must have an validated address
 
-  if a user got 10 pending word or formula discussion, he can no longer add words or formula utils the open discussions are less than 10
-  if a user got 5 pending word or formula discussion, he can no longer change words or formula utils the open discussions are less than 5
-  if a user got 2 pending verb discussion, he can no longer add verbs utils the open discussions are less than 2
+    if a user got 10 pending word or formula discussion, he can no longer add words or formula utils the open discussions are less than 10
+    if a user got 5 pending word or formula discussion, he can no longer change words or formula utils the open discussions are less than 5
+    if a user got 2 pending verb discussion, he can no longer add verbs utils the open discussions are less than 2
 
-  the same ip can max 10 add 10 values and max 5 user a day, upon request the number of max user creation can be increased for an ip range
+    the same ip can max 10 add 10 values and max 5 user a day, upon request the number of max user creation can be increased for an ip range
 
-  TODO move the non functional user parameters to hidden words to be able to reuse the standard view functionality
-  
-  
-  This file is part of zukunft.com - calc with words
+    TODO make sure that no right gain is possible
+    TODO move the non functional user parameters to hidden words to be able to reuse the standard view functionality
 
-  zukunft.com is free software: you can redistribute it and/or modify it
-  under the terms of the GNU General Public License as
-  published by the Free Software Foundation, either version 3 of
-  the License, or (at your option) any later version.
-  zukunft.com is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-  GNU General Public License for more details.
-  
-  You should have received a copy of the GNU General Public License
-  along with zukunft.com. If not, see <http://www.gnu.org/licenses/agpl.html>.
-  
-  To contact the authors write to:
-  Timon Zielonka <timon@zukunft.com>
-  
-  Copyright (c) 1995-2022 zukunft.com AG, Zurich
-  Heang Lor <heang@zukunft.com>
-  
-  http://zukunft.com
+
+    This file is part of zukunft.com - calc with words
+
+    zukunft.com is free software: you can redistribute it and/or modify it
+    under the terms of the GNU General Public License as
+    published by the Free Software Foundation, either version 3 of
+    the License, or (at your option) any later version.
+    zukunft.com is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with zukunft.com. If not, see <http://www.gnu.org/licenses/agpl.html>.
+
+    To contact the authors write to:
+    Timon Zielonka <timon@zukunft.com>
+
+    Copyright (c) 1995-2022 zukunft.com AG, Zurich
+    Heang Lor <heang@zukunft.com>
+
+    http://zukunft.com
   
 */
 
-class user
+use api\user_api;
+use export\exp_obj;
+use export\user_exp;
+use html\user_dsp;
+use html\word_dsp;
+
+class user extends db_object
 {
 
     /*
@@ -52,24 +59,68 @@ class user
 
     // database fields only used for user
     const FLD_ID = 'user_id';
+    const FLD_NAME = 'user_name';
+    const FLD_IP_ADDRESS = 'ip_address';
+    const FLD_EMAIL = 'email';
+    const FLD_FIRST_NAME = 'first_name';
+    const FLD_LAST_NAME = 'last_name';
+    const FLD_LAST_WORD = 'last_word_id';
+    const FLD_SOURCE = 'source_id';
+    const FLD_CODE_ID = 'code_id';
+    const FLD_USER_PROFILE = 'user_profile_id';
+
+    // all database field names excluding the id
+    const FLD_NAMES = array(
+        sql_db::FLD_CODE_ID,
+        self::FLD_IP_ADDRESS,
+        self::FLD_EMAIL,
+        self::FLD_FIRST_NAME,
+        self::FLD_LAST_NAME,
+        self::FLD_LAST_WORD,
+        self::FLD_SOURCE,
+        self::FLD_USER_PROFILE
+    );
+
+
+    /*
+     * im- and export link
+     */
+
+    // the field names used for the im- and export in the json or yaml format
+    const FLD_EX_PROFILE = 'profile';
+
 
     /*
      * predefined user linked to the program code
      */
 
     // list of the system users that have a coded functionality as defined in src/main/resources/users.json
-    const SYSTEM = "zukunft.com system";                    // the system user used to log system tasks and as a fallback owner
-    const NAME_SYSTEM_TEST = "zukunft.com system test";          // to perform the system tests
-    const NAME_SYSTEM_TEST_PARTNER = "zukunft.com system test partner"; // to test that the user sandbox is working e.g. that changes of the main test user has no impact of another user simulated by this test user
-    const SYSTEM_OLD = "system";
-    const SYSTEM_TEST_OLD = "test";
+    const SYSTEM_ID = 1; //
+    const SYSTEM_NAME = "zukunft.com system";                    // the system user used to log system tasks and as a fallback owner
+    const SYSTEM_CODE_ID = "system";                    // unique id of the system user used to log system tasks
+    const SYSTEM_EMAIL = "admin@zukunft.com";
+
+    // the user that performs the system tests
+    const SYSTEM_TEST_ID = 2;
+    const SYSTEM_TEST_NAME = "zukunft.com system test";
+    const SYSTEM_TEST_EMAIL = "support@zukunft.com";
+    const SYSTEM_TEST_IP = "localhost";
+    const SYSTEM_TEST_NAME_FIRST = "first";
+    const SYSTEM_TEST_NAME_LAST = "last";
+
+    // the user that acts as a partner for the system tests
+    // so that multi-user behaviour can be tested
+    const SYSTEM_NAME_TEST_PARTNER = "zukunft.com system test partner"; // to test that the user sandbox is working e.g. that changes of the main test user has no impact of another user simulated by this test user
+    const SYSTEM_TEST_PROFILE_CODE_ID = "test";
+    const SYSTEM_LOCAL = 'localhost';
+    const SYSTEM_TEST_PARTNER_EMAIL = "support.partner@zukunft.com";
+
 
     /*
      * object vars
      */
 
     // database fields
-    public ?int $id = null;               // the database id of the word link type (verb)
     public ?string $name = null;          // simply the username, which cannot be empty
     public ?string $description = null;   // used for system users to describe the target; can be used by users for a short introduction
     public ?string $ip_addr = null;       // simply the ip address used if no username is given
@@ -90,9 +141,16 @@ class user
     // in memory only fields
     public ?word $wrd = null;             // the last word viewed by the user
     public ?user_profile $profile = null; //
+    public ?user $viewer = null;          // the user who wants to access this user
+    // e.g. only admin are allowed to see other user parameters
+
+    /*
+     * construct and map
+     */
 
     function __construct()
     {
+        parent::__construct();
         $this->reset();
 
         //global $user_profiles;
@@ -101,10 +159,11 @@ class user
 
     }
 
-    function reset()
+    function reset(): void
     {
         $this->id = null;
         $this->name = null;
+        $this->description = null;
         $this->ip_addr = null;
         $this->email = null;
         $this->first_name = null;
@@ -120,200 +179,440 @@ class user
         $this->vrb_id = null;
 
         $this->wrd = null;
+        $this->profile = null;
+        $this->viewer = null;
 
-    }
-
-    /**
-     * @return user_dsp the user object with the display interface functions
-     */
-    function dsp_obj(): user_dsp
-    {
-        $dsp_obj = new user_dsp();
-
-        $dsp_obj->id = $this->id;
-        $dsp_obj->name = $this->name;
-        $dsp_obj->ip_addr = $this->ip_addr;
-        $dsp_obj->email = $this->email;
-
-        $dsp_obj->first_name = $this->first_name;
-        $dsp_obj->last_name = $this->last_name;
-        $dsp_obj->code_id = $this->code_id;
-        $dsp_obj->dec_point = $this->dec_point;
-        $dsp_obj->thousand_sep = $this->thousand_sep;
-        $dsp_obj->percent_decimals = $this->percent_decimals;
-
-        $dsp_obj->profile_id = $this->profile_id;
-        $dsp_obj->source_id = $this->source_id;
-
-        $dsp_obj->wrd_id = $this->wrd_id;
-        $dsp_obj->vrb_id = $this->vrb_id;
-
-        $dsp_obj->wrd = $this->wrd;
-
-        return $dsp_obj;
     }
 
     function row_mapper(array $db_usr): bool
     {
+        global $debug;
+
         $result = false;
-        if ($db_usr == false) {
+        if (!$db_usr) {
             $this->id = 0;
         } else {
             if ($db_usr[user::FLD_ID] <= 0) {
                 $this->id = 0;
             } else {
-                $this->id = $db_usr[user::FLD_ID];
+                $this->id = $db_usr[self::FLD_ID];
                 $this->code_id = $db_usr[sql_db::FLD_CODE_ID];
-                $this->name = $db_usr['user_name'];
-                $this->ip_addr = $db_usr['ip_address'];
-                $this->email = $db_usr['email'];
-                $this->first_name = $db_usr['first_name'];
-                $this->last_name = $db_usr['last_name'];
-                $this->wrd_id = $db_usr['last_word_id'];
-                $this->source_id = $db_usr['source_id'];
-                $this->profile_id = $db_usr['user_profile_id'];
+                $this->name = $db_usr[self::FLD_NAME];
+                $this->ip_addr = $db_usr[self::FLD_IP_ADDRESS];
+                $this->email = $db_usr[self::FLD_EMAIL];
+                $this->first_name = $db_usr[self::FLD_FIRST_NAME];
+                $this->last_name = $db_usr[self::FLD_LAST_NAME];
+                $this->wrd_id = $db_usr[self::FLD_LAST_WORD];
+                $this->source_id = $db_usr[self::FLD_SOURCE];
+                $this->profile_id = $db_usr[self::FLD_USER_PROFILE];
                 $this->dec_point = DEFAULT_DEC_POINT;
                 $this->thousand_sep = DEFAULT_THOUSAND_SEP;
                 $this->percent_decimals = DEFAULT_PERCENT_DECIMALS;
                 $result = true;
-                log_debug('user->row_mapper (' . $this->name . ')');
+                log_debug($this->name, $debug - 25);
             }
         }
         return $result;
     }
 
-    //
-    private function load_db(sql_db $db_con)
+
+    /*
+     * set and get
+     */
+
+    /**
+     * set the most often used reference vars with one set statement
+     * @param int $id mainly for test creation the database id of the reference
+     */
+    public function set(int $id = 0, string $name = '', string $email = '', string $code_id = ''): void
     {
-
-        $db_usr = null;
-        // select the user either by id, code_id, name or ip
-        $sql_where = '';
-        if ($this->id > 0) {
-            $sql_where = "u.user_id = " . $this->id;
-            log_debug('user->load user id ' . $this->id);
-        } elseif ($this->code_id > 0) {
-            $sql_where = "u.code_id = " . $this->code_id;
-        } elseif ($this->name <> '') {
-            $sql_where = "u.user_name = " . $db_con->sf($this->name);
-        } elseif ($this->ip_addr <> '') {
-            $sql_where = "u.ip_address = " . $db_con->sf($this->ip_addr);
-        }
-
-        log_debug('user->load search by "' . $sql_where . '"');
-        if ($sql_where == '') {
-            log_err("Either the database ID, the user name, the ip address or the code_id must be set for loading a user.", "user->load", '', (new Exception)->getTraceAsString(), $this);
-        } else {
-            $sql = "SELECT u.user_id,
-                     u.code_id,
-                     u.user_name,
-                     u.ip_address,
-                     u.email,
-                     u.first_name,
-                     u.last_name,
-                     u.last_word_id,
-                     u.source_id,
-                     u.user_profile_id
-                FROM users u 
-              WHERE " . $sql_where . ";";
-            $db_con->usr_id = $this->id;
-            $db_usr = $db_con->get1_old($sql);
-        }
-        return $db_usr;
+        $this->set_id($id);
+        $this->set_name($name);
+        $this->set_email($email);
     }
 
     /**
-     * load the missing user parameters from the database
-     * should be private because the loading should be done via the get method
+     * @param string|null $name the unique username for this pod
      */
-    function load($db_con): bool
+    public function set_name(?string $name): void
     {
-        $db_usr = $this->load_db($db_con);
-        return $this->row_mapper($db_usr);
+        $this->name = $name;
     }
 
-    // special function to exposed the user loading for simulating test users for the automatic system test
-    // TODO used also in the user sandbox: check if this is correct
-    function load_test_user(): bool
+    /**
+     * @param string|null $email the unique email for the user
+     */
+    public function set_email(?string $email): void
+    {
+        $this->email = $email;
+    }
+
+
+
+    /*
+     * cast
+     */
+
+    /**
+     * @return user_api the user frontend api object with all fields filled
+     */
+    function api_obj(): user_api
+    {
+        $api_obj = new user_api();
+        return $this->api_obj_fields($api_obj);
+    }
+
+    /**
+     * @return user_dsp the user frontend display object with all fields filled
+     */
+    function dsp_obj(): user_dsp
+    {
+        $api_obj = new user_dsp();
+        return $this->api_obj_fields($api_obj);
+    }
+
+    /**
+     * @return user_api|user_dsp the user api or display object with all fields filled
+     */
+    private function api_obj_fields(user_api|user_dsp $api_obj): user_api|user_dsp
+    {
+        $api_obj->id = $this->id;
+        if ($this->name != null) {
+            $api_obj->name = $this->name;
+        } else {
+            $api_obj->name = '';
+        }
+        $api_obj->description = $this->description;
+        $api_obj->profile = $this->profile;
+        $api_obj->email = $this->email;
+        $api_obj->first_name = $this->first_name;
+        $api_obj->last_name = $this->last_name;
+        return $api_obj;
+    }
+
+
+    /*
+     * loading / database access object (DAO) functions
+     */
+
+    /**
+     * create the common part of an SQL statement to retrieve the parameters of a user from the database
+     *
+     * @param sql_db $db_con the db connection object as a function parameter for unit testing
+     * @param string $query_name the name of the query use to prepare and call the query
+     * @param string $class the name of the child class from where the call has been triggered
+     * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
+     */
+    protected function load_sql(sql_db $db_con, string $query_name, string $class = self::class): sql_par
+    {
+        $qp = new sql_par($class);
+        $qp->name .= $query_name;
+
+        $db_con->set_type(sql_db::TBL_USER);
+        $db_con->set_name($qp->name);
+
+        if ($this->viewer == null) {
+            if ($this->id == null) {
+                $db_con->set_usr(0);
+            } else {
+                $db_con->set_usr($this->id);
+            }
+        } else {
+            $db_con->set_usr($this->viewer->id);
+        }
+        $db_con->set_fields(self::FLD_NAMES);
+        return $qp;
+    }
+
+    /**
+     * create an SQL statement to retrieve a user by id from the database
+     *
+     * @param sql_db $db_con the db connection object as a function parameter for unit testing
+     * @param int $id the id of the user
+     * @param string $class the name of the child class from where the call has been triggered
+     * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
+     */
+    function load_sql_by_id(sql_db $db_con, int $id, string $class = self::class): sql_par
+    {
+        $qp = $this->load_sql($db_con, 'id', $class);
+        $db_con->add_par_int($id);
+        $qp->sql = $db_con->select_by_field(self::FLD_ID);
+        $qp->par = $db_con->get_par();
+
+        return $qp;
+    }
+
+    /**
+     * create an SQL statement to retrieve a user by name from the database
+     *
+     * @param sql_db $db_con the db connection object as a function parameter for unit testing
+     * @param string $name the name of the user
+     * @param string $class the name of the child class from where the call has been triggered
+     * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
+     */
+    function load_sql_by_name(sql_db $db_con, string $name, string $class = self::class): sql_par
+    {
+        $qp = $this->load_sql($db_con, 'name', $class);
+        $db_con->add_par_txt($name);
+        $qp->sql = $db_con->select_by_field(self::FLD_NAME);
+        $qp->par = $db_con->get_par();
+
+        return $qp;
+    }
+
+    /**
+     * create an SQL statement to retrieve a user by email from the database
+     *
+     * @param sql_db $db_con the db connection object as a function parameter for unit testing
+     * @param string $email the email of the user
+     * @param string $class the name of the child class from where the call has been triggered
+     * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
+     */
+    function load_sql_by_email(sql_db $db_con, string $email, string $class = self::class): sql_par
+    {
+        $qp = $this->load_sql($db_con, 'email', $class);
+        $db_con->add_par_txt($email);
+        $qp->sql = $db_con->select_by_field(self::FLD_EMAIL);
+        $qp->par = $db_con->get_par();
+
+        return $qp;
+    }
+
+    /**
+     * create an SQL statement to retrieve a user by name or email from the database
+     *
+     * @param sql_db $db_con the db connection object as a function parameter for unit testing
+     * @param string $name the name of the user
+     * @param string $email the email of the user
+     * @param string $class the name of the child class from where the call has been triggered
+     * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
+     */
+    function load_sql_by_name_or_email(sql_db $db_con, string $name, string $email, string $class = self::class): sql_par
+    {
+        $qp = $this->load_sql($db_con, 'name_or_email', $class);
+        $db_con->add_par_txt($name);
+        $db_con->add_par_txt_or($email);
+        $qp->sql = $db_con->select_by_name_or(self::FLD_EMAIL);
+        $qp->par = $db_con->get_par();
+
+        return $qp;
+    }
+
+    /**
+     * create an SQL statement to retrieve a user with the ip from the database
+     *
+     * @param sql_db $db_con the db connection object as a function parameter for unit testing
+     * @param string $ip_addr the ip address with which the user has logged in
+     * @param string $class the name of the child class from where the call has been triggered
+     * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
+     */
+    function load_sql_by_ip(sql_db $db_con, string $ip_addr, string $class = self::class): sql_par
+    {
+        $qp = $this->load_sql($db_con, 'ip', $class);
+        $db_con->add_par_txt($ip_addr);
+        $qp->sql = $db_con->select_by_field(self::FLD_IP_ADDRESS);
+        $qp->par = $db_con->get_par();
+
+        return $qp;
+    }
+
+    /**
+     * create an SQL statement to retrieve a user with the profile from the database
+     *
+     * @param sql_db $db_con the db connection object as a function parameter for unit testing
+     * @param int $profile_id the id of the profile of which the first matching user should be loaded
+     * @param string $class the name of the child class from where the call has been triggered
+     * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
+     */
+    function load_sql_by_profile(sql_db $db_con, int $profile_id, string $class = self::class): sql_par
+    {
+        $qp = $this->load_sql($db_con, 'profile', $class);
+        $db_con->add_par_int($profile_id);
+        $qp->sql = $db_con->select_by_field(self::FLD_USER_PROFILE);
+        $qp->par = $db_con->get_par();
+
+        return $qp;
+    }
+
+    /**
+     * load a user from the database view
+     * @param sql_par $qp the query parameters created by the calling function
+     * @return int the id of the object found and zero if nothing is found
+     */
+    private function load(sql_par $qp): int
     {
         global $db_con;
-        return $this->load($db_con);
+
+        $db_row = $db_con->get1($qp);
+        $this->row_mapper($db_row);
+        return $this->id();
     }
 
-    function load_user_by_profile(string $profile_code_id, sql_db $db_con): bool
+    /**
+     * load a user by id from the database
+     *
+     * TODO make sure that it is always checked if the requesting user has the sufficient permissions
+     *  param user|null $request_usr the user who has requested the loading of the user data to prevent right gains
+     *
+     * @param int $id
+     * @param string $class the name of the user
+     * @return int
+     */
+    function load_by_id(int $id, string $class = self::class): int
     {
-        $profile_id = cl(db_cl::USER_PROFILE, $profile_code_id);
+        global $db_con;
 
-        $sql = "SELECT * FROM users WHERE user_profile_id = " . $profile_id . ";";
-        $db_usr = $db_con->get1_old($sql);
-        return $this->row_mapper($db_usr);
+        log_debug($id);
+        $this->reset();
+        $qp = $this->load_sql_by_id($db_con, $id);
+        return $this->load($qp);
     }
 
-    function has_any_user_this_profile(string $profile_code_id, sql_db $db_con): bool
+    /**
+     * load one user by name
+     * @param string $name the username of the user
+     * @param string $class the name of the user
+     * @return int the id of the found user and zero if nothing is found
+     */
+    function load_by_name(string $name, string $class = self::class): int
     {
-        return $this->load_user_by_profile($profile_code_id, $db_con);
+        global $db_con;
+
+        log_debug($name);
+        $this->reset();
+        $qp = $this->load_sql_by_name($db_con, $name);
+        return $this->load($qp);
+    }
+
+    /**
+     * load one user by name
+     * @param string $email the email of the user
+     * @return bool true if a user has been found
+     */
+    function load_by_email(string $email): bool
+    {
+        global $db_con;
+
+        log_debug($email);
+        $this->reset();
+        $qp = $this->load_sql_by_email($db_con, $email);
+        return $this->load($qp);
+    }
+
+    /**
+     * load one user by name or email
+     * @param string $name the username of the user
+     * @param string $email the email of the user
+     * @return bool true if a user has been found
+     */
+    function load_by_name_or_email(string $name, string $email): bool
+    {
+        global $db_con;
+
+        log_debug($email);
+        $this->reset();
+        $qp = $this->load_sql_by_name_or_email($db_con, $name, $email);
+        return $this->load($qp);
+    }
+
+    /**
+     * load the first user with the given ip address
+     * @param string $ip the ip address with which the user has logged in
+     * @return bool true if a user has been found
+     */
+    function load_by_ip(string $ip): bool
+    {
+        global $db_con;
+
+        log_debug($ip);
+        $this->reset();
+        $qp = $this->load_sql_by_ip($db_con, $ip);
+        return $this->load($qp);
+    }
+
+    /**
+     * load the first user with the given ip address
+     * @param int $profile_id the id of the profile of which the first matching user should be loaded
+     * @return bool true if a user has been found
+     */
+    function load_by_profile(int $profile_id): bool
+    {
+        global $db_con;
+
+        log_debug($profile_id);
+        $this->reset();
+        $qp = $this->load_sql_by_profile($db_con, $profile_id);
+        return $this->load($qp);
+    }
+
+    function load_by_profile_code(string $profile_code_id): bool
+    {
+        global $user_profiles;
+        return $this->load_by_profile($user_profiles->id($profile_code_id));
+    }
+
+    function has_any_user_this_profile(string $profile_code_id): bool
+    {
+        return $this->load_by_profile_code($profile_code_id);
     }
 
     private function ip_in_range($ip_addr, $min, $max): bool
     {
         $result = false;
         if (ip2long(trim($min)) <= ip2long(trim($ip_addr)) && ip2long(trim($ip_addr)) <= ip2long(trim($max))) {
-            log_debug('user->ip_in_range ip ' . $ip_addr . ' (' . ip2long(trim($ip_addr)) . ') is in range between ' . $min . ' (' . ip2long(trim($min)) . ') and  ' . $max . ' (' . ip2long(trim($max)) . ')');
-            return true;
+            log_debug(' ip ' . $ip_addr . ' (' . ip2long(trim($ip_addr)) . ') is in range between ' . $min . ' (' . ip2long(trim($min)) . ') and  ' . $max . ' (' . ip2long(trim($max)) . ')');
+            $result = true;
         }
         return $result;
-
     }
 
-    // return the message, why the if is not permitted
-    // exposed as public mainly for testing
-    public function ip_check($ip_addr): string
+    /**
+     *
+     * exposed as public mainly for testing
+     * @return string the message, why the if is not permitted
+     */
+    public function ip_check(string $ip_addr): string
     {
-        log_debug('user->ip_check (' . $ip_addr . ')');
+        global $debug;
+        log_debug(' (' . $ip_addr . ')', $debug - 12);
 
-        global $db_con;
-
-        $msg = '';
-        $sql = "SELECT ip_from,
-                   ip_to,
-                   reason
-              FROM user_blocked_ips 
-             WHERE is_active = 1;";
-        $db_con->usr_id = $this->id;
-        $ip_lst = $db_con->get_old($sql);
-        foreach ($ip_lst as $ip_range) {
-            log_debug('user->ip_check range (' . $ip_range['ip_from'] . ' to ' . $ip_range['ip_to'] . ')');
-            if ($this->ip_in_range($ip_addr, $ip_range['ip_from'], $ip_range['ip_to'])) {
-                log_debug('user->ip_check ip ' . $ip_addr . ' blocked due to range from ' . $ip_range['ip_from'] . ' to ' . $ip_range['ip_to']);
-                $msg = 'Your IP ' . $ip_addr . ' is blocked at the moment because ' . $ip_range['reason'] . '. If you think, this should not be the case, please request the unblocking with an email to admin@zukunft.com.';
-                $this->id = 0; // switch off the permission
-            }
+        $ip_lst = new ip_range_list();
+        $ip_lst->load();
+        $test_result = $ip_lst->includes($ip_addr);
+        if (!$test_result->is_ok()) {
+            $this->id = 0; // switch off the permission
         }
-        return $msg;
+        return $test_result->all_message_text();
     }
 
-    // get the ip address of the active user
-    private function get_ip()
+    /**
+     * @return string the ip address of the active user
+     */
+    private function get_ip(): string
     {
         if (array_key_exists("REMOTE_ADDR", $_SERVER)) {
             $this->ip_addr = $_SERVER['REMOTE_ADDR'];
         }
         if ($this->ip_addr == null) {
-            $this->ip_addr = 'localhost';
+            $this->ip_addr = self::SYSTEM_LOCAL;
         }
         return $this->ip_addr;
     }
 
-    // get the active session user object
+    /**
+     * @returns string the active session user object
+     */
     function get(): string
     {
+        global $debug;
+
         $result = ''; // for the result message e.g. if the user is blocked
 
         // test first if the IP is blocked
         if ($this->ip_addr == '') {
             $this->get_ip();
         } else {
-            log_debug('user->get (' . $this->ip_addr . ')');
+            log_debug(' (' . $this->ip_addr . ')', $debug - 1);
         }
         // even if the user has an open session, but the ip is blocked, drop the user
         $result .= $this->ip_check($this->ip_addr);
@@ -322,24 +621,21 @@ class user
             // if the user has logged in use the logged in account
             if (isset($_SESSION['logged'])) {
                 if ($_SESSION['logged']) {
-                    $this->id = $_SESSION['usr_id'];
-                    global $db_con;
-                    $this->load($db_con);
-                    log_debug('user->get -> use (' . $this->id . ')');
+                    $this->load_by_id($_SESSION['usr_id']);
+                    log_debug('use (' . $this->id . ')');
                 }
             } else {
                 // else use the IP address (for testing don't overwrite any testing ip)
                 global $user_profiles;
                 global $db_con;
 
-                $this->get_ip();
-                $this->load($db_con);
+                $this->load_by_ip($this->get_ip());
                 if ($this->id <= 0) {
                     // use the ip address as the username and add the user
-                    $this->name = $this->ip_addr;
+                    $this->name = $this->get_ip();
 
                     // allow to fill the database only if a local user has logged in
-                    if ($this->name == 'localhost') {
+                    if ($this->name == self::SYSTEM_LOCAL) {
 
                         // TODO move to functions used here to check class
                         if ($user_profiles->is_empty()) {
@@ -355,18 +651,22 @@ class user
 
                         // create the admin users
                         $check_usr = new user();
-                        if (!$check_usr->has_any_user_this_profile(user_profile::ADMIN, $db_con)) {
+                        if (!$check_usr->has_any_user_this_profile(user_profile::ADMIN)) {
                             $this->set_profile(user_profile::ADMIN);
                         }
 
                         // add the local admin user to use it for the import
                         $upd_result = $this->save($db_con);
 
+                        // use the system user for the database initial load
+                        $sys_usr = new user;
+                        $sys_usr->load_by_id(SYSTEM_USER_ID);
+
                         //
-                        import_verbs($this);
+                        import_verbs($sys_usr);
 
                         // reload the base configuration
-                        import_base_config();
+                        import_base_config($sys_usr);
 
                     } else {
                         $upd_result = $this->save($db_con);
@@ -381,47 +681,70 @@ class user
                 }
             }
         }
-        log_debug('user->got "' . $this->name . '" (' . $this->id . ')');
+        log_debug(' "' . $this->name . '" (' . $this->id . ')');
         return $result;
     }
+
+
+    /*
+     * im- and export
+     */
 
     /**
      * import a user from a json data user object
      *
      * @param array $json_obj an array with the data of the json object
-     * @param user_profile $profile the profile of the user how has initiated the import mainly used to prevent any user to gain additional rights
+     * @param int $profile_id the profile of the user how has initiated the import mainly used to prevent any user to gain additional rights
      * @param bool $do_save can be set to false for unit testing
-     * @return string an empty string if the import has been successfully saved to the database or an error message that should be shown to the user
+     * @return user_message the status of the import and if needed the error messages that should be shown to the user
      */
-    function import_obj(array $json_obj, int $profile_id, bool $do_save = true): string
+    function import_obj(array $json_obj, int $profile_id, bool $do_save = true): user_message
     {
         global $user_profiles;
 
-        log_debug('user->import_obj');
-        $result = '';
+        log_debug();
+        $result = new user_message();
 
         // reset all parameters of this user object
         $this->reset();
         foreach ($json_obj as $key => $value) {
-            if ($key == 'name') {
+            if ($key == exp_obj::FLD_NAME) {
                 $this->name = $value;
             }
-            if ($key == 'description') {
+            if ($key == exp_obj::FLD_DESCRIPTION) {
                 $this->description = $value;
             }
-            if ($key == 'profile') {
+            if ($key == self::FLD_EMAIL) {
+                $this->email = $value;
+            }
+            if ($key == self::FLD_FIRST_NAME) {
+                $this->first_name = $value;
+            }
+            if ($key == self::FLD_LAST_NAME) {
+                $this->last_name = $value;
+            }
+            if ($key == self::FLD_CODE_ID) {
+                $this->code_id = $value;
+            }
+            if ($key == self::FLD_EX_PROFILE) {
                 $this->profile_id = $user_profiles->id($value);
+            }
+            if ($key == exp_obj::FLD_CODE_ID) {
+                if ($profile_id == cl(db_cl::USER_PROFILE, user_profile::ADMIN)
+                    or $profile_id == cl(db_cl::USER_PROFILE, user_profile::SYSTEM)) {
+                    $this->code_id = $value;
+                }
             }
         }
 
         // save the word in the database
-        if ($do_save) {
+        if ($result->is_ok() and $do_save) {
             // check the importing profile and make sure that gaining additional privileges is impossible
             // the user profiles must always be in the order that the lower ID has same or less rights
             // TODO use the right level of the profile
             if ($profile_id >= $this->profile_id) {
                 global $db_con;
-                $result .= $this->save($db_con);
+                $result->add_message($this->save($db_con));
             }
         }
 
@@ -429,35 +752,84 @@ class user
         return $result;
     }
 
+    /**
+     * create a user object for the export
+     * @param bool $do_load to switch off the database load for unit tests
+     * @return exp_obj the filled object used to create the json
+     */
+    function export_obj(bool $do_load = true): exp_obj
+    {
+        log_debug();
+        $result = new user_exp();
 
-    // true if the user has admin rights
+        // add the source parameters
+        $result->name = $this->name;
+        if ($this->description <> '') {
+            $result->description = $this->description;
+        }
+        if ($this->email <> '') {
+            $result->email = $this->email;
+        }
+        if ($this->first_name <> '') {
+            $result->first_name = $this->first_name;
+        }
+        if ($this->last_name <> '') {
+            $result->last_name = $this->last_name;
+        }
+        if ($this->code_id <> '') {
+            $result->code_id = $this->code_id;
+        }
+        if ($this->profile <> '') {
+            $result->profile = $this->profile;
+        }
+
+        log_debug(json_encode($result));
+        return $result;
+    }
+
+
+    /*
+     * information
+     */
+
+    /**
+     * @returns bool true if the user is valid
+     */
+    function is_set(): bool
+    {
+        if ($this->id > 0) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    /**
+     * @returns bool true if the user has admin rights
+     */
     function is_admin(): bool
     {
-        log_debug('user->is_admin (' . $this->id . ')');
+        global $user_profiles;
+        log_debug();
         $result = false;
 
-        if (!isset($this->profile_id)) {
-            global $db_con;
-            $this->load($db_con);
-        }
-        if ($this->profile_id == cl(db_cl::USER_PROFILE, user_profile::ADMIN)) {
+        if ($this->profile_id == $user_profiles->id(user_profile::ADMIN)) {
             $result = true;
         }
         return $result;
     }
 
-    // true if the user is a system user e.g. the reserved word names can be used
+    /**
+     * @returns bool true if the user is a system user e.g. the reserved word names can be used
+     */
     function is_system(): bool
     {
-        log_debug('user->is_system (' . $this->id . ')');
+        global $user_profiles;
+        log_debug();
         $result = false;
 
-        if (!isset($this->profile_id)) {
-            global $db_con;
-            $this->load($db_con);
-        }
-        if ($this->profile_id == cl(db_cl::USER_PROFILE, user_profile::TEST)
-            or $this->profile_id == cl(db_cl::USER_PROFILE, user_profile::SYSTEM)) {
+        if ($this->profile_id == $user_profiles->id(user_profile::TEST)
+            or $this->profile_id == $user_profiles->id(user_profile::SYSTEM)) {
             $result = true;
         }
         return $result;
@@ -466,16 +838,13 @@ class user
     // true if the user has the right to import data
     function can_import(): bool
     {
-        log_debug('user->can_import (' . $this->id . ')');
+        global $user_profiles;
+        log_debug();
         $result = false;
 
-        if (!isset($this->profile_id)) {
-            global $db_con;
-            $this->load($db_con);
-        }
-        if ($this->profile_id == cl(db_cl::USER_PROFILE, user_profile::ADMIN)
-            or $this->profile_id == cl(db_cl::USER_PROFILE, user_profile::TEST)
-            or $this->profile_id == cl(db_cl::USER_PROFILE, user_profile::SYSTEM)) {
+        if ($this->profile_id == $user_profiles->id(user_profile::ADMIN)
+            or $this->profile_id == $user_profiles->id(user_profile::TEST)
+            or $this->profile_id == $user_profiles->id(user_profile::SYSTEM)) {
             $result = true;
         }
         return $result;
@@ -488,14 +857,15 @@ class user
             $this->wrd_id = DEFAULT_WORD_ID;
         }
         $wrd = new word($this);
-        $wrd->id = $this->wrd_id;
-        $wrd->load();
+        $wrd->load_by_id($this->wrd_id, word::class);
         $this->wrd = $wrd;
-        return $wrd;
+        return $wrd->dsp_obj();
     }
 
-    // set the parameters for the virtual user that represents the standard view for all users
-    function dummy_all()
+    /**
+     * set the parameters for the virtual user that represents the standard view for all users
+     */
+    function dummy_all(): void
     {
         $this->id = 0;
         $this->code_id = 'all';
@@ -509,12 +879,11 @@ class user
     }
 
     // create the display user object based on the object (not needed any more if always the display user object is used)
-    function dsp_user(): user_dsp
+    function dsp_user(): user_dsp_old
     {
         global $db_con;
-        $dsp_user = new user_dsp;
-        $dsp_user->id = $this->id;
-        $dsp_user->load($db_con);
+        $dsp_user = new user_dsp_old;
+        $dsp_user->load_by_id($this->id);
         return $dsp_user;
     }
 
@@ -527,11 +896,11 @@ class user
     // remember the last source that the user has used
     function set_source($source_id): bool
     {
-        log_debug('user->set_source(' . $this->id . ',s' . $source_id . ')');
+        log_debug('(' . $this->id . ',s' . $source_id . ')');
         global $db_con;
         //$db_con = new mysql;
         $db_con->usr_id = $this->id;
-        $db_con->set_type(DB_TYPE_USER);
+        $db_con->set_type(sql_db::TBL_USER);
         return $db_con->update($this->id, 'source_id', $source_id);
     }
 
@@ -539,16 +908,16 @@ class user
     // TODO add the database field
     function set_verb($vrb_id): bool
     {
-        log_debug('user->set_verb(' . $this->id . ',s' . $vrb_id . ')');
+        log_debug('(' . $this->id . ',s' . $vrb_id . ')');
         global $db_con;
         //$db_con = new mysql;
         $db_con->usr_id = $this->id;
-        $result = $db_con->set_type(DB_TYPE_USER);
+        $result = $db_con->set_type(sql_db::TBL_USER);
         //$result = $db_con->update($this->id, verb::FLD_ID, $vrb_id);
         return $result;
     }
 
-    function set_profile(string $profile_code_id)
+    function set_profile(string $profile_code_id): void
     {
         global $user_profiles;
         $this->profile_id = $user_profiles->id($profile_code_id);
@@ -556,41 +925,47 @@ class user
     }
 
     // set the main log entry parameters for updating one word field
-    private function log_upd(): user_log_named
+    private function log_upd(): change_log_named
     {
-        log_debug('user->log_upd user ' . $this->name);
-        $log = new user_log_named;
+        log_debug(' user ' . $this->name);
+        $log = new change_log_named;
         $log->usr = $this;
-        $log->action = user_log::ACTION_UPDATE;
-        $log->table = 'users';
+        $log->action = change_log_action::UPDATE;
+        $log->set_table(change_log_table::USR);
 
         return $log;
     }
 
-    // check and update a single user parameter
-    private function upd_par($db_con, $usr_par, $db_row, $fld_name, $par_name)
+    /**
+     * check and update a single user parameter
+     *
+     * TODO check if name and email are unique and do the check within one transaction closed by a commit
+     */
+    private function upd_par(sql_db $db_con, array $usr_par, string $db_value, string $fld_name, string $par_name): void
     {
         $result = '';
-        if ($usr_par[$par_name] <> $db_row[$fld_name]
+        if ($usr_par[$par_name] <> $db_value
             and $usr_par[$par_name] <> "") {
             $log = $this->log_upd();
-            $log->old_value = $db_row[$fld_name];
+            $log->old_value = $db_value;
             $log->new_value = $usr_par[$par_name];
             $log->row_id = $this->id;
-            $log->field = $fld_name;
+            $log->set_field($fld_name);
             if ($log->add()) {
-                $db_con->set_type(DB_TYPE_USER);
-                $result = $db_con->update($this->id, $log->field, $log->new_value);
+                $db_con->set_type(sql_db::TBL_USER);
+                $result = $db_con->update($this->id, $log->field(), $log->new_value);
             }
         }
-        return $result;
     }
 
-    // check and update all user parameters
-    function upd_pars($usr_par)
+    /**
+     * check and update all user parameters
+     *
+     * @param array $usr_par the array of parameters as received with the URL
+     */
+    function upd_pars(array $usr_par): string
     {
-        log_debug('user->upd_pars');
-        log_debug('user->upd_pars(u' . $this->id . ',p' . dsp_array($usr_par) . ')');
+        log_debug();
 
         global $db_con;
 
@@ -598,25 +973,26 @@ class user
 
         // build the database object because the is anyway needed
         $db_con->usr_id = $this->id;
-        $db_con->set_type(DB_TYPE_USER);
+        $db_con->set_type(sql_db::TBL_USER);
 
         $db_usr = new user;
-        $db_usr->id = $this->id;
-        $db_row = $db_usr->load_db($db_con);
-        log_debug('user->save -> database user loaded "' . $db_row['name'] . '"');
+        $db_id = $db_usr->load_by_id($this->id);
+        log_debug('database user loaded "' . $db_id . '"');
 
-        $this->upd_par($db_con, $usr_par, $db_row, "user_name", 'name');
-        $this->upd_par($db_con, $usr_par, $db_row, "email", 'email');
-        $this->upd_par($db_con, $usr_par, $db_row, "first_name", 'fname');
-        $this->upd_par($db_con, $usr_par, $db_row, "last_name", 'lname');
+        $this->upd_par($db_con, $usr_par, $db_usr->name, self::FLD_NAME, 'name');
+        $this->upd_par($db_con, $usr_par, $db_usr->email, self::FLD_EMAIL, 'email');
+        $this->upd_par($db_con, $usr_par, $db_usr->first_name, self::FLD_FIRST_NAME, 'fname');
+        $this->upd_par($db_con, $usr_par, $db_usr->last_name, self::FLD_LAST_NAME, 'lname');
 
-        log_debug('user->upd_pars -> done');
+        log_debug('done');
         return $result;
     }
 
-    // if at least one other user has switched off all changes from this user
-    // all changes of this user should be excluded from the standard values
-    // e.g. a user has a
+    /**
+     * if at least one other user has switched off all changes from this user
+     * all changes of this user should be excluded from the standard values
+     * e.g. a user has a
+     */
     function exclude_from_standard()
     {
     }
@@ -632,32 +1008,54 @@ class user
         // build the database object because the is anyway needed
         //$db_con = new mysql;
         $db_con->usr_id = $this->id;
-        $db_con->set_type(DB_TYPE_USER);
+        $db_con->set_type(sql_db::TBL_USER);
 
         if ($this->id <= 0) {
-            log_debug("user->save add (" . $this->name . ")");
+            log_debug(" add (" . $this->name . ")");
 
             $this->id = $db_con->insert("user_name", $this->name);
             // log the changes???
             if ($this->id > 0) {
+                // add the description of the user
+                if (!$db_con->update($this->id, sql_db::FLD_DESCRIPTION, $this->description)) {
+                    $result = 'Saving of user description ' . $this->id . ' failed.';
+                }
+                // add the email of the user
+                if (!$db_con->update($this->id, self::FLD_EMAIL, $this->email)) {
+                    $result = 'Saving of user email ' . $this->id . ' failed.';
+                }
+                // add the first name of the user
+                if (!$db_con->update($this->id, self::FLD_FIRST_NAME, $this->first_name)) {
+                    $result = 'Saving of user first name ' . $this->id . ' failed.';
+                }
+                // add the last name of the user
+                if (!$db_con->update($this->id, self::FLD_LAST_NAME, $this->last_name)) {
+                    $result = 'Saving of user last name ' . $this->id . ' failed.';
+                }
+                // add the code of the user
+                if ($this->code_id != '') {
+                    if (!$db_con->update($this->id, self::FLD_CODE_ID, $this->code_id)) {
+                        $result = 'Saving of user code id ' . $this->id . ' failed.';
+                    }
+                }
                 // add the profile of the user
-                if (!$db_con->update($this->id, "user_profile_id", $this->profile_id)) {
-                    $result = 'Saving of user ' . $this->id . ' failed.';
+                if (!$db_con->update($this->id, self::FLD_USER_PROFILE, $this->profile_id)) {
+                    $result = 'Saving of user profile ' . $this->id . ' failed.';
                 }
                 // add the ip address to the user, but never for system users
                 if ($this->profile_id != cl(db_cl::USER_PROFILE, user_profile::SYSTEM)
                     and $this->profile_id != cl(db_cl::USER_PROFILE, user_profile::TEST)) {
-                    if (!$db_con->update($this->id, "ip_address", $this->get_ip())) {
+                    if (!$db_con->update($this->id, self::FLD_IP_ADDRESS, $this->get_ip())) {
                         $result = 'Saving of user ' . $this->id . ' failed.';
                     }
                 }
-                log_debug("user->save add ... done");
+                log_debug(" add ... done");
             } else {
-                log_debug("user->save add ... failed");
+                log_debug(" add ... failed");
             }
         } else {
             // update the ip address and log the changes????
-            log_warning('user->save method for ip update missing', 'user->save', 'method for ip update missing', (new Exception)->getTraceAsString(), $this);
+            log_warning(' method for ip update missing', 'user->save', 'method for ip update missing', (new Exception)->getTraceAsString(), $this);
         }
         return $result;
     }

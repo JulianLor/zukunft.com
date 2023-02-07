@@ -30,7 +30,7 @@
 
 */
 
-function run_system_test(testing $t)
+function run_system_test(testing $t): void
 {
 
     global $usr;
@@ -55,7 +55,7 @@ function run_system_test(testing $t)
 
     // check if the owner is always setting
     //$sbx = New user_sandbox;
-    //$chk_txt = $sbx->chk_owner(DB_TYPE_TRIPLE, False); if ($chk_txt <> '') { echo $chk_txt."<br>"; }
+    //$chk_txt = $sbx->chk_owner(sql_db::TBL_TRIPLE, False); if ($chk_txt <> '') { echo $chk_txt."<br>"; }
 
     $t->header('Test the blocked IP addresses');
 
@@ -65,7 +65,7 @@ function run_system_test(testing $t)
     $usr_test->ip_addr = TEST_USER_IP;
     $target = 'Your IP ' . $usr_test->ip_addr . ' is blocked at the moment because too much damage from this IP. If you think, this should not be the case, please request the unblocking with an email to admin@zukunft.com.';
     $result = $usr_test->get();
-    if ($usr_test->id > 0) {
+    if ($usr_test->id() > 0) {
         $result = 'permitted!';
     }
     $t->dsp('IP blocking for ' . $usr_test->ip_addr, $target, $result);
@@ -76,12 +76,10 @@ function run_system_test(testing $t)
     // load by name
     $usr_test->reset();
     $usr_test = new user;
-    $usr_test->name = user::NAME_SYSTEM_TEST;
-
-    $usr_test->load_test_user();
-    $target = '<a href="/http/user.php?id=' . $usr_test->id . '">zukunft.com system test</a>';
+    $usr_test->load_by_name(user::SYSTEM_TEST_NAME);
+    $target = '<a href="/http/user.php?id=' . $usr_test->id() . '">zukunft.com system test</a>';
     $result = $usr->display();
-    $t->dsp('user->load for id ' . $wrd_company->id, $target, $result);
+    $t->dsp('user->load for id ' . $wrd_company->id(), $target, $result);
 
 
     $t->header('Test the user list class (classes/user_list.php)');

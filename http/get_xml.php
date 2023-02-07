@@ -30,10 +30,13 @@
 
 */
 
+use controller\controller;
+
 Header('Content-type: text/xml');
 
 $debug = $_GET['debug'] ?? 0;
-include_once '../src/main/php/zu_lib.php';
+const ROOT_PATH = __DIR__ . '/../';
+include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 
 // open database
 $db_con = prg_start_api("get_xml");
@@ -43,13 +46,13 @@ $usr = new user;
 $result = $usr->get();
 
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
-if ($usr->id > 0) {
+if ($usr->id() > 0) {
     $xml = '';
 
     load_usr_data();
 
     // get the words that are supposed to be exported, sample "Nestlé 2 country weight"
-    $phrases = $_GET['words'];
+    $phrases = $_GET[controller::URL_VAR_WORD];
     log_debug("get_xml(" . $phrases . ")");
     $phr_names = array_trim(explode(",", $phrases));
 

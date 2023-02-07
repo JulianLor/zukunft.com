@@ -31,10 +31,12 @@
 
 global $verbs;
 
-class verb_list extends user_type_list
+use cfg\type_list;
+
+class verb_list extends type_list
 {
 
-    public ?user $usr = null;   // the user object of the person for whom the verb list is loaded, so to say the viewer
+    private ?user $usr = null; // the user object of the person for whom the verb list is loaded, so to say the viewer
 
     // search and load fields
     public ?word $wrd = null;  // to load a list related to this word
@@ -50,8 +52,32 @@ class verb_list extends user_type_list
      */
     function __construct(?user $usr = null)
     {
+        $this->set_user($usr);
+    }
+
+    /*
+     * get and set
+     */
+
+    /**
+     * set the user of the verb list
+     *
+     * @param user|null $usr the person who wants to access the verbs
+     * @return void
+     */
+    function set_user(?user $usr): void
+    {
         $this->usr = $usr;
     }
+
+    /**
+     * @return user|null the person who wants to see the verbs
+     */
+    function user(): ?user
+    {
+        return $this->usr;
+    }
+
 
     /*
      * loading
@@ -68,7 +94,7 @@ class verb_list extends user_type_list
     function load_by_linked_phrases_sql(sql_db $db_con, phrase $phr, string $direction): sql_par
     {
         $qp = new sql_par(self::class);
-        if ($phr->id != 0) {
+        if ($phr->id() != 0) {
             $qp->name .= 'phr_id';
             if ($direction == word_select_direction::UP) {
                 $qp->name .= '_up';
@@ -81,19 +107,19 @@ class verb_list extends user_type_list
         }
 
         if ($qp->name != '') {
-            $db_con->set_type(DB_TYPE_TRIPLE);
+            $db_con->set_type(sql_db::TBL_TRIPLE);
             $db_con->set_name($qp->name);
-            $db_con->set_usr($this->usr->id);
+            $db_con->set_usr($this->user()->id());
             $db_con->set_usr_num_fields(array(user_sandbox::FLD_EXCLUDED));
-            $db_con->set_join_fields(array_merge(verb::FLD_NAMES, array(verb::FLD_NAME)), DB_TYPE_VERB);
+            $db_con->set_join_fields(array_merge(verb::FLD_NAMES, array(verb::FLD_NAME)), sql_db::TBL_VERB);
             $db_con->set_fields(array(verb::FLD_ID));
             // set the where clause depending on the values given
             // definition of up: if "Zurich" is a City, then "Zurich" is "from" and "City" is "to", so staring from "Zurich" and "up", the result should include "is a"
-            $db_con->add_par(sql_db::PAR_INT, $phr->id);
+            $db_con->add_par(sql_db::PAR_INT, $phr->id());
             if ($direction == word_select_direction::UP) {
-                $qp->sql = $db_con->select_by_field(word_link::FLD_FROM);
+                $qp->sql = $db_con->select_by_field(triple::FLD_FROM);
             } else {
-                $qp->sql = $db_con->select_by_field(word_link::FLD_TO);
+                $qp->sql = $db_con->select_by_field(triple::FLD_TO);
             }
             $qp->par = $db_con->get_par();
         }
@@ -114,11 +140,11 @@ class verb_list extends user_type_list
 
         $result = false;
         // check the all minimal input parameters
-        if (!isset($this->usr)) {
+        if (!$this->user()->is_set()) {
             log_err("The user id must be set to load a list of verbs.", "verb_list->load");
             /*
             } elseif (!isset($this->wrd) OR $this->direction == '')  {
-              zu_err("The word id, the direction and the user (".$this->usr->name.") must be set to load a list of verbs.", "verb_list->load");
+              zu_err("The word id, the direction and the user (".$this->user()->name.") must be set to load a list of verbs.", "verb_list->load");
             */
         } else {
             $qp = $this->load_by_linked_phrases_sql($db_con, $phr, $direction);
@@ -131,10 +157,10 @@ class verb_list extends user_type_list
                         if (!in_array($db_vrb[verb::FLD_ID], $vrb_id_lst)) {
                             $vrb = new verb;
                             $vrb->row_mapper($db_vrb);
-                            $vrb->usr = $this->usr;
+                            $vrb->set_user($this->usr);
                             $vrb_lst[] = $vrb;
-                            $vrb_id_lst[] = $vrb->id;
-                            log_debug('verb_list->load added (' . $vrb->name . ')');
+                            $vrb_id_lst[] = $vrb->id() ;
+                            log_debug('verb_list->load added (' . $vrb->name() . ')');
                         }
                     }
                 }
@@ -150,27 +176,49 @@ class verb_list extends user_type_list
     }
 
     /**
+     * common part to create an SQL statement to load all verbs from the database
+     *
+     * @param sql_db $db_con the db connection object as a function parameter for unit testing
+     * @param string $db_type the class name to be compatible with the user sandbox load_sql functions
+     * @param string $query_name the name extension to make the query name unique
+     * @param string $order_field set if the type list should e.g. be sorted by the name instead of the id
+     * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
+     */
+    function load_sql(
+        sql_db $db_con,
+        string $db_type = self::class,
+        string $query_name = 'all',
+        string $order_field = verb::FLD_ID): sql_par
+    {
+        $db_con->set_type(sql_db::TBL_VERB);
+        $qp = new sql_par($db_type);
+        $qp->name = $db_type . '_' . $query_name;
+
+        $db_con->set_name($qp->name);
+        //TODO check if $db_con->set_usr($this->user()->id()); is needed
+        $db_con->set_fields(verb::FLD_NAMES);
+        $db_con->set_order($order_field);
+
+        return $qp;
+    }
+
+
+    /**
      * create an SQL statement to load all verbs from the database
      *
      * @param sql_db $db_con the db connection object as a function parameter for unit testing
-     * @param string $class the class name to be compatible with the user sandbox load_sql functions
+     * @param string $db_type the class name to be compatible with the user sandbox load_sql functions
      * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
      */
-    function load_sql(sql_db $db_con, string $class = ''): sql_par
+    public function load_sql_all(sql_db $db_con, string $db_type): sql_par
     {
-        $qp = new sql_par($class);
-        $qp->name = $class . '_all';
-
-        $db_con->set_type(DB_TYPE_VERB);
-        $db_con->set_name($qp->name);
-        $db_con->set_fields(verb::FLD_NAMES);
+        $qp = $this->load_sql($db_con, $db_type);
         $db_con->set_page_par(SQL_ROW_MAX, 0);
         $qp->sql = $db_con->select_all();
         $qp->par = $db_con->get_par();
 
         return $qp;
     }
-
 
     /**
      * force to reload the complete list of verbs from the database
@@ -182,7 +230,7 @@ class verb_list extends user_type_list
     private function load_list(sql_db $db_con, string $db_type): array
     {
         $this->lst = [];
-        $qp = $this->load_sql($db_con, $db_type);
+        $qp = $this->load_sql_all($db_con, $db_type);
         $db_lst = $db_con->get($qp);
         if ($db_lst != null) {
             foreach ($db_lst as $db_row) {
@@ -201,7 +249,7 @@ class verb_list extends user_type_list
      * @param string $db_type the database name e.g. the table name without s
      * @return bool true if at least one verb has been loaded
      */
-    function load(sql_db $db_con, string $db_type = DB_TYPE_VERB): bool
+    function load(sql_db $db_con, string $db_type = sql_db::TBL_VERB): bool
     {
         $result = false;
         $this->lst = $this->load_list($db_con, $db_type);
@@ -216,14 +264,20 @@ class verb_list extends user_type_list
     /**
      * adding the verbs used for unit tests to the dummy list
      */
-    function load_dummy()
+    function load_dummy(): void
     {
-        parent::load_dummy();
         $type = new verb();
-        $type->name = verb::IS_A;
+        $type->set_id(1);
+        $type->set_name(verb::IS_A);
         $type->code_id = verb::IS_A;
+        $this->lst[1] = $type;
+        $this->hash[verb::IS_A] = 1;
+        $type = new verb();
+        $type->set_id(2);
+        $type->set_name(verb::FOLLOW);
+        $type->code_id = verb::FOLLOW;
         $this->lst[2] = $type;
-        $this->hash[verb::IS_A] = 2;
+        $this->hash[verb::FOLLOW] = 2;
     }
 
     /**
@@ -238,10 +292,10 @@ class verb_list extends user_type_list
 
         $sql = "UPDATE verbs v
                    SET words = ( SELECT COUNT(to_phrase_id) 
-                                   FROM word_links l
+                                   FROM triples l
                                   WHERE v.verb_id = l.verb_id)
                  WHERE verb_id > 0;";
-        $db_con->usr_id = $this->usr->id;
+        $db_con->usr_id = $this->user()->id();
         return $db_con->exe_try('Calculation of the verb usage', $sql);
     }
 
@@ -256,8 +310,8 @@ class verb_list extends user_type_list
         $result = array();
         if ($this->lst != null) {
             foreach ($this->lst as $vrb) {
-                if ($vrb->id > 0) {
-                    $result[] = $vrb->id;
+                if ($vrb->id()  > 0) {
+                    $result[] = $vrb->id() ;
                 }
             }
         }
@@ -342,15 +396,15 @@ class verb_list extends user_type_list
             // create a list with the forward and backward version of the verb
             $combined_list = array();
             foreach ($this->lst as $vrb) {
-                if ($vrb->id > 0) {
+                if ($vrb->id()  > 0) {
                     $select_row = array();
-                    $select_name = $vrb->name;
+                    $select_name = $vrb->name();
                     /* has been an idea, but has actually caused more confusion
                     if ($vrb->reverse != '' and $select_name != '') {
                         $select_name .= ' (' . $vrb->reverse . ')';
                     }
                     */
-                    $id = $vrb->id;
+                    $id = $vrb->id() ;
                     $select_row[] = $id;
                     $select_row[] = $select_name;
                     $select_row[] = $vrb->usage;
@@ -359,12 +413,12 @@ class verb_list extends user_type_list
                     $select_row = array();
                     $select_name = $vrb->reverse;
                     /* like above ...
-                    if ($vrb->name != '' and $select_name != '') {
-                        $select_name .= ' (' . $vrb->name . ')';
+                    if ($vrb->name() != '' and $select_name != '') {
+                        $select_name .= ' (' . $vrb->name() . ')';
                     }
                     */
                     if (trim($select_name) != '') {
-                        $id = $vrb->id * -1;
+                        $id = $vrb->id()  * -1;
                         $select_row[] = $id;
                         $select_row[] = $select_name;
                         $select_row[] = $vrb->usage; // TODO separate the backward usage or separate the reverse form

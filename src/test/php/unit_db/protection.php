@@ -2,8 +2,8 @@
 
 /*
 
-  test/unit_db/protection.php - database unit testing of the protection handling
-  ---------------------
+    test/unit_db/protection.php - database unit testing of the protection handling
+    ---------------------------
 
 
     This file is part of zukunft.com - calc with words
@@ -30,25 +30,32 @@
 
 */
 
-function run_protection_unit_db_tests(testing $t)
+use cfg\protection_type;
+
+class protection_unit_db_tests
 {
 
-    global $db_con;
+    function run(testing $t): void
+    {
 
-    $t->header('Unit database tests of the protection handling');
+        global $db_con;
 
-    $t->subheader('Protection types tests');
+        // init
+        $t->name = 'protection read db->';
 
-    // load the protection types
-    $lst = new protection_type_list();
-    $result = $lst->load($db_con);
-    $target = true;
-    $t->dsp('unit_db_protection->load_types', $target, $result);
+        $t->header('Unit database tests of the protection handling');
 
-    // ... and check if at least the most critical is loaded
-    $result = cl(db_cl::PROTECTION_TYPE, protection_type_list::DBL_NO);
-    $target = 1;
-    $t->dsp('unit_db_protection->check ' . protection_type_list::DBL_NO, $result, $target);
+        $t->subheader('Protection types tests');
+
+        // load the protection types
+        $lst = new protection_type_list();
+        $result = $lst->load($db_con);
+        $t->assert('load types', $result, true);
+
+        // ... and check if at least the most critical is loaded
+        $result = cl(db_cl::PROTECTION_TYPE, protection_type::NO_PROTECT);
+        $t->assert('check ' . protection_type::NO_PROTECT, $result, 1);
+    }
 
 }
 

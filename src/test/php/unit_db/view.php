@@ -2,8 +2,8 @@
 
 /*
 
-  test/unit_db/view.php - database unit testing of the view functions
-  ---------------------
+    test/unit_db/view.php - database unit testing of the view functions
+    ---------------------
 
 
     This file is part of zukunft.com - calc with words
@@ -30,55 +30,98 @@
 
 */
 
-function run_view_unit_db_tests(testing $t)
+use api\view_api;
+use api\view_cmp_api;
+
+class view_unit_db_tests
 {
 
-    global $db_con;
-    global $usr;
+    function run(testing $t): void
+    {
 
-    $t->header('Unit database tests of the view class (src/main/php/model/value/view.php)');
+        global $db_con;
+        global $usr;
 
-    $t->subheader('System view tests');
+        // init
+        $t->header('Unit database tests of the view class (src/main/php/model/value/view.php)');
+        $t->name = 'view read db->';
 
-    // load the views used by the system e.g. change word
-    $lst = new view_list($usr);
-    $lst->usr = $usr;
-    $result = $lst->load($db_con);
-    $target = true;
-    $t->dsp('unit_db_view->load', $target, $result);
 
-    // ... and check if at least the most critical is loaded
-    $result = cl(db_cl::VIEW, view::WORD);
-    if ($result > 0) {
-        $target = $result; // just check if the id is found
+        $t->subheader('View db read tests');
+
+        $test_name = 'load view ' . view_api::TN_READ . ' by name and id';
+        $dsp = new view($usr);
+        $dsp->load_by_name(view_api::TN_READ, view::class);
+        $dsp_by_id = new view($usr);
+        $dsp_by_id->load_by_id($dsp->id(), view::class);
+        $t->assert($test_name, $dsp_by_id->name(), view_api::TN_READ);
+
+
+        $t->subheader('View types tests');
+
+        // load the view types
+        $lst = new view_type_list();
+        $result = $lst->load($db_con);
+        $t->assert('load_types', $result, true);
+
+        // ... and check if at least the most critical is loaded
+        $result = cl(db_cl::VIEW_TYPE, view_type::DEFAULT);
+        $t->assert('check type' . view_type::DEFAULT, $result, 1);
+
+
+        $t->subheader('View API object creation tests');
+
+        $cmp = $t->load_word(view_api::TN_READ);
+        $t->assert_api_exp($cmp);
+
+
+        $t->subheader('System view tests');
+        $t->name = 'view list read db->';
+
+        // load the views used by the system e.g. change word
+        $lst = new view_sys_list($usr);
+        $lst->usr = $usr;
+        $result = $lst->load($db_con);
+        $t->assert('load', $result, true);
+
+        // ... and check if at least the most critical is loaded
+        $result = cl(db_cl::VIEW, view::WORD);
+        $target = 0;
+        if ($result > 0) {
+            $target = $result; // just check if the id is found
+        }
+        $t->assert('check' . view::WORD, $result, $target);
+
+        // check all system views
+        $t->assert_view(view::COMPONENT_ADD);
+        $t->assert_view(view::COMPONENT_EDIT);
+        $t->assert_view(view::COMPONENT_DEL);
+
+
+
+        $t->subheader('View component db read tests');
+
+        $test_name = 'load view component ' . view_cmp_api::TN_READ . ' by name and id';
+        $cmp = new view_cmp($usr);
+        $cmp->load_by_name(view_cmp_api::TN_READ, view_cmp::class);
+        $cmp_by_id = new view_cmp($usr);
+        $cmp_by_id->load_by_id($cmp->id(), view_cmp::class);
+        $t->assert($test_name, $cmp_by_id->name(), view_cmp_api::TN_READ);
+        $t->assert($test_name, $cmp_by_id->description, view_cmp_api::TD_READ);
+
+
+        $t->subheader('View component types tests');
+        $t->name = 'view component read db->';
+
+        // load the view component types
+        $cmp_lst = new view_cmp_type_list();
+        $result = $cmp_lst->load($db_con);
+        $t->assert('load_types', $result, true);
+
+        // ... and check if at least the most critical is loaded
+        $result = cl(db_cl::VIEW_COMPONENT_TYPE, view_cmp_type::TEXT);
+        $t->assert('check type' . view_cmp_type::TEXT, $result, 3);
     }
-    $t->dsp('unit_db_view->check' . view::WORD, $result, $target);
-
-    $t->subheader('View types tests');
-
-    // load the view types
-    $lst = new view_type_list();
-    $result = $lst->load($db_con);
-    $target = true;
-    $t->dsp('unit_db_view->load_types', $target, $result);
-
-    // ... and check if at least the most critical is loaded
-    $result = cl(db_cl::VIEW_TYPE, view_type::DEFAULT);
-    $target = 1;
-    $t->dsp('unit_db_view->check type' . view_type::DEFAULT, $result, $target);
-
-    $t->subheader('View component types tests');
-
-    // load the view component types
-    $cmp_lst = new view_cmp_type_list();
-    $result = $cmp_lst->load($db_con);
-    $target = true;
-    $t->dsp('unit_db_view_component->load_types', $target, $result);
-
-    // ... and check if at least the most critical is loaded
-    $result = cl(db_cl::VIEW_COMPONENT_TYPE, view_cmp_type::TEXT);
-    $target = 3;
-    $t->dsp('unit_db_view_component->check component type' . view_cmp_type::TEXT, $result, $target);
 
 }
 

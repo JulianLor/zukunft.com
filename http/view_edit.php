@@ -31,7 +31,8 @@
 
 // standard zukunft header for callable php files to allow debugging and lib loading
 $debug = $_GET['debug'] ?? 0;
-include_once '../src/main/php/zu_lib.php';
+const ROOT_PATH = __DIR__ . '/../';
+include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 
 // open database
 $db_con = prg_start("view_edit");
@@ -44,31 +45,28 @@ $usr = new user;
 $result .= $usr->get();
 
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
-if ($usr->id > 0) {
+if ($usr->id() > 0) {
     $upd_result = '';
 
     load_usr_data();
 
     // prepare the display to edit the view
     $dsp = new view_dsp_old($usr);
-    $dsp->id = cl(db_cl::VIEW, view::ADD);
-    $dsp->load();
+    $dsp->load_by_code_id(view::ADD);
     $back = $_GET['back'];
 
     // create the view object that the user can change
     $dsp_edit = new view_dsp_old($usr);
-    $dsp_edit->id = $_GET['id'];
-    $result .= $dsp_edit->load();
+    $result .= $dsp_edit->load_by_id($_GET['id']);
 
     // get the view id to adjust
-    if ($dsp_edit->id <= 0) {
+    if ($dsp_edit->id() <= 0) {
         log_info("The view id must be set to display a view.", "view_edit.php", '', (new Exception)->getTraceAsString(), $usr);
     } else {
 
         // get the word used as a sample the show the changes
         $wrd = new word($usr);
-        $wrd->id = $_GET['word'];
-        $result .= $wrd->load();
+        $result .= $wrd->load_by_id($_GET['word']);
 
         // save the direct changes
         // ... of the element list
@@ -91,8 +89,7 @@ if ($usr->id > 0) {
         // unlink an entry
         if (isset($_GET['del'])) {
             $cmp = new view_cmp($usr);
-            $cmp->id = $_GET['del'];
-            $cmp->load();
+            $cmp->load_by_id($_GET['del']);
             $cmp->unlink($dsp_edit);
         }
 
@@ -100,9 +97,8 @@ if ($usr->id > 0) {
         if (isset($_GET['add_view_component'])) {
             if ($_GET['add_view_component'] > 0) {
                 $cmp = new view_cmp($usr);
-                $cmp->id = $_GET['add_view_component'];
-                $cmp->load();
-                $order_nbr = $cmp->next_nbr($dsp_edit->id);
+                $cmp->load_by_id($_GET['add_view_component']);
+                $order_nbr = $cmp->next_nbr($dsp_edit->id());
                 $cmp->link($dsp_edit, $order_nbr);
             }
         }
@@ -111,14 +107,14 @@ if ($usr->id > 0) {
         if (isset($_GET['entry_name']) and isset($_GET['new_entry_type'])) {
             if ($_GET['entry_name'] <> '' and $_GET['new_entry_type'] > 0) {
                 $cmp = new view_cmp($usr);
-                $cmp->name = $_GET['entry_name'];
+                $cmp->set_name($_GET['entry_name']);
                 $add_result = $cmp->save();
                 if ($add_result == '') {
-                    $cmp->load();
-                    if ($cmp->id > 0) {
+                    $cmp->load_obj_vars();
+                    if ($cmp->id() > 0) {
                         $cmp->type_id = $_GET['new_entry_type'];
                         $cmp->save();
-                        $order_nbr = $cmp->next_nbr($dsp_edit->id);
+                        $order_nbr = $cmp->next_nbr($dsp_edit->id());
                         $cmp->link($dsp_edit, $order_nbr);
                     }
                 }
@@ -132,10 +128,10 @@ if ($usr->id > 0) {
 
             // get other field parameters that should be saved
             if (isset($_GET['name'])) {
-                $dsp_edit->name = $_GET['name'];
+                $dsp_edit->set_name($_GET['name']);
             }
             if (isset($_GET['comment'])) {
-                $dsp_edit->comment = $_GET['comment'];
+                $dsp_edit->description = $_GET['comment'];
             }
             if (isset($_GET['type'])) {
                 $dsp_edit->type_id = $_GET['type'];

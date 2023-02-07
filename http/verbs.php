@@ -32,7 +32,8 @@
 
 // standard zukunft header for callable php files to allow debugging and lib loading
 $debug = $_GET['debug'] ?? 0;
-include_once '../src/main/php/zu_lib.php';
+const ROOT_PATH = __DIR__ . '/../';
+include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 
 // open database
 $db_con = prg_start("verbs");
@@ -45,15 +46,13 @@ $usr = new user;
 $result .= $usr->get();
 
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
-if ($usr->id > 0) {
+if ($usr->id() > 0) {
 
     load_usr_data();
 
     // prepare the display
     $dsp = new view_dsp_old($usr);
-    $dsp->id = cl(db_cl::VIEW, view::VERBS);
-    $dsp->usr = $usr;
-    $dsp->load();
+    $dsp->load_by_code_id(view::VERBS);
 
     // show the header
     $result .= $dsp->dsp_navbar($back);
@@ -63,7 +62,7 @@ if ($usr->id > 0) {
     $vrb_lst = new verb_list($usr);
     $vrb_lst->load($db_con);
     $result .= $vrb_lst->dsp_list();
-    //$result .= zul_dsp_list ($usr->id);
+    //$result .= zul_dsp_list ($usr->id());
 }
 
 echo $result;

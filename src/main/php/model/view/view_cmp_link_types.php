@@ -33,14 +33,16 @@
 
 global $view_component_link_types;
 
-class view_cmp_link_type_list extends user_type_list
+use cfg\type_list;
+
+class view_cmp_link_type_list extends type_list
 {
     /**
      * overwrite the general user type list load function to keep the link to the table type capsuled
      * @param sql_db $db_con the database connection that can be either the real database connection or a simulation used for testing
      * @return bool true if load was successful
      */
-    function load(sql_db $db_con, string $db_type = DB_TYPE_VIEW_COMPONENT_LINK_TYPE): bool
+    function load(sql_db $db_con, string $db_type = sql_db::TBL_VIEW_COMPONENT_LINK_TYPE): bool
     {
         return parent::load($db_con, $db_type);
     }

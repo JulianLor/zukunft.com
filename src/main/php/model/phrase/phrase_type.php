@@ -31,7 +31,10 @@
 
 namespace cfg;
 
-class phrase_type extends object_type
+use library;
+use ReflectionClass;
+
+class phrase_type extends type_object
 {
 
     // list of the phrase types that have a coded functionality
@@ -47,9 +50,37 @@ class phrase_type extends object_type
     const SCALING_HIDDEN = "scaling_hidden";
     const SCALING_PCT = "scaling_percent"; // TODO used to define the scaling formula word to scale percentage values ?
     const SCALED_MEASURE = "scaled_measure"; // TODO add usage sample
-    const FORMULA_LINK = "formula_link";
+    const FORMULA_LINK = "formula_link"; // special phrase type for functional words that are used to link values to formulas
     const CALC = "calc"; // TODO add usage sample
     const LAYER = "view"; // TODO add usage sample
     const OTHER = "type_other";
+
+
+    /*
+     * load
+     */
+
+    /**
+     * load a phrase type object by database id
+     * just set the class name for the type object function
+     * 
+     * @param int $id the id of the phrase type
+     * @param string $class the phrase type class name
+     * @return int the id of the object found and zero if nothing is found
+     */
+    function load_by_id(int $id, string $class = self::class): int
+    {
+        global $db_con;
+
+        $lib = new library();
+        log_debug($id);
+        $dp_type = $lib->base_class_name($class);
+        // TODO rename table word_type to phrase_type
+        if ($dp_type == 'phrase_type') {
+            $dp_type = 'word_type';
+        }
+        $qp = $this->load_sql_by_id($db_con, $id, $dp_type);
+        return $this->load($qp, $dp_type);
+    }
 
 }

@@ -29,7 +29,7 @@
 
 */
 
-class figure
+class figure extends db_object
 {
     /*
      * types
@@ -43,7 +43,6 @@ class figure
      * object vars
      */
 
-    public ?int $id = null;               // the database id of the value or formula result
     public user $usr;                     // the person who wants to see the figure (value or formula result)
     public string $type;                  // either "value" or "result"
     public ?float $number = null;         // the numeric value
@@ -62,9 +61,33 @@ class figure
      */
     function __construct(user $usr)
     {
+        parent::__construct();
         $this->usr = $usr;
         $this->type = self::TYPE_RESULT;
         $this->last_update = new DateTime();
+    }
+
+    /*
+     * set and get
+     */
+
+    /**
+     * set the user of the user sandbox object
+     *
+     * @param user $usr the person who wants to access the object e.g. the word
+     * @return void
+     */
+    function set_user(user $usr): void
+    {
+        $this->usr = $usr;
+    }
+
+    /**
+     * @return user the person who wants to see a word, verb, triple, formula or view
+     */
+    function user(): user
+    {
+        return $this->usr;
     }
 
     /**
@@ -125,7 +148,7 @@ class figure
             $result .= $this->obj->name();
         }
         if (isset($this->time_wrd)) {
-            $result .= $this->time_wrd->name();
+            $result .= $this->time_wrd->name_dsp();
         }
 
         return $result;
@@ -137,7 +160,7 @@ class figure
      */
     function display(string $back = ''): string
     {
-        log_debug('figure->display');
+        log_debug();
         $result = '';
 
         if ($this->type == 'value') {
@@ -159,13 +182,13 @@ class figure
         log_debug('figure->display_linked');
         $result = '';
 
-        log_debug('figure->display_linked -> type ' . $this->type);
+        log_debug('type ' . $this->type);
         if ($this->type == 'value') {
-            log_debug('figure->display_linked -> value ' . $this->number);
+            log_debug('value ' . $this->number);
             $val_dsp = $this->obj->dsp_obj();
             $result .= $val_dsp->display_linked($back);
         } elseif ($this->type == 'result') {
-            log_debug('figure->display_linked -> result ' . $this->number);
+            log_debug('result ' . $this->number);
             $result .= $this->obj->display_linked($back);
         }
 

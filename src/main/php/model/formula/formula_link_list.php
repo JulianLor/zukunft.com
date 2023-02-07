@@ -29,21 +29,11 @@
   
 */
 
-class formula_link_list
+class formula_link_list extends sandbox_list
 {
 
     public array $lst; // the list of formula word link objects
     public user $usr;  // the user who wants to see or modify the list
-
-    /**
-     * always set the user because a formula link list is always user specific
-     * @param user $usr the user who requested to see the formula links
-     */
-    function __construct(user $usr)
-    {
-        $this->lst = array();
-        $this->usr = $usr;
-    }
 
     /**
      * fill the formula link list based on a database records
@@ -56,7 +46,7 @@ class formula_link_list
         if ($db_rows != null) {
             foreach ($db_rows as $db_row) {
                 if ($db_row[formula_link::FLD_ID] > 0) {
-                    $frm_lnk = new formula_link($this->usr);
+                    $frm_lnk = new formula_link($this->user());
                     $frm_lnk->row_mapper($db_row);
                     $this->lst[] = $frm_lnk;
                     $result = true;
@@ -77,30 +67,28 @@ class formula_link_list
      */
     function load_sql(sql_db $db_con): sql_par
     {
+        $db_con->set_type(sql_db::TBL_FORMULA_LINK);
         $qp = new sql_par(self::class);
-        $db_con->set_type(DB_TYPE_FORMULA_LINK);
-        $db_con->set_usr($this->usr->id);
         $db_con->set_name($qp->name); // assign incomplete name to force the usage of the user as a parameter
+        $db_con->set_usr($this->user()->id());
         $db_con->set_link_fields(formula::FLD_ID, phrase::FLD_ID);
         $db_con->set_usr_num_fields(formula_link::FLD_NAMES_NUM_USR);
         // also load the linked user specific phrase with the same SQL statement
         $db_con->set_join_fields(
             phrase::FLD_NAMES,
-            DB_TYPE_PHRASE,
+            sql_db::TBL_PHRASE,
             phrase::FLD_ID,
             phrase::FLD_ID
         );
         $db_con->set_join_usr_fields(
             phrase::FLD_NAMES_USR,
-            DB_TYPE_PHRASE,
+            sql_db::TBL_PHRASE,
             phrase::FLD_ID,
             phrase::FLD_ID
         );
         $db_con->set_join_usr_num_fields(
-            array_merge(
-                phrase::FLD_NAMES_NUM_USR,
-                user_sandbox::FLD_NAMES_NUM_USR),
-            DB_TYPE_PHRASE,
+            phrase::FLD_NAMES_NUM_USR,
+            sql_db::TBL_PHRASE,
             phrase::FLD_ID,
             phrase::FLD_ID,
             true
@@ -182,7 +170,7 @@ class formula_link_list
             }
         }
 
-        log_debug('formula_link_list->ids -> got ' . dsp_count($result));
+        log_debug('got ' . dsp_count($result));
         return (new phr_ids($result));
     }
 
@@ -201,21 +189,21 @@ class formula_link_list
             if ($result == '') {
                 if ($frm_lnk->can_change() > 0 and $frm_lnk->not_used()) {
                     //$db_con = new mysql;
-                    $db_con->usr_id = $this->usr->id;
+                    $db_con->usr_id = $this->user()->id();
                     // delete first all user configuration that have also been excluded
-                    $db_con->set_type(DB_TYPE_USER_PREFIX . DB_TYPE_FORMULA_LINK);
-                    $result = $db_con->delete(array(formula_link::FLD_ID, user_sandbox::FLD_EXCLUDED), array($frm_lnk->id, '1'));
+                    $db_con->set_type(sql_db::TBL_USER_PREFIX . sql_db::TBL_FORMULA_LINK);
+                    $result = $db_con->delete(array(formula_link::FLD_ID, user_sandbox::FLD_EXCLUDED), array($frm_lnk->id(), '1'));
                     if ($result == '') {
-                        $db_con->set_type(DB_TYPE_FORMULA_LINK);
-                        $result = $db_con->delete(formula_link::FLD_ID, $frm_lnk->id);
+                        $db_con->set_type(sql_db::TBL_FORMULA_LINK);
+                        $result = $db_con->delete(formula_link::FLD_ID, $frm_lnk->id());
                     }
                 } else {
-                    log_err("Cannot delete a formula word link (id " . $frm_lnk->id . "), which is used or created by another user.", "formula_link_list->del_without_log");
+                    log_err("Cannot delete a formula word link (id " . $frm_lnk->id() . "), which is used or created by another user.", "formula_link_list->del_without_log");
                 }
             }
         }
 
-        log_debug('formula_link_list->del_without_log -> done');
+        log_debug('done');
         return $result;
     }
 

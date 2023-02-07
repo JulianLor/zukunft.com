@@ -54,6 +54,8 @@ class file_import
     public ?int $formulas_failed = 0;
     public ?int $sources_done = 0;
     public ?int $sources_failed = 0;
+    public ?int $refs_done = 0;
+    public ?int $refs_failed = 0;
     public ?int $values_done = 0;
     public ?int $values_failed = 0;
     public ?int $list_values_done = 0;
@@ -69,7 +71,7 @@ class file_import
 
     public float $last_display_time;
 
-    function display_progress(int $pos, int $total)
+    function display_progress(int $pos, int $total): void
     {
         $check_time = microtime(true);
         $time_since_last_display = $check_time - $this->last_display_time;
@@ -82,176 +84,224 @@ class file_import
     }
 
     /**
-     * import zukunft.com data as object for creating e.g. a json message
+     * drop a zukunft.com json object to the database
      */
-    function put(): string
+    function put(): user_message
     {
-        log_debug('import->put');
-        $result = '';
+        global $usr;
+
+        log_debug();
+        $result = new user_message();
         $this->last_display_time = microtime(true);
 
         $json_array = json_decode($this->json_str, true);
         if ($json_array != null) {
             $total = count_recursive($json_array, 1);
-            $pos = 0;
-            $this->display_progress($pos, $total);
+
+            // get the user first to allow user specific validation
+            $usr_import = null;
             foreach ($json_array as $key => $json_obj) {
-                $pos++;
-                if ($key == 'version') {
-                    if (prg_version_is_newer($json_obj)) {
-                        $result .= 'Import file has been created with version ' . $json_obj . ', which is newer than this, which is ' . PRG_VERSION . ' ';
-                    }
-                } elseif ($key == 'pod') {
-                    // TODO set the source pod
-                } elseif ($key == 'time') {
-                    // TODO set the time of the export
-                } elseif ($key == 'selection') {
-                    // TODO set the selection as context
-                } elseif ($key == 'user') {
-                    // TODO set the user that has created the export
-                } elseif ($key == 'users') {
-                    $import_result = '';
-                    foreach ($json_obj as $user) {
-                        // TODO check if the constructor is always used
-                        $usr = new user;
-                        $import_result .= $usr->import_obj($user, $this->usr->profile_id);
-                        if ($import_result == '') {
-                            $this->users_done++;
-                        } else {
-                            $this->users_failed++;
+                if ($usr_import == null) {
+                    if ($key == export::USERS) {
+                        $import_result = new user_message();
+                        foreach ($json_obj as $user) {
+                            // TODO check if the constructor is always used
+                            $usr_import = new user;
+                            $import_result = $usr_import->import_obj($user, $this->usr->profile_id);
+                            if ($import_result->is_ok()) {
+                                $this->users_done++;
+                            } else {
+                                $this->users_failed++;
+                            }
                         }
+                        $result->add($import_result);
                     }
-                    $result .= $import_result;
-                } elseif ($key == 'verbs') {
-                    $import_result = '';
+                }
+            }
+            // if no user is defined in the json to import use the active user
+            if ($usr_import == null) {
+                $usr_import = $usr;
+            }
+
+            // remember the result and view that should be validated after the import
+            $fv_to_validate = new formula_value_list($usr_import);
+            $frm_to_calc = new formula_list($usr_import);
+            $dsp_to_validate = new view_list($usr_import);
+            $pos = 0;
+            foreach ($json_array as $key => $json_obj) {
+                $this->display_progress($pos, $total);
+                $pos++;
+                if ($key == export::VERSION) {
+                    if (prg_version_is_newer($json_obj)) {
+                        $result->add_message('Import file has been created with version ' . $json_obj . ', which is newer than this, which is ' . PRG_VERSION);
+                    }
+                } elseif ($key == export::POD) {
+                    // TODO set the source pod
+                } elseif ($key == export::TIME) {
+                    // TODO set the time of the export
+                } elseif ($key == export::SELECTION) {
+                    // TODO set the selection as context
+                } elseif ($key == export::USER) {
+                    // TODO set the user that has created the export
+                } elseif ($key == export::VERBS) {
+                    $import_result = new user_message();
                     foreach ($json_obj as $verb) {
                         $vrb = new verb;
-                        $vrb->usr = $this->usr;
-                        $import_result .= $vrb->import_obj($verb);
-                        if ($import_result == '') {
+                        $vrb->set_user($this->usr);
+                        $import_result = $vrb->import_obj($verb);
+                        if ($import_result->is_ok()) {
                             $this->verbs_done++;
                         } else {
                             $this->verbs_failed++;
                         }
                     }
-                    $result .= $import_result;
-                } elseif ($key == 'words') {
+                    $result->add($import_result);
+                } elseif ($key == export::WORDS) {
                     foreach ($json_obj as $word) {
                         $wrd = new word($this->usr);
                         $import_result = $wrd->import_obj($word);
-                        if ($import_result == '') {
+                        if ($import_result->is_ok()) {
                             $this->words_done++;
                         } else {
                             $this->words_failed++;
                         }
-                        $result .= $import_result;
+                        $result->add($import_result);
                     }
-                } elseif ($key == 'triples') {
+                } elseif ($key == export::TRIPLES) {
                     foreach ($json_obj as $triple) {
-                        $wrd_lnk = new word_link($this->usr);
+                        $wrd_lnk = new triple($this->usr);
                         $import_result = $wrd_lnk->import_obj($triple);
-                        if ($import_result == '') {
+                        if ($import_result->is_ok()) {
                             $this->triples_done++;
                         } else {
                             $this->triples_failed++;
                         }
-                        $result .= $import_result;
+                        $result->add($import_result);
                     }
-                } elseif ($key == 'formulas') {
+                } elseif ($key == export::FORMULAS) {
                     foreach ($json_obj as $formula) {
                         $frm = new formula($this->usr);
                         $import_result = $frm->import_obj($formula);
-                        if ($import_result == '') {
+                        if ($import_result->is_ok()) {
                             $this->formulas_done++;
+                            $frm_to_calc->add($frm);
                         } else {
                             $this->formulas_failed++;
                         }
-                        $result .= $import_result;
+                        $result->add($import_result);
                     }
-                } elseif ($key == 'sources') {
+                } elseif ($key == export::SOURCES) {
                     foreach ($json_obj as $value) {
                         $src = new source($this->usr);
                         $import_result = $src->import_obj($value);
-                        if ($import_result == '') {
+                        if ($import_result->is_ok()) {
                             $this->sources_done++;
                         } else {
                             $this->sources_failed++;
                         }
-                        $result .= $import_result;
+                        $result->add($import_result);
                     }
-                } elseif ($key == 'values') {
+                } elseif ($key == export::REFS) {
+                    foreach ($json_obj as $value) {
+                        $ref = new ref($this->usr);
+                        $import_result = $ref->import_obj($value);
+                        if ($import_result->is_ok()) {
+                            $this->refs_done++;
+                        } else {
+                            $this->refs_failed++;
+                        }
+                        $result->add($import_result);
+                    }
+                } elseif ($key == export::VALUES) {
                     foreach ($json_obj as $value) {
                         $val = new value($this->usr);
                         $import_result = $val->import_obj($value);
-                        if ($import_result == '') {
+                        if ($import_result->is_ok()) {
                             $this->values_done++;
                         } else {
                             $this->values_failed++;
                         }
-                        $result .= $import_result;
+                        $result->add($import_result);
                     }
-                } elseif ($key == 'value-list') {
+                } elseif ($key == export::VALUE_LIST) {
                     // TODO add a unit test
                     foreach ($json_obj as $value) {
                         $val = new value_list($this->usr);
                         $import_result = $val->import_obj($value);
-                        if ($import_result == '') {
+                        if ($import_result->is_ok()) {
                             $this->list_values_done++;
                         } else {
                             $this->list_values_failed++;
                         }
-                        $result .= $import_result;
+                        $result->add($import_result);
                     }
-                } elseif ($key == 'views') {
+                } elseif ($key == export::VIEWS) {
                     foreach ($json_obj as $view) {
                         $view_obj = new view($this->usr);
                         $import_result = $view_obj->import_obj($view);
-                        if ($import_result == '') {
+                        if ($import_result->is_ok()) {
                             $this->views_done++;
                         } else {
                             $this->views_failed++;
                         }
-                        $result .= $import_result;
+                        $result->add($import_result);
                     }
-                } elseif ($key == 'calc-validation') {
+                } elseif ($key == export::CALC_VALIDATION) {
                     // TODO add a unit test
                     foreach ($json_obj as $value) {
                         $fv = new formula_value($this->usr);
                         $import_result = $fv->import_obj($value);
-                        if ($import_result == '') {
+                        if ($import_result->is_ok()) {
                             $this->calc_validations_done++;
+                            $fv_to_validate->add($fv);
                         } else {
                             $this->calc_validations_failed++;
                         }
-                        $result .= $import_result;
+                        $result->add($import_result);
                     }
-                } elseif ($key == 'view-validation') {
+                } elseif ($key == export::VIEW_VALIDATION) {
                     // TODO switch to view result
                     // TODO add a unit test
                     foreach ($json_obj as $value) {
-                        $fv = new view($this->usr);
-                        $import_result = $fv->import_obj($value);
-                        if ($import_result == '') {
+                        $dsp = new view($this->usr);
+                        $import_result = $dsp->import_obj($value);
+                        if ($import_result->is_ok()) {
                             $this->view_validations_done++;
+                            $dsp_to_validate->add($dsp);
                         } else {
                             $this->view_validations_failed++;
                         }
-                        $result .= $import_result;
+                        $result->add($import_result);
                     }
-                } elseif ($key == 'ip-blacklist') {
+                } elseif ($key == export::IP_BLACKLIST) {
                     foreach ($json_obj as $ip_range) {
                         $ip_obj = new ip_range;
-                        $ip_obj->usr = $this->usr;
+                        $ip_obj->set_user($this->usr);
                         $import_result = $ip_obj->import_obj($ip_range);
-                        if ($import_result == '') {
+                        if ($import_result->is_ok()) {
                             $this->system_done++;
                         } else {
                             $this->system_failed++;
                         }
-                        $result .= $import_result;
+                        $result->add($import_result);
                     }
                 } else {
-                    $result .= 'Unknown element ' . $key . ' ';
+                    $result->add_message('Unknown element ' . $key);
+                }
+            }
+
+            // validate the import
+            if (!$frm_to_calc->is_empty()) {
+                foreach ($frm_to_calc->lst() as $frm) {
+                    //$frm->calc();
+                    if ($frm != null) {
+                        log_debug($frm->dsp_id());
+                    }
+                }
+            }
+            if (!$fv_to_validate->is_empty()) {
+                foreach ($fv_to_validate as $fv) {
+                    log_debug($fv->dsp_id());
                 }
             }
         }

@@ -31,7 +31,8 @@
 
 
 $debug = $_GET['debug'] ?? 0;
-include_once '../src/main/php/zu_lib.php';
+const ROOT_PATH = __DIR__ . '/../';
+include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 
 $db_con = prg_start("start test.php");
 
@@ -219,7 +220,7 @@ $db_con = prg_start("start test.php");
   $result .= $usr->get();
 
   // check if the user is permitted (e.g. to exclude google from doing stupid stuff)
-  if ($usr->id > 0) {
+  if ($usr->id() > 0) {
     $dsp = new view_dsp;
     $dsp->id = cl(SQL_VIEW_LINK_EDIT);
     $dsp->usr = $usr;

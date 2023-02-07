@@ -31,7 +31,8 @@
 
 // standard zukunft header for callable php files to allow debugging and lib loading
 $debug = $_GET['debug'] ?? 0;
-include_once '../src/main/php/zu_lib.php';
+const ROOT_PATH = __DIR__ . '/../';
+include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 
 // open database
 $db_con = prg_start("view_component_add");
@@ -44,28 +45,26 @@ $usr = new user;
 $result .= $usr->get();
 
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
-if ($usr->id > 0) {
+if ($usr->id() > 0) {
     $upd_result = '';
 
     load_usr_data();
 
     // init the display object to show the standard elements such as the header
     $dsp = new view_dsp_old($usr);
-    $dsp->id = cl(db_cl::VIEW, view::COMPONENT_ADD);
-    $dsp->load();
+    $dsp->load_by_id(cl(db_cl::VIEW, view::COMPONENT_ADD));
     // the calling stack to move back to page where the user has come from after adding the view component is done
     $back = $_GET['back'];
 
     // create the view component object to apply the user changes to it
     $cmp = new view_cmp_dsp_old($usr);
-    $cmp->id = $_GET['id'];
-    $result .= $cmp->load();
+    $cmp->set_id($_GET['id']);
+    $result .= $cmp->load_obj_vars();
 
     // get the word used as a sample the illustrate the changes
     $wrd = new word($usr);
     if (isset($_GET['word'])) {
-        $wrd->id = $_GET['word'];
-        $result .= $wrd->load();
+        $result .= $wrd->load_by_id($_GET['word']);
     } else {
         // get the default word for the view $dsp
     }
@@ -75,8 +74,7 @@ if ($usr->id > 0) {
     $dsp_link_id = $_GET['link_view'];    // to link the view component to another view
     if ($dsp_link_id > 0) {
         $dsp_link = new view_dsp_old($usr);
-        $dsp_link->id = $dsp_link_id;
-        $result .= $dsp_link->load();
+        $result .= $dsp_link->load_by_id($dsp_link_id);
         $order_nbr = $cmp->next_nbr($dsp_link_id);
         $upd_result = $cmp->link($dsp_link, $order_nbr);
     }
@@ -84,8 +82,7 @@ if ($usr->id > 0) {
     $dsp_unlink_id = $_GET['unlink_view'];  // to unlink a view component from the view 
     if ($dsp_unlink_id > 0) {
         $dsp_unlink = new view_dsp_old($usr);
-        $dsp_unlink->id = $dsp_unlink_id;
-        $result .= $dsp_unlink->load();
+        $result .= $dsp_unlink->load_by_id($dsp_unlink_id);
         $upd_result .= $cmp->unlink($dsp_unlink);
     }
 
@@ -98,10 +95,10 @@ if ($usr->id > 0) {
 
         // get other field parameters
         if (isset($_GET['name'])) {
-            $cmp->name = $_GET['name'];
+            $cmp->set_name($_GET['name']);
         }
         if (isset($_GET['comment'])) {
-            $cmp->comment = $_GET['comment'];
+            $cmp->description = $_GET['comment'];
         }
         if (isset($_GET['type'])) {
             $cmp->type_id = $_GET['type'];

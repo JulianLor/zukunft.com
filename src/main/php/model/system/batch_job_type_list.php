@@ -31,7 +31,10 @@
 
 global $job_types;
 
-class job_type_list extends user_type_list
+use cfg\type_list;
+use cfg\type_object;
+
+class job_type_list extends type_list
 {
     // list of the predefined system batch jobs
     const VALUE_UPDATE = "value_update";
@@ -42,15 +45,16 @@ class job_type_list extends user_type_list
     const FORMULA_DEL = "formula_del";
     const FORMULA_LINK = "formula_link";
     const FORMULA_UNLINK = "formula_unlink";
-    const WORD_LINK = "word_link";
+    const TRIPLE = "triple";
     const WORD_UNLINK = "word_unlink";
+    const BASE_IMPORT = "base_import"; // import the base configuration by a system user on initial setup
 
     /**
      * overwrite the general user type list load function to keep the link to the table type capsuled
      * @param sql_db $db_con the database connection that can be either the real database connection or a simulation used for testing
      * @return bool true if load was successful
      */
-    function load(sql_db $db_con, string $db_type = DB_TYPE_TASK_TYPE): bool
+    function load(sql_db $db_con, string $db_type = sql_db::TBL_TASK_TYPE): bool
     {
         return parent::load($db_con, $db_type);
     }
@@ -58,13 +62,13 @@ class job_type_list extends user_type_list
     /**
      * adding the job type used for unit tests to a dummy list
      */
-    function load_dummy() {
+    function load_dummy(): void
+    {
         parent::load_dummy();
-        $type = new user_type();
-        $type->name = job_type_list::VALUE_UPDATE;
-        $type->code_id = job_type_list::VALUE_UPDATE;
-        $this->lst[2] = $type;
-        $this->hash[job_type_list::VALUE_UPDATE] = 2;
+        $type = new type_object(job_type_list::VALUE_UPDATE, job_type_list::VALUE_UPDATE, '', 2);
+        $this->add($type);
+        $type = new type_object(job_type_list::BASE_IMPORT, job_type_list::BASE_IMPORT, '', 11);
+        $this->add($type);
     }
 
     /**

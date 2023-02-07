@@ -39,7 +39,8 @@
 */
 
 $debug = $_GET['debug'] ?? 0;
-include_once '../src/main/php/zu_lib.php';
+const ROOT_PATH = __DIR__ . '/../';
+include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 
 // open database
 $db_con = prg_start("start formula_test.php");
@@ -49,13 +50,13 @@ $session_usr = new user;
 $result = $session_usr->get();
 
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
-if ($session_usr->id > 0) {
+if ($session_usr->id() > 0) {
 
     load_usr_data();
 
     // show the header even if all parameters are wrong
     $dsp = new view_dsp_old($session_usr);
-    $dsp->id = cl(db_cl::VIEW, view::FORMULA_TEST);
+    $dsp->set_id(cl(db_cl::VIEW, view::FORMULA_TEST));
     $back = $_GET['back']; // the page (or phrase id) from which formula testing has been called
     echo $dsp->dsp_navbar($back);
 
@@ -71,7 +72,7 @@ if ($session_usr->id > 0) {
         $usr = $session_usr;
     } else {
         $usr = new user;
-        $usr->id = $usr_id;
+        $usr->set_id($usr_id);
         $usr->get();
     }
 
@@ -85,10 +86,10 @@ if ($session_usr->id > 0) {
 
         // load the formulas to calculate
         $frm_lst = new formula_list($usr);
-        $frm_lst->load_by_frm_ids(explode(",", $frm_id));
+        $frm_lst->load_by_ids(explode(",", $frm_id));
 
         // display the first formula name as a sample
-        $frm1 = $frm_lst->lst[0]; // just as a sample to display some info to the user
+        $frm1 = $frm_lst->lst()[0]; // just as a sample to display some info to the user
 
         // delete all formula results if requested
         if ($refresh == 1) {
@@ -114,7 +115,7 @@ if ($session_usr->id > 0) {
         // if a single calculation is selected by the user, show only this
         if (!empty($phr_ids)) {
 
-            foreach ($frm_lst->lst as $frm) {
+            foreach ($frm_lst->lst() as $frm) {
                 log_debug('calculate "' . $frm->dsp_text() . '" for ' . $phr_lst->name_linked());
                 $fv_lst = $frm->calc($phr_lst);
 
@@ -127,7 +128,7 @@ if ($session_usr->id > 0) {
                         } else {
                             $debug_text = '' . $frm->name_linked() . ' for ' . $fv->phr_lst->name_linked();
                         }
-                        $debug_text .= ' = ' . $fv->display_linked($back) . ' (<a href="/http/formula_test.php?id=' . $frm_id . '&phrases=' . $phr_ids_txt . '&user=' . $usr->id . '&back=' . $back . '&debug=' . $debug_next_level . '">more details</a>)';
+                        $debug_text .= ' = ' . $fv->display_linked($back) . ' (<a href="/http/formula_test.php?id=' . $frm_id . '&phrases=' . $phr_ids_txt . '&user=' . $usr->id() . '&back=' . $back . '&debug=' . $debug_next_level . '">more details</a>)';
                         log_debug($debug_text);
                     }
                 }
@@ -148,14 +149,14 @@ if ($session_usr->id > 0) {
             // and after that the user specific value will be calculated if needed
             // TODO: but only if the user has done some changes
             $calc_fv_lst = new formula_value_list($usr);
-            foreach ($frm_lst->lst as $frm) {
+            foreach ($frm_lst->lst() as $frm) {
                 $calc_lst = $calc_fv_lst->frm_upd_lst($frm, $back);
             }
 
-            log_debug("calculate queue is build (number of values to test: " . dsp_count($calc_lst->lst) . ")");
+            log_debug("calculate queue is build (number of values to test: " . dsp_count($calc_lst->lst()) . ")");
 
             // execute the queue
-            foreach ($calc_lst->lst as $r) {
+            foreach ($calc_lst->lst() as $r) {
                 log_debug('calculate "' . $r->frm->name . '" for ' . $r->phr_lst->name());
                 if ($phr_ids_txt == "" or $phr_ids == $r->phr_lst->ids) {
 
@@ -174,7 +175,7 @@ if ($session_usr->id > 0) {
                                     if (implode(",", $r->phr_lst->ids) <> "") {
                                         $debug_text .= '&phrases=' . implode(",", $r->phr_lst->ids);
                                     }
-                                    $debug_text .= '&user=' . $usr->id . '&back=' . $back . '&debug=' . $debug_next_level . '">more details for this result</a>)';
+                                    $debug_text .= '&user=' . $usr->id() . '&back=' . $back . '&debug=' . $debug_next_level . '">more details for this result</a>)';
                                     log_debug($debug_text);
                                 } else {
                                     log_debug("Skipped " . $debug_text);
@@ -189,14 +190,14 @@ if ($session_usr->id > 0) {
                                 if (implode(",", $r->phr_lst->ids) <> "") {
                                     $debug_text .= '&phrases=' . implode(",", $r->phr_lst->ids);
                                 }
-                                $debug_text .= '&user=' . $usr->id . '&back=' . $back . '&debug=' . $debug_next_level . '">more details only for this result</a>)';
+                                $debug_text .= '&user=' . $usr->id() . '&back=' . $back . '&debug=' . $debug_next_level . '">more details only for this result</a>)';
                                 log_debug($debug_text);
                             }
                         }
 
                         // show the user the progress every two seconds
                         if ($last_msg_time + UI_MIN_RESPONSE_TIME < time()) {
-                            $calc_pct = ($calc_pos / sizeof($calc_lst->lst)) * 100;
+                            $calc_pct = ($calc_pos / sizeof($calc_lst->lst())) * 100;
                             if ($fv->is_updated) {
                                 echo "" . round($calc_pct, 2) . "% processed (calculate " . $r->frm->name_linked($back) . " for " . $r->phr_lst->name_linked() . " = " . $fv->display_linked($back) . ")<br>";
                             } else {
@@ -220,7 +221,7 @@ if ($session_usr->id > 0) {
         if ($phr_ids_txt <> "") {
             $call_next_level .= '&phrases=' . $phr_ids_txt;
         }
-        $call_next_level .= '&user=' . $usr->id . '&back=' . $back . '&debug=' . $debug_next_level . '">more details</a>';
+        $call_next_level .= '&user=' . $usr->id() . '&back=' . $back . '&debug=' . $debug_next_level . '">more details</a>';
         echo $call_next_level . ")<br>";
 
     }

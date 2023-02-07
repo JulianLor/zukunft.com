@@ -58,8 +58,8 @@
     user_log_display.php
     word_display.php
     word_list.php
-    word_link.php
-    word_link_list.php
+    triple.php
+    triple_list.php
     phrase.php
     phrase_list.php
     phrase_group.php
@@ -137,7 +137,8 @@ global $debug;
 $debug = $_GET['debug'] ?? 0;
 
 // load the main functions
-include_once '../src/main/php/zu_lib.php';
+const ROOT_PATH = __DIR__ . '/../';
+include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 
 // open database and display header
 $db_con = prg_start("unit and integration testing");
@@ -150,16 +151,16 @@ $start_usr = new user;
 $result = $start_usr->get();
 
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
-if ($start_usr->id > 0) {
+if ($start_usr->id() > 0) {
     if ($start_usr->is_admin()) {
 
         // prepare testing
         $usr = $start_usr;
-        $t = new testing();
-        init_unit_db_tests($t);
+        $t = new test_unit_read_db();
+        $t->init_unit_db_tests();
 
         // run the unit tests without database connection
-        run_unit_tests($t);
+        $t->run_unit();
 
         // reload the setting lists after using dummy list for the unit tests
         $db_con->close();
@@ -167,14 +168,22 @@ if ($start_usr->id > 0) {
 
         // switch to the test user
         $usr = new user;
-        $usr->load_user_by_profile(user::SYSTEM_TEST_OLD, $db_con);
-        if ($usr->id <= 0) {
+        $usr->load_by_profile_code(user::SYSTEM_TEST_PROFILE_CODE_ID, $db_con);
+        if ($usr->id() <= 0) {
             // create the system user before the local user and admin to get the desired database id
-            import_system_users();
 
-            $usr->load_user_by_profile(user::SYSTEM_TEST_OLD, $db_con);
+            // but only from localhost
+            $ip_addr = '';
+            if (array_key_exists("REMOTE_ADDR", $_SERVER)) {
+                $ip_addr = $_SERVER['REMOTE_ADDR'];
+            }
+            if ($ip_addr == user::SYSTEM_LOCAL) {
+                import_system_users();
+            }
+
+            $usr->load_by_profile_code(user::SYSTEM_TEST_PROFILE_CODE_ID, $db_con);
         }
-        if ($usr->id > 0) {
+        if ($usr->id() > 0) {
 
             // create the testing users
             $t->set_users();
@@ -187,10 +196,14 @@ if ($start_usr->id > 0) {
             // --------------------------------------
 
             load_usr_data();
-            run_unit_db_tests($t);
+            $t->run_unit_db_tests($t);
 
             run_system_test($t);
             run_user_test($t);
+
+            // test the api write functionality
+            $t->test_api_write_no_rest_all();
+            $t->test_api_write_all();
 
             create_test_words($t);
             create_test_phrases($t);
@@ -204,13 +217,16 @@ if ($start_usr->id > 0) {
             create_test_values($t);
 
             run_db_link_test($t);
+            run_user_sandbox_test($t);
             (new string_unit_tests)->run($t); // test functions not yet split into single unit tests
             run_math_test($t);
             run_word_tests($t);
+            $t->run_api_test();
             //run_word_ui_test($t);
+            // TODO add a test to merge a separate opened phrase Kanton Zürich with Zurich (Canton)
             run_word_display_test($t);
             run_word_list_test($t);
-            run_word_link_test($t);
+            run_triple_test($t);
             run_ref_test($t);
             run_phrase_test($t);
             run_phrase_group_test($t);
@@ -218,6 +234,7 @@ if ($start_usr->id > 0) {
             run_graph_test($t);
             run_verb_test($t);
             run_term_test($t);
+            (new term_list_unit_db_tests)->run($t);
             run_value_test($t);
             //run_value_ui_test($t);
             run_source_test($t);
@@ -243,7 +260,7 @@ if ($start_usr->id > 0) {
             //run_permission_test ($t);
             run_legacy_test($t);
 
-            import_base_config();
+            import_base_config($usr);
 
             // testing cleanup to remove any remaining test records
             $t->cleanup();

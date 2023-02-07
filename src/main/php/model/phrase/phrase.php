@@ -6,7 +6,7 @@
     ----------
 
     this is not saved in a separate table
-    e.g. to build a selector the entries are caught either from the words or word_links table
+    e.g. to build a selector the entries are caught either from the words or triples table
 
     If the user wants to overwrite a formula result, there are two possibilities for the technical realisation
 
@@ -53,50 +53,66 @@ use api\phrase_api;
 use cfg\phrase_type;
 use html\html_selector;
 use html\phrase_dsp;
+use html\triple_dsp;
 use html\word_dsp;
 
-class phrase
+class phrase extends db_object
 {
+
+    /*
+     * database link
+     */
+
     // the database and JSON object duplicate field names for combined word and triples mainly to link phrases
     const FLD_ID = 'phrase_id';
-    const FLD_NAME = 'name_used';
+    const FLD_NAME = 'phrase_name';
     const FLD_VALUES = 'values';
 
     // the common phrase database field names excluding the id and excluding the user specific fields
     const FLD_NAMES = array(
-        word_link::FLD_TYPE
+        triple::FLD_TYPE
+    );
+    // list of the common user specific database field names of phrases excluding the standard name field
+    const FLD_NAMES_USR_EX = array(
+        sql_db::FLD_DESCRIPTION
     );
     // list of the common user specific database field names of phrases
     const FLD_NAMES_USR = array(
-        self::FLD_NAME,
+        phrase::FLD_NAME,
+        sql_db::FLD_DESCRIPTION
+    );
+    // list of the common user specific database field names of phrases
+    const FLD_NAMES_USR_NO_NAME = array(
         sql_db::FLD_DESCRIPTION
     );
     // list of the common user specific numeric database field names of phrases
     const FLD_NAMES_NUM_USR = array(
-        self::FLD_VALUES
+        self::FLD_VALUES,
+        user_sandbox::FLD_EXCLUDED,
+        user_sandbox::FLD_SHARE,
+        user_sandbox::FLD_PROTECT
     );
 
-    // persevered word names for unit and integration tests
-    const TN_ZH_CANTON = "System Test Word Member e.g. Zurich (System Test Word Category e.g. Canton)"; // for testing the generic name creation
-    const TN_ZH_CITY = "System Test Phrase: Zurich (City)"; // to test the named phrase
-    const TN_ZH_COMPANY = "System Test Phrase: Zurich Insurance";
-    const RESERVED_PHRASES = array(
-        self::TN_ZH_CANTON,
-        self::TN_ZH_CITY,
-        self::TN_ZH_COMPANY
-    );
+
+    /*
+     * object vars
+     */
 
     // database duplicate fields
-    public ?int $id = null;            // if positive the database id of the word or if negative of a triple
     public ?object $obj = null;        // if loaded the linked word or triple object
     // TODO deprecate
-    public ?user $usr = null;          // the person for whom the word is loaded, so to say the viewer
-    public ?string $name = null;       // simply the word or triple name to reduce the number of "->" on the code
+    private ?user $usr = null;         // the person for whom the word is loaded, so to say the viewer
+    public ?int $usage = null;         // a higher number indicates a higher usage
     public string $description = '';   // simply the word or triple description to reduce the number of "->" on the code
 
     // in memory only fields
     public ?string $type_name = null;  //
     public ?int $link_type_id = null;  // used in the word list to know based on which relation the word was added to the list
+
+
+    /*
+     * construct and map
+     */
 
     /**
      * always set the user because a phrase is always user specific
@@ -104,21 +120,25 @@ class phrase
      */
     function __construct(
         user   $usr,
+        int    $id = 0,
+        string $name = '',
         string $from = '',
         string $verb = '',
-        string $to = '',
-        string $name = '')
+        string $to = '')
     {
-        $this->usr = $usr;
+        parent::__construct();
+        $this->set_user($usr);
 
         // create the automatically related objects if requested
         if ($from != ''
-            AND $verb != ''
-            AND $to != '') {
-                $this->obj = new word_link($usr, $from, $verb, $to, $name);
+            and $verb != ''
+            and $to != '') {
+            $this->obj = new triple($usr);
+            $this->obj->set($id * -1, $from, $verb, $to, $name);
         } else {
-            if ($from != '') {
-                $this->obj = new word($usr, $from);
+            if ($name != '') {
+                $this->obj = new word($usr);
+                $this->obj->set($id, $name);
             }
         }
     }
@@ -126,45 +146,45 @@ class phrase
     /**
      * map the common word and triple database fields to the phrase fields
      *
-     * @param array $db_row with the data directly from the database
+     * @param array|null $db_row with the data directly from the database
      * @param string $id_fld the name of the id field as defined in this child and given to the parent
      * @return bool true if the triple is loaded and valid
      */
-    function row_mapper(array $db_row, string $id_fld = '', string $fld_ext = ''): bool
+    function row_mapper(?array $db_row, string $id_fld = self::FLD_ID, string $fld_ext = ''): bool
     {
-        $this->id = 0;
         $result = false;
+        $this->id = 0;
         if ($db_row != null) {
             if ($db_row[$id_fld] > 0) {
                 $this->id = $db_row[$id_fld];
                 // map a word
                 $wrd = new word($this->usr);
-                $wrd->id = $db_row[$id_fld];
-                $wrd->name = $db_row[phrase::FLD_NAME . $fld_ext];
+                $wrd->set_id($db_row[$id_fld]);
+                $wrd->set_name($db_row[phrase::FLD_NAME . $fld_ext]);
                 $wrd->description = $db_row[sql_db::FLD_DESCRIPTION . $fld_ext];
                 $wrd->type_id = $db_row[word::FLD_TYPE . $fld_ext];
-                //$wrd->owner_id = $db_row[user_sandbox::FLD_USER . $fld_ext];
                 $wrd->excluded = $db_row[user_sandbox::FLD_EXCLUDED . $fld_ext];
                 $wrd->share_id = $db_row[user_sandbox::FLD_SHARE . $fld_ext];
                 $wrd->protection_id = $db_row[user_sandbox::FLD_PROTECT . $fld_ext];
+                //$wrd->owner_id = $db_row[user_sandbox::FLD_USER . $fld_ext];
                 $this->obj = $wrd;
                 $result = true;
-            } elseif ($db_row[$id_fld] > 0) {
+            } elseif ($db_row[$id_fld] < 0) {
                 $this->id = $db_row[$id_fld];
                 // map a triple
-                $trp = new word_link($this->usr);
-                $trp->id = $db_row[$id_fld] * -1;
-                //$trp->owner_id = $db_row[user_sandbox::FLD_USER . $fld_ext];
-                $trp->excluded = $db_row[user_sandbox::FLD_EXCLUDED . $fld_ext];
-                //$trp->name = $db_row[word::FLD_NAME . $fld_ext];
-                $trp->name = $db_row[word_link::FLD_NAME . $fld_ext];
+                $trp = new triple($this->usr);
+                $trp->set_id($db_row[$id_fld] * -1);
+                $trp->set_name($db_row[phrase::FLD_NAME . $fld_ext]);
                 $trp->description = $db_row[sql_db::FLD_DESCRIPTION . $fld_ext];
-                $trp->type_id = $db_row[word_link::FLD_TYPE . $fld_ext];
+                $trp->type_id = $db_row[triple::FLD_TYPE . $fld_ext];
+                $trp->excluded = $db_row[user_sandbox::FLD_EXCLUDED . $fld_ext];
                 $trp->share_id = $db_row[user_sandbox::FLD_SHARE . $fld_ext];
                 $trp->protection_id = $db_row[user_sandbox::FLD_PROTECT . $fld_ext];
                 // not yet loaded with initial load
-                // $trp->from->id = $db_row[word_link::FLD_FROM];
-                // $trp->to->id = $db_row[word_link::FLD_TO];
+                // $trp->name = $db_row[triple::FLD_NAME_GIVEN . $fld_ext];
+                // $trp->owner_id = $db_row[user_sandbox::FLD_USER . $fld_ext];
+                // $trp->from->id = $db_row[triple::FLD_FROM];
+                // $trp->to->id = $db_row[triple::FLD_TO];
                 // $trp->verb->id = $db_row[verb::FLD_ID];
                 $this->obj = $trp;
                 $result = true;
@@ -173,8 +193,104 @@ class phrase
         return $result;
     }
 
+
     /*
-     * casting objects
+     * get and set
+     */
+
+    /**
+     * set the phrase id based id the word or triple id
+     *
+     * @param int $id the object id that is converted to the phrase id
+     * @param string $class the class of the phrase object
+     * @return void
+     */
+    function set_id_from_obj(int $id, string $class): void
+    {
+        if ($class == word::class) {
+            $this->obj = new word($this->usr);
+            $this->id = $id;
+        } elseif ($class == triple::class) {
+            $this->obj = new triple($this->usr);
+            $this->id = $id * -1;
+        }
+        $this->obj->set_id($id);
+    }
+
+    /**
+     * create the expected object based on the given class
+     * @param string $class the calling class name
+     * @return void
+     */
+    private function set_obj(string $class): void
+    {
+        if ($class == word::class) {
+            $this->obj = new word($this->usr);
+        } elseif ($class == triple::class) {
+            $this->obj = new triple($this->usr);
+        } else {
+            log_err('Unexpected class ' . $class . ' when creating phrase ' . $this->dsp_id());
+        }
+    }
+
+    /**
+     * set the name of the phrase object, which is also the name of the phrase
+     *
+     * @param string $name the name of the phrase set in the related object
+     * @param string $class the class of the phrase object can be set to force the creation of the related object
+     * @return void
+     */
+    function set_name(string $name, string $class = ''): void
+    {
+        if ($class != '' and $this->obj == null) {
+            $this->set_obj($class);
+        }
+        $this->obj->set_name($name);
+    }
+
+    /**
+     * set the user of the phrase
+     *
+     * @param user $usr the person who wants to access the phrase
+     * @return void
+     */
+    function set_user(user $usr): void
+    {
+        $this->usr = $usr;
+    }
+
+    /**
+     * @return int the id of the phrase witch is (corresponding to id_obj())
+     * e.g 1 for a word, -1 for a triple
+     */
+    function id(): ?int
+    {
+        return $this->id;
+    }
+
+    /**
+     * @return string the name of the phrase
+     */
+    function name(): string
+    {
+        if ($this->obj == null) {
+            return '';
+        } else {
+            return $this->obj->name();
+        }
+    }
+
+    /**
+     * @return user the person who wants to see the phrase
+     */
+    function user(): user
+    {
+        return $this->usr;
+    }
+
+
+    /*
+     * cast
      */
 
     /**
@@ -201,68 +317,190 @@ class phrase
         }
     }
 
+
     /*
      * loading / database access object (DAO) functions
      */
 
     /**
+     * create the common part of an SQL statement to retrieve a phrase from the database view
+     * uses the phrase view which includes only the most relevant fields of words or triples
+     *
+     * @param sql_db $db_con the db connection object as a function parameter for unit testing
+     * @param string $query_name the name of the query use to prepare and call the query
+     * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
+     */
+    private function load_sql(sql_db $db_con, string $query_name): sql_par
+    {
+        $qp = new sql_par(self::class);
+        $qp->name .= $query_name;
+
+        $db_con->set_type(sql_db::VT_PHRASE);
+        $db_con->set_name($qp->name);
+
+        $db_con->set_fields(self::FLD_NAMES);
+        $db_con->set_usr_fields(self::FLD_NAMES_USR_EX);
+        $db_con->set_usr_num_fields(self::FLD_NAMES_NUM_USR);
+
+        return $qp;
+    }
+
+    /**
+     * create an SQL statement to retrieve a phrase by phrase id (not the object id) from the database
+     *
+     * @param sql_db $db_con the db connection object as a function parameter for unit testing
+     * @param int $id the id of the phrase as defined in the database phrase view
+     * @param string $class the name of this class
+     * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
+     */
+    function load_sql_by_id(sql_db $db_con, int $id, string $class = self::class): sql_par
+    {
+        $qp = $this->load_sql($db_con, 'id');
+        $db_con->add_par_int($id);
+        $qp->sql = $db_con->select_by_field(phrase::FLD_ID);
+        $qp->par = $db_con->get_par();
+
+        return $qp;
+    }
+
+    /**
+     * create an SQL statement to retrieve a phrase by name from the database
+     *
+     * @param sql_db $db_con the db connection object as a function parameter for unit testing
+     * @param string $name the name of the phrase and the related word, triple, formula or verb
+     * @param string $class the name of this class
+     * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
+     */
+    function load_sql_by_name(sql_db $db_con, string $name, string $class = self::class): sql_par
+    {
+        $qp = $this->load_sql($db_con, 'name');
+        $db_con->add_par_txt($name);
+        $qp->sql = $db_con->select_by_field(phrase::FLD_NAME);
+        $qp->par = $db_con->get_par();
+
+        return $qp;
+    }
+
+    /**
      * load either a word or triple
      * @return true if loading has been successful
      */
-    function load(): bool
+    function load_by_obj_par(): bool
     {
-        log_debug('phrase->load ' . $this->dsp_id());
+        log_debug($this->dsp_id());
         $result = false;
 
         // direct load if the type is known
         if ($this->is_triple()) {
-            $lnk = new word_link($this->usr);
-            $lnk->id = $this->id * -1;
-            $result = $lnk->load();
-            $this->obj = $lnk;
-            $this->name = $lnk->name; // is this really useful? better save execution time and have longer code using ->obj->name
-            log_debug('phrase->loaded triple ' . $this->dsp_id());
+            $trp = new triple($this->usr);
+            // TODO use load_by_phrase_id to move the id logic into the triple class
+            $result = $trp->load_by_id($this->id * -1, triple::class);
+            $this->obj = $trp;
+            $this->set_name($trp->name()); // is this really useful? better save execution time and have longer code using ->obj->name
+            log_debug('triple ' . $this->dsp_id());
         } elseif ($this->is_word()) {
             $wrd = new word($this->usr);
-            $wrd->id = $this->id;
-            $result = $wrd->load();
+            $result = $wrd->load_by_id($this->id, word::class);
             $this->obj = $wrd;
-            $this->name = $wrd->name;
-            log_debug('phrase->loaded word ' . $this->dsp_id());
-        } elseif ($this->name <> '') {
-            // load via term if the type is not yet known
-            $trm = new term;
-            $trm->name = $this->name;
-            $trm->usr = $this->usr;
-            $result = $trm->load();
-            if ($trm->type == word::class) {
+            $this->set_name($wrd->name());
+            log_debug('word ' . $this->dsp_id());
+        } elseif ($this->name() <> '') {
+            // load via phrase if the type is not yet known
+            $trm = new term($this->usr);
+            $result = $trm->load_by_name($this->name());
+            if ($trm->type() == word::class) {
                 $this->obj = $trm->obj;
-                $this->id = $trm->id;
-                log_debug('phrase->loaded word ' . $this->dsp_id() . ' by name');
-            } elseif ($trm->type == 'triple') {
+                $this->id = $trm->id_obj();
+                log_debug('word ' . $this->dsp_id() . ' by name');
+            } elseif ($trm->type() == triple::class) {
                 $this->obj = $trm->obj;
-                $this->id = $trm->id * -1;
-                log_debug('phrase->loaded triple ' . $this->dsp_id() . ' by name');
-            } elseif ($trm->type == formula::class) {
+                $this->id = $trm->id_obj() * -1;
+                log_debug('triple ' . $this->dsp_id() . ' by name');
+            } elseif ($trm->type() == formula::class) {
                 // for the phrase load the related word instead of the formula
-                // TODO integrate this into the term loading by load both object a once
+                // TODO integrate this into the phrase loading by load both object a once
                 $wrd = new word($this->usr);
-                $wrd->name = $this->name;
-                $result = $wrd->load();
+                $result = $wrd->load_by_name($this->name(), word::class);
                 $this->obj = $wrd;
-                $this->id = $wrd->id;
-                log_debug('phrase->loaded formula word ' . $this->dsp_id());
+                $this->id = $wrd->id();
+                log_debug('formula word ' . $this->dsp_id());
             } else {
                 if ($this->type_name == '') {
                     // TODO check that this ($phrase->load) is never used for an error detection
-                    log_warning('"' . $this->name . '" not found.', "phrase->load");
+                    log_warning('"' . $this->name() . '" not found.', "phrase->load");
                 } else {
-                    log_err('"' . $this->name . '" has the type ' . $this->type_name . ' which is not expected for a phrase.', "phrase->load");
+                    log_err('"' . $this->name() . '" has the type ' . $this->type_name . ' which is not expected for a phrase.', "phrase->load");
                 }
             }
         }
-        log_debug('phrase->load done ' . $this->dsp_id());
+        log_debug('done ' . $this->dsp_id());
         return $result;
+    }
+
+    public function load_obj(): bool
+    {
+        $result = 0;
+        if ($this->is_triple()) {
+            $trp = new triple($this->usr);
+            // TODO use load_by_phrase_id to move the id logic into the triple class
+            $result = $trp->load_by_id($this->id * -1, triple::class);
+            $this->obj = $trp;
+            $this->set_name($trp->name()); // is this really useful? better save execution time and have longer code using ->obj->name
+            log_debug('triple ' . $this->dsp_id());
+        } elseif ($this->is_word()) {
+            $wrd = new word($this->usr);
+            $result = $wrd->load_by_id($this->id, word::class);
+            $this->obj = $wrd;
+            $this->set_name($wrd->name());
+            log_debug('word ' . $this->dsp_id());
+        }
+        if ($result != 0) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    /**
+     * load a phrase from the database view
+     * @param sql_par $qp the query parameters created by the calling function
+     * @return int the id of the object found and zero if nothing is found
+     */
+    private function load(sql_par $qp): int
+    {
+        global $db_con;
+
+        $db_row = $db_con->get1($qp);
+        $this->row_mapper($db_row);
+        return $this->id();
+    }
+
+    /**
+     * load the main phrase parameters by id from the database phrase view
+     * @param int $id the id of the phrase as defined in the database phrase view
+     * @return int the id of the object found and zero if nothing is found
+     */
+    function load_by_id(int $id, string $class = self::class): int
+    {
+        global $db_con;
+
+        log_debug($id);
+        $qp = $this->load_sql_by_id($db_con, $id, $class);
+        return $this->load($qp);
+    }
+
+    /**
+     * test if the name is used already via view table and just load the main parameters
+     * @param string $name the name of the phrase and the related word, triple, formula or verb
+     * @return int the id of the object found and zero if nothing is found
+     */
+    function load_by_name(string $name, string $class = self::class): int
+    {
+        global $db_con;
+
+        log_debug($name);
+        $qp = $this->load_sql_by_name($db_con, $name, self::class);
+        return $this->load($qp);
     }
 
     /**
@@ -274,11 +512,11 @@ class phrase
      */
     function main_word(): ?object
     {
-        log_debug('phrase->main_word ' . $this->dsp_id());
+        log_debug($this->dsp_id());
         $result = null;
 
-        if ($this->id == 0 or $this->name == '') {
-            $this->load();
+        if ($this->id == 0 or $this->name() == '') {
+            $this->load_by_obj_par();
         }
         if ($this->id < 0) {
             $lnk = $this->obj;
@@ -287,9 +525,9 @@ class phrase
         } elseif ($this->id > 0) {
             $result = $this->obj;
         } else {
-            log_err('"' . $this->name . '" has the type ' . $this->type_name . ' which is not expected for a phrase.', "phrase->main_word");
+            log_err('"' . $this->name() . '" has the type ' . $this->type_name . ' which is not expected for a phrase.', "phrase->main_word");
         }
-        log_debug('phrase->main_word done ' . $result->dsp_id());
+        log_debug('done ' . $result->dsp_id());
         return $result;
     }
 
@@ -326,7 +564,7 @@ class phrase
             $result = $wrd->type_id;
         }
 
-        log_debug('phrase->type_id for ' . $this->dsp_id() . ' is ' . $result);
+        log_debug('for ' . $this->dsp_id() . ' is ' . $result);
         return $result;
     }
 
@@ -359,7 +597,7 @@ class phrase
     {
         $result = false;
         if (isset($this->obj)) {
-            if (get_class($this->obj) == word_link::class) {
+            if (get_class($this->obj) == triple::class) {
                 $result = true;
             }
         } else {
@@ -396,13 +634,13 @@ class phrase
     {
         $wrd = new word($this->usr);
         if (get_class($this->obj) == word::class) {
-            $wrd->id = $this->obj->id;
+            $wrd->set_id($this->obj->id());
             $wrd->usr_cfg_id = $this->obj->usr_cfg_id;
             $wrd->owner_id = $this->obj->owner_id;
             $wrd->share_id = $this->obj->share_id;
             $wrd->protection_id = $this->obj->protection_id;
             $wrd->excluded = $this->obj->excluded;
-            $wrd->name = $this->obj->name;
+            $wrd->set_name($this->obj->name());
             $wrd->description = $this->obj->description;
             $wrd->plural = $this->obj->plural;
             $wrd->type_id = $this->obj->type_id;
@@ -423,11 +661,11 @@ class phrase
         return $wrd_dsp;
     }
 
-    protected function get_triple(): word_link
+    protected function get_triple(): triple
     {
-        $lnk = new word_link($this->usr);
-        if (get_class($this->obj) == word_link::class) {
-            $lnk->id = $this->obj->id;
+        $lnk = new triple($this->usr);
+        if (get_class($this->obj) == triple::class) {
+            $lnk->set_id($this->obj->id());
             $lnk->fob = $this->obj->fob;
             $lnk->tob = $this->obj->tob;
             $lnk->usr_cfg_id = $this->obj->usr_cfg_id;
@@ -442,12 +680,12 @@ class phrase
         return $lnk;
     }
 
-    protected function get_triple_dsp(): word_link
+    protected function get_triple_dsp(): triple
     {
-        $lnk_dsp = new word_link_dsp($this->usr);
-        if (get_class($this->obj) == word_link_dsp::class) {
+        $lnk_dsp = new triple_dsp();
+        if (get_class($this->obj) == triple_dsp::class) {
             $lnk_dsp = $this->obj;
-        } elseif (get_class($this->obj) == word_link::class) {
+        } elseif (get_class($this->obj) == triple::class) {
             $lnk_dsp = $this->get_triple()->dsp_obj();
         }
         return $lnk_dsp;
@@ -487,42 +725,40 @@ class phrase
         return $obj;
     }
 
+
     /*
-      im- and export functions
-    */
+     * im- and export
+     */
 
     /**
      * import a phrase object from a JSON array object
      *
      * @param string $json_value an array with the data of the json object
      * @param bool $do_save can be set to false for unit testing
-     * @return bool true if the import has been successfully saved to the database
+     * @return user_message the status of the import and if needed the error messages that should be shown to the user
      */
-    function import_obj(string $json_value, bool $do_save = true): bool
+    function import_obj(string $json_value, bool $do_save = true): user_message
     {
-        $result = false;
-        $this->name = $json_value;
+        $result = new user_message();
         if ($do_save) {
-            $result = $this->load();
+            $this->load_by_name($json_value);
             if ($this->id == 0) {
                 $wrd = new word($this->usr);
-                $wrd->name = $json_value;
-                $result = $wrd->load();
-                if ($wrd->id == 0) {
-                    $wrd->name = $json_value;
-                    $wrd->type_id = cl(db_cl::WORD_TYPE, phrase_type::TIME);
-                    if ($wrd->save() == '') {
-                        $result = true;
-                    }
+                $wrd->load_by_name($json_value, word::class);
+                if ($wrd->id() == 0) {
+                    $wrd->set_name($json_value);
+                    $wrd->type_id = cl(db_cl::PHRASE_TYPE, phrase_type::TIME);
+                    $result->add_message($wrd->save());
                 }
-                if ($wrd->id == 0) {
-                    log_err('Cannot add time word "' . $json_value . '" when importing ' . $this->dsp_id(), 'value->import_obj');
+                if ($wrd->id() == 0) {
+                    $result->add_message('Cannot add word "' . $json_value . '" when importing ' . $this->dsp_id());
                 } else {
-                    $this->id = $wrd->id;
+                    $this->id = $wrd->id();
                 }
             }
         } else {
-            $result = true;
+            // used for unit testing
+            $this->set_name($json_value, word::class);
         }
 
         return $result;
@@ -537,12 +773,12 @@ class phrase
      */
     function val_lst(): value_list
     {
-        log_debug('phrase->val_lst for ' . $this->dsp_id() . ' and user "' . $this->usr->name . '"');
+        log_debug('for ' . $this->dsp_id() . ' and user "' . $this->user()->name . '"');
         $val_lst = new value_list($this->usr);
         $val_lst->phr = $this;
-        $val_lst->page_size = SQL_ROW_MAX;
+        $val_lst->limit = SQL_ROW_MAX;
         $val_lst->load();
-        log_debug('phrase->val_lst -> got ' . dsp_count($val_lst->lst));
+        log_debug('got ' . dsp_count($val_lst->lst()));
         return $val_lst;
     }
 
@@ -557,10 +793,10 @@ class phrase
     {
         global $db_con;
 
-        log_debug('phrase->vrb_lst for ' . $this->dsp_id());
+        log_debug('for ' . $this->dsp_id());
         $vrb_lst = new verb_list($this->usr);
         $vrb_lst->load_by_linked_phrases($db_con, $this, $direction);
-        log_debug('phrase->val_lst -> got ' . dsp_count($vrb_lst->lst));
+        log_debug('got ' . dsp_count($vrb_lst->lst));
         return $vrb_lst;
     }
 
@@ -575,37 +811,37 @@ class phrase
     {
         $result = '';
 
-        if ($this->name <> '') {
-            $result .= '"' . $this->name . '"';
+        if ($this->name() <> '') {
+            $result .= '"' . $this->name() . '"';
             if ($this->id > 0) {
                 $result .= ' (' . $this->id . ')';
             }
         } else {
             $result .= $this->id;
         }
-        if (isset($this->usr)) {
-            $result .= ' for user ' . $this->usr->id . ' (' . $this->usr->name . ')';
+        if ($this->user()->is_set()) {
+            $result .= ' for user ' . $this->user()->id() . ' (' . $this->user()->name . ')';
         }
         return $result;
     }
 
     // return the name (just because all objects should have a name function)
-    function name(): string
+    function dsp_name(): string
     {
-        //$result = $this->name;
-        return '"' . $this->name . '"';
+        //$result = $this->name();
+        return '"' . $this->name() . '"';
     }
 
     function name_linked(): string
     {
-        return '<a href="/http/view.php?words=' . $this->id . '" title="' . $this->obj->description . '">' . $this->name . '</a>';
+        return '<a href="/http/view.php?words=' . $this->id . '" title="' . $this->obj->description . '">' . $this->name() . '</a>';
     }
 
     function dsp_tbl(int $intent = 0): string
     {
         $result = '';
         if ($this != null) {
-            $this->load();
+            $this->load_by_obj_par();
             if ($this->obj != null) {
                 // the function dsp_tbl should exist for words and triples
                 if (get_class($this->obj) == word::class) {
@@ -615,7 +851,7 @@ class phrase
                 }
             }
         }
-        log_debug('phrase->dsp_tbl for ' . $this->dsp_id());
+        log_debug('for ' . $this->dsp_id());
         return $result;
     }
 
@@ -652,7 +888,7 @@ class phrase
      */
     function display(): string
     {
-        return '<a href="/http/view.php?words=' . $this->id . '">' . $this->name . '</a>';
+        return '<a href="/http/view.php?words=' . $this->id . '">' . $this->name() . '</a>';
     }
 
     /**
@@ -660,13 +896,13 @@ class phrase
      */
     function dsp_link(): string
     {
-        return '<a href="/http/view.php?words=' . $this->id . '" title="' . $this->obj->description . '">' . $this->name . '</a>';
+        return '<a href="/http/view.php?words=' . $this->id . '" title="' . $this->obj->description . '">' . $this->name() . '</a>';
     }
 
     // similar to dsp_link
     function dsp_link_style($style): string
     {
-        return '<a href="/http/view.php?words=' . $this->id . '" title="' . $this->obj->description . '" class="' . $style . '">' . $this->name . '</a>';
+        return '<a href="/http/view.php?words=' . $this->id . '" title="' . $this->obj->description . '" class="' . $style . '">' . $this->name() . '</a>';
     }
 
     // helper function that returns a word list object just with the word object
@@ -674,7 +910,7 @@ class phrase
     {
         $phr_lst = new phrase_list($this->usr);
         $phr_lst->add($this);
-        log_debug('phrase->lst -> ' . $phr_lst->dsp_name());
+        log_debug($phr_lst->dsp_name());
         return $phr_lst;
     }
 
@@ -683,14 +919,18 @@ class phrase
     {
         $this_lst = $this->lst();
         $phr_lst = $this_lst->is();
+        // in case of a triple use at least the initial parent phrase,
+        if ($this->is_triple()) {
+            $phr_lst->add($this->obj->to);
+        }
         //$phr_lst->add($this,);
-        log_debug('phrase->is -> ' . $this->dsp_id() . ' is a ' . $phr_lst->dsp_name());
+        log_debug($this->dsp_id() . ' is a ' . $phr_lst->dsp_name());
         return $phr_lst;
     }
 
     public static function cmp($a, $b)
     {
-        return strcmp($a->name, $b->name);
+        return strcmp($a->name(), $b->name());
     }
 
     // returns a list of words that are related to this word e.g. for "ABB" it will return "Company" (but not "ABB"???)
@@ -708,7 +948,7 @@ class phrase
     // e.g.for the given word string
     function is_a($related_phrase): bool
     {
-        log_debug('phrase->is_a (' . $this->dsp_id() . ',' . $related_phrase->name . ')');
+        log_debug($this->dsp_id() . ',' . $related_phrase->name);
 
         $result = false;
         $is_phrases = $this->is(); // should be taken from the original array to increase speed
@@ -716,14 +956,14 @@ class phrase
             $result = true;
         }
 
-        log_debug('phrase->is_a -> ' . zu_dsp_bool($result) . $this->id);
+        log_debug(zu_dsp_bool($result) . $this->id);
         return $result;
     }
 
     // SQL to list the user phrases (related to a type if needed)
     function sql_list($type): string
     {
-        log_debug('phrase->sql_list');
+        log_debug();
         global $db_con;
 
         $sql_type_from = '';
@@ -737,16 +977,16 @@ class phrase
                              ' . $db_con->get_usr_field("excluded", "w", "u", sql_db::FLD_FORMAT_BOOL) . '
                         FROM words w   
                    LEFT JOIN user_words u ON u.word_id = w.word_id 
-                                         AND u.user_id = ' . $this->usr->id . ' ';
-        $sql_triples = 'SELECT DISTINCT l.word_link_id * -1 AS id, 
+                                         AND u.user_id = ' . $this->user()->id() . ' ';
+        $sql_triples = 'SELECT DISTINCT l.triple_id * -1 AS id, 
                                ' . $db_con->get_usr_field("name_given", "l", "u", sql_db::FLD_FORMAT_TEXT, "name") . ',
                                ' . $db_con->get_usr_field("excluded", "l", "u", sql_db::FLD_FORMAT_BOOL) . '
-                          FROM word_links l
-                     LEFT JOIN user_word_links u ON u.word_link_id = l.word_link_id 
-                                                AND u.user_id = ' . $this->usr->id . ' ';
+                          FROM triples l
+                     LEFT JOIN user_triples u ON u.triple_id = l.triple_id 
+                                                AND u.user_id = ' . $this->user()->id() . ' ';
 
         if (isset($type)) {
-            if ($type->id > 0) {
+            if ($type->id() > 0) {
 
                 // select all phrase ids of the given type e.g. ABB, DANONE, Zurich
                 $sql_where_exclude = 'excluded = 0';
@@ -755,10 +995,10 @@ class phrase
                                         SELECT DISTINCT
                                                l.from_phrase_id,    
                                                ' . $db_con->get_usr_field("excluded", "l", "u", sql_db::FLD_FORMAT_BOOL) . '
-                                          FROM word_links l
-                                     LEFT JOIN user_word_links u ON u.word_link_id = l.word_link_id 
-                                                                AND u.user_id = ' . $this->usr->id . '
-                                         WHERE l.to_phrase_id = ' . $type->id . ' 
+                                          FROM triples l
+                                     LEFT JOIN user_triples u ON u.triple_id = l.triple_id 
+                                                                AND u.user_id = ' . $this->user()->id() . '
+                                         WHERE l.to_phrase_id = ' . $type->id() . ' 
                                            AND l.verb_id = ' . cl(db_cl::VERB, verb::IS_A) . ' ) AS a 
                                          WHERE ' . $sql_where_exclude . ' ';
 
@@ -767,10 +1007,10 @@ class phrase
                                         SELECT DISTINCT
                                                l.from_phrase_id,    
                                                ' . $db_con->get_usr_field("excluded", "l", "u", sql_db::FLD_FORMAT_BOOL) . '
-                                          FROM word_links l
-                                     LEFT JOIN user_word_links u ON u.word_link_id = l.word_link_id 
-                                                                AND u.user_id = ' . $this->usr->id . '
-                                         WHERE l.to_phrase_id <> ' . $type->id . ' 
+                                          FROM triples l
+                                     LEFT JOIN user_triples u ON u.triple_id = l.triple_id 
+                                                                AND u.user_id = ' . $this->user()->id() . '
+                                         WHERE l.to_phrase_id <> ' . $type->id() . ' 
                                            AND l.verb_id = ' . cl(db_cl::VERB, verb::IS_A) . '
                                            AND l.from_phrase_id IN (' . $sql_wrd_all . ') ) AS o 
                                          WHERE ' . $sql_where_exclude . ' ';
@@ -783,7 +1023,7 @@ class phrase
                              ' . $db_con->get_usr_field("excluded", "w", "u", sql_db::FLD_FORMAT_BOOL) . '
                         FROM ( ' . $sql_wrd_all . ' ) a, words w
                    LEFT JOIN user_words u ON u.word_id = w.word_id 
-                                         AND u.user_id = ' . $this->usr->id . '
+                                         AND u.user_id = ' . $this->user()->id() . '
                        WHERE w.word_id NOT IN ( ' . $sql_wrd_other . ' )                                        
                          AND w.word_id = a.id ) AS w 
                        WHERE ' . $sql_where_exclude . ' ';
@@ -791,19 +1031,19 @@ class phrase
                 // if a word has another type, use the triple
                 $sql_triples = 'SELECT DISTINCT ' . $sql_field_names . ' FROM (
                         SELECT DISTINCT
-                               l.word_link_id * -1 AS id, 
+                               l.triple_id * -1 AS id, 
                                ' . $db_con->get_usr_field("name_given", "l", "u", sql_db::FLD_FORMAT_TEXT, "name") . ',
                                ' . $db_con->get_usr_field("excluded", "l", "u", sql_db::FLD_FORMAT_BOOL) . '
-                          FROM word_links l
-                     LEFT JOIN user_word_links u ON u.word_link_id = l.word_link_id 
-                                                AND u.user_id = ' . $this->usr->id . '
+                          FROM triples l
+                     LEFT JOIN user_triples u ON u.triple_id = l.triple_id 
+                                                AND u.user_id = ' . $this->user()->id() . '
                          WHERE l.from_phrase_id IN ( ' . $sql_wrd_other . ')                                        
                            AND l.verb_id = ' . cl(db_cl::VERB, verb::IS_A) . '
-                           AND l.to_phrase_id = ' . $type->id . ' ) AS t 
+                           AND l.to_phrase_id = ' . $type->id() . ' ) AS t 
                          WHERE ' . $sql_where_exclude . ' ';
                 /*
-                $sql_type_from = ', word_links t LEFT JOIN user_word_links ut ON ut.word_link_id = t.word_link_id
-                                                                             AND ut.user_id = '.$this->usr->id.'';
+                $sql_type_from = ', triples t LEFT JOIN user_triples ut ON ut.triple_id = t.triple_id
+                                                                             AND ut.user_id = '.$this->user()->id.'';
                 $sql_type_where_words   = 'WHERE w.word_id = t.from_phrase_id
                                              AND t.verb_id = '.cl(SQL_LINK_TYPE_IS).'
                                              AND t.to_phrase_id = '.$type->id.' ';
@@ -815,16 +1055,16 @@ class phrase
                                       IF(u.excluded IS NULL, COALESCE(w.excluded, 0), COALESCE(u.excluded, 0)) AS excluded
                                   FROM words w
                             LEFT JOIN user_words u ON u.word_id = w.word_id
-                                                  AND u.user_id = '.$this->usr->id.'
+                                                  AND u.user_id = '.$this->user()->id.'
                                       '.$sql_type_from.'
                                       '.$sql_type_where_words.'
                               GROUP BY name';
-                $sql_triples = 'SELECT l.word_link_id * -1 AS id,
+                $sql_triples = 'SELECT l.triple_id * -1 AS id,
                                       IF(u.name IS NULL, l.name, u.name) AS name,
                                       IF(u.excluded IS NULL, COALESCE(l.excluded, 0), COALESCE(u.excluded, 0)) AS excluded
-                                  FROM word_links l
-                            LEFT JOIN user_word_links u ON u.word_link_id = l.word_link_id
-                                                        AND u.user_id = '.$this->usr->id.'
+                                  FROM triples l
+                            LEFT JOIN user_triples u ON u.triple_id = l.triple_id
+                                                        AND u.user_id = '.$this->user()->id.'
                                       '.$sql_type_from.'
                                       '.$sql_type_where_triples.'
                               GROUP BY name';
@@ -836,7 +1076,7 @@ class phrase
               FROM ( ' . $sql_words . ' UNION ' . $sql_triples . ' ) AS p
              WHERE excluded = 0
           ORDER BY p.name;';
-        log_debug('phrase->sql_list -> ' . $sql);
+        log_debug($sql);
         return $sql;
     }
 
@@ -850,7 +1090,7 @@ class phrase
     function dsp_selector($type, $form_name, $pos, $class, $back): string
     {
         if ($type != null) {
-            log_debug('phrase->dsp_selector -> type "' . $type->dsp_id() . ' selected for form ' . $form_name . $pos);
+            log_debug('type "' . $type->dsp_id() . ' selected for form ' . $form_name . $pos);
         }
         $result = '';
 
@@ -879,7 +1119,7 @@ class phrase
         $sel->dummy_text = '... please select';
         $result .= $sel->display();
 
-        log_debug('phrase->dsp_selector -> done ');
+        log_debug('done ');
         return $result;
     }
 
@@ -895,9 +1135,9 @@ class phrase
     {
         $result = null;
         $is_wrd_lst = $this->is();
-        if (count($is_wrd_lst->lst) >= 1) {
-            $result = $is_wrd_lst->lst[0];
-            log_debug('phrase->is_mainly -> (' . $this->dsp_id() . ' is a ' . $result->name . ')');
+        if (!$is_wrd_lst->is_empty()) {
+            $result = $is_wrd_lst->lst()[0];
+            log_debug($this->dsp_id() . ' is a ' . $result->name());
         }
         return $result;
     }
@@ -933,11 +1173,11 @@ class phrase
      */
     function is_percent(): bool
     {
-        global $word_types;
+        global $phrase_types;
 
         $result = false;
         if ($this->obj != null) {
-            if ($this->obj->type_id == $word_types->id(phrase_type::PERCENT)) {
+            if ($this->obj->type_id == $phrase_types->id(phrase_type::PERCENT)) {
                 $result = true;
             }
         } else {
@@ -958,20 +1198,45 @@ class phrase
         return $wrd->dsp_time_selector($type, $form_name, $pos, $back);
     }
 
+    /**
+     * @return string
+     */
     function save(): string
     {
+        global $phrase_types;
+
         $result = '';
 
+        /*
         if (isset($this->obj)) {
             $result = $this->obj->save();
         }
-
-        /*
-        if ($this->is_word()) {
-            $wrd = $this->get_word();
-            $result = $wrd->save();
-        }
         */
+
+        // try if the word exists
+        $wrd = new word($this->usr);
+        $wrd->load_by_name($this->name(), word::class);
+        if ($wrd->id() > 0) {
+            $this->id = $wrd->phrase()->id;
+        } else {
+            // try if the triple exists
+            $trp = new triple($this->usr);
+            $trp->load_by_name($this->name(), triple::class);
+            if ($trp->id() > 0) {
+                $this->id = $trp->phrase()->id * -1;
+            } else {
+                // create a word if neither the word nor the triple exists
+                $wrd = new word($this->usr);
+                $wrd->set_name($this->name());
+                $wrd->type_id = $phrase_types->default_id();
+                $result = $wrd->save();
+                if ($wrd->id() == 0) {
+                    log_err('Cannot add from word ' . $this->dsp_id(), 'phrase->save');
+                } else {
+                    $this->id = $wrd->phrase()->id;
+                }
+            }
+        }
 
         return $result;
     }
@@ -982,7 +1247,7 @@ class phrase
      */
     function del(): user_message
     {
-        log_debug('phrase->del ' . $this->dsp_id());
+        log_debug($this->dsp_id());
         $result = new user_message();
 
         // direct delete if the object is loaded

@@ -31,7 +31,8 @@
 
 // standard zukunft header for callable php files to allow debugging and lib loading
 $debug = $_GET['debug'] ?? 0;
-include_once '../src/main/php/zu_lib.php';
+const ROOT_PATH = __DIR__ . '/../';
+include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 
 // open database
 $db_con = prg_start("source_del");
@@ -44,14 +45,13 @@ $usr = new user;
 $result .= $usr->get();
 
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
-if ($usr->id > 0) {
+if ($usr->id() > 0) {
 
     load_usr_data();
 
     // prepare the display
     $dsp = new view_dsp_old($usr);
-    $dsp->id = cl(db_cl::VIEW, view::SOURCE_DEL);
-    $dsp->load();
+    $dsp->load_by_id(cl(db_cl::VIEW, view::SOURCE_DEL));
     $back = $_GET['back']; // the original calling page that should be shown after the change if finished
 
     // get the parameters
@@ -62,8 +62,7 @@ if ($usr->id > 0) {
 
         // create the source object to have an object to update the parameters
         $src = new source($usr);
-        $src->id = $src_id;
-        $src->load();
+        $src->load_by_id($src_id);
 
         if ($confirm == 1) {
             $src->del();
@@ -73,7 +72,7 @@ if ($usr->id > 0) {
             // display the view header
             $result .= $dsp->dsp_navbar($back);
 
-            $result .= \html\btn_yesno("Delete " . $src->name . "? ", "/http/source_del.php?id=" . $src_id . "&back=" . $back);
+            $result .= \html\btn_yesno("Delete " . $src->name() . "? ", "/http/source_del.php?id=" . $src_id . "&back=" . $back);
         }
     } else {
         $result .= dsp_go_back($back, $usr);

@@ -2,8 +2,8 @@
 
 /*
 
-    api_message_header.php - the JSON header object for the frontend API
-    -----------------------
+    api/message_header.php - the JSON header object for the frontend API
+    ----------------------
 
     This file is part of zukunft.com - calc with words
 
@@ -33,36 +33,95 @@ use html\html_base;
 
 class api_message
 {
+
+    /*
+     * message types
+     */
+
     // the message types for fast format detection
     const SYS_LOG = 'sys_log';
+    const TYPE_LISTS = 'type_lists';
+
+
+    /*
+     * object vars
+     */
 
     // field names used for JSON creation
+    public string $pod;       // the pod that has created the message
     public string $type;      // defines the message formal (just used for testing and easy debugging)
     public int $user_id;      // to double-check to the session user
     public string $user;      // for fast debugging
     public string $version;   // to prevent communication error due to incompatible program versions
     public string $timestamp; // for automatic delay problem detection
+    public object $body;      // the json payload of the message
 
-    function __construct()
+
+    /*
+     * construct and map
+     */
+
+    /**
+     * create and always set the header information
+     * @param sql_db $db_con the active database link to get the configuration from the database
+     * @param string $class
+     */
+    function __construct(sql_db $db_con, string $class)
     {
         global $usr;
-        $this->type = '';
-        if ($usr != null) {
-            $this->user_id = $usr->id;
-            $this->user = $usr->name;
+
+        if ($db_con->connected()) {
+            $this->pod = cfg_get(config::SITE_NAME, $db_con);
+        } else {
+            // for unit tests use the default pod name
+            $this->pod = POD_NAME;
         }
+        $this->type = $class;
+        $this->set_user($usr);
         $this->version = PRG_VERSION;
-        // TODO make testing with timestamp useful
-        //$this->timestamp = (new DateTime())->format('Y-m-d H:i:s');
+        $this->timestamp = (new DateTime())->format(DateTimeInterface::ATOM);
+    }
+
+
+    /*
+     * set and get
+     */
+
+    public function set_user(?user $usr): void
+    {
+        if ($usr != null) {
+            if ($usr->id() > 0) {
+                $this->user_id = $usr->id();
+                $this->user = $usr->name;
+            }
+        }
+    }
+
+    public function add_body(object $api_obj): void
+    {
+        $this->body = $api_obj;
     }
 
     /**
-     * @return false|string the frontend API JSON string
+     * @return string the frontend API JSON string
      */
     function get_json(): string
     {
         return json_encode($this);
     }
+
+    /**
+     * @return array the frontend API JSON as an array
+     */
+    function get_json_array(): array
+    {
+        return json_decode(json_encode($this), true);
+    }
+
+
+    /*
+     * to review
+     */
 
     function get_html_header(string $title): string
     {

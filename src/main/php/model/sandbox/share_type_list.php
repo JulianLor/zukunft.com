@@ -33,8 +33,10 @@
 global $share_types;
 
 use cfg\share_type;
+use cfg\type_list;
+use cfg\type_object;
 
-class share_type_list extends user_type_list
+class share_type_list extends type_list
 {
 
     /**
@@ -42,7 +44,7 @@ class share_type_list extends user_type_list
      * @param sql_db $db_con the database connection that can be either the real database connection or a simulation used for testing
      * @return bool true if load was successful
      */
-    function load(sql_db $db_con, string $db_type = DB_TYPE_SHARE): bool
+    function load(sql_db $db_con, string $db_type = sql_db::TBL_SHARE): bool
     {
         return parent::load($db_con, $db_type);
     }
@@ -50,20 +52,14 @@ class share_type_list extends user_type_list
     /**
      * create dummy type list for the unit tests without database connection
      */
-    function load_dummy()
+    function load_dummy(): void
     {
         $this->lst = array();
         $this->hash = array();
-        $type = new user_type();
-        $type->name = share_type::PUBLIC;
-        $type->code_id = share_type::PUBLIC;
-        $this->lst[2] = $type;
-        $this->hash[share_type::PUBLIC] = 2;
-        $type = new user_type();
-        $type->name = share_type::PERSONAL;
-        $type->code_id = share_type::PERSONAL;
-        $this->lst[3] = $type;
-        $this->hash[share_type::PERSONAL] = 3;
+        $type = new type_object(share_type::PUBLIC, share_type::PUBLIC, '', 2);
+        $this->add($type);
+        $type = new type_object(share_type::PERSONAL, share_type::PERSONAL, '', 3);
+        $this->add($type);
 
     }
 

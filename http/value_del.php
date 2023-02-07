@@ -32,9 +32,11 @@
 // standard zukunft header for callable php files to allow debugging and lib loading
 use html\api;
 use html\button;
+use html\html_base;
 
 $debug = $_GET['debug'] ?? 0;
-include_once '../src/main/php/zu_lib.php';
+const ROOT_PATH = __DIR__ . '/../';
+include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 
 // to create the code for the html frontend
 $html = new html_base();
@@ -49,14 +51,13 @@ $usr = new user;
 $result .= $usr->get();
 
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
-if ($usr->id > 0) {
+if ($usr->id() > 0) {
 
     load_usr_data();
 
     // prepare the display
     $dsp = new view_dsp_old($usr);
-    $dsp->id = cl(db_cl::VIEW, view::VALUE_DEL);
-    $dsp->load();
+    $dsp->load_by_code_id(view::VALUE_DEL);
     $back = $_GET['back'];  // the page from which the value deletion has been called
 
     // get the parameters
@@ -67,8 +68,7 @@ if ($usr->id > 0) {
 
         // create the value object to have an object to update the parameters
         $val = new value($usr);
-        $val->id = $val_id;
-        $val->load();
+        $val->load_by_id($val_id);
 
         if ($confirm == 1) {
             // actually delete the value (at least for this user)
@@ -81,7 +81,7 @@ if ($usr->id > 0) {
 
             $val->load_phrases();
             $url = $html->url(api::VALUE . api::REMOVE, $val_id, $back);
-            $result .= (new button('Delete ' . $val->number . ' for ' . $val->phr_lst->dsp_name() . '? ', $url))->yesno();
+            $result .= (new button('Delete ' . $val->number() . ' for ' . $val->phr_lst->dsp_name() . '? ', $url))->yesno();
         }
     } else {
         $result .= dsp_go_back($back, $usr);

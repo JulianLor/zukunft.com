@@ -2,8 +2,8 @@
 
 /*
 
-  test/unit_db/verb.php - database unit testing of the verb functions
-  ---------------------
+    test/unit_db/verb.php - database unit testing of the verb functions
+    ---------------------
 
 
     This file is part of zukunft.com - calc with words
@@ -30,40 +30,104 @@
 
 */
 
-function run_verb_unit_db_tests(testing $t)
+use api\word_api;
+
+class verb_unit_db_tests
 {
 
-    global $db_con;
-    global $usr;
+    function run(testing $t): void
+    {
 
-    $t->header('Unit database tests of the verb class (src/main/php/model/verb/verb.php)');
+        global $db_con;
+        global $usr;
 
-    $t->subheader('Verb list tests');
+        // init
+        $t->name = 'verb read db->';
 
-    // load the verb types
-    $lst = new verb_list($usr);
-    $result = $lst->load($db_con);
-    $target = true;
-    $t->dsp('unit_db_verb_list->load', $target, $result);
+        $t->header('Unit database tests of the verb class (src/main/php/model/verb/verb.php)');
 
-    // ... and check if at least the most critical verb is loaded
-    $result = cl(db_cl::VERB, verb::IS_A);
-    // just check if the verb is around, because the posiion may vary depending on the historic creation of the database
-    if ($result > 0) {
-        $target = $result;
+        $t->subheader('Verb tests');
+
+        // test if loading by code id and id result in the same name
+        $vrb = new verb();
+        $vrb->load_by_code_id(verb::IS_A);
+        $vrb_id = new verb();
+        $vrb_id->load_by_id($vrb->id());
+        $t->assert('load' . verb::IS_A, $vrb->name(), $vrb_id->name());
+
+        // prepare the words for testing
+        $country = new word($usr);
+        $country->load_by_name(word_api::TN_COUNTRY);
+        $switzerland = new word($usr);
+        $switzerland->load_by_name(word_api::TN_CH);
+
+        // 'is a' - test the selection of the members via 'is a' verb
+        $countries = $country->children();
+        $t->assert_contains('is a based on ' . word_api::TN_COUNTRY,
+            $countries->names(),
+            array(word_api::TN_CH, word_api::TN_READ_GERMANY)
+        );
+
+        // 'is part of' - test the direct selection of the members via 'is part of' verb
+        //                e.g. for Switzerland get at least 'Zurich (Canton)' but not 'Zurich (City)'
+        $parts = $switzerland->direct_parts();
+        $t->assert_contains('direct parts of ' . word_api::TN_CH,
+            $parts->names(),
+            array(word_api::TN_ZH_CANTON)
+        );
+        $t->assert_contains_not('direct parts of ' . word_api::TN_CH,
+            $parts->names(),
+            array(word_api::TN_ZH_CITY)
+        );
+
+        // 'is part of' - test the recursive selection of the members via 'is part of' verb
+        //                e.g. for Switzerland get at least 'Zurich (Canton)' and 'Zurich (City)'
+        $parts = $switzerland->parts();
+        $t->assert_contains('parts of ' . word_api::TN_CH . ' and parts of the parts',
+            $parts->names(),
+            array(word_api::TN_ZH_CANTON, word_api::TN_ZH_CITY)
+        );
+
+
+        // TODO add to phrase and triple the methode
+        //      ->all_parents to get Canton, City and Company for Zurich (Canton)
+        //      whereas ->parents just return Canton for Zurich (Canton) because the word splitting is not done
+
+
+        $t->subheader('Verb list tests');
+        $t->name = 'verb list read db->';
+
+        // load the verb types
+        $lst = new verb_list($usr);
+        $result = $lst->load($db_con);
+        $t->assert('load', $result, true);
+
+        // ... and check if at least the most critical verb is loaded
+        $result = cl(db_cl::VERB, verb::IS_A);
+        // just check if the verb is around, because the position may vary depending on the historic creation of the database
+        $target = 0;
+        if ($result > 0) {
+            $target = $result;
+        }
+        $t->assert('check ' . verb::IS_A, $result, $target);
+
+        $select_list = $lst->selector_list();
+        $top_verb = $select_list[0]; // the most often verb should be on the top
+        $result = $top_verb[1]; // the name of the verb is always on second place
+        // TODO check why this differs depending on the database used
+        if ($result == 'is an acronym for') {
+            $target = 'is an acronym for';
+        } elseif ($result == 'is a') {
+            $target = 'is a';
+        } elseif ($result == 'uses') {
+            $target = 'uses';
+        } elseif ($result == 'is measure type for') {
+            $target = 'is measure type for';
+        } else {
+            $target = 'not set';
+        }
+        $t->assert('selector list ' . verb::IS_A, $result, $target);
     }
-    $t->dsp('unit_db_verb_list->check ' . verb::IS_A, $result, $target);
-
-    $select_list = $lst->selector_list('forward');
-    $top_verb = $select_list[0]; // the most often verb should be on the top
-    $result = $top_verb[1]; // the name of the verb is always on second place
-    // TODO check why this differs depending on the database used
-    if ($result = 'is a') {
-        $target = 'is a';
-    } else {
-        $target = 'not set';
-    }
-    $t->dsp('unit_db_verb_list->selector_list ' . verb::IS_A, $result, $target);
 
 }
 

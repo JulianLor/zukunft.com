@@ -31,7 +31,8 @@
 
 // standard zukunft header for callable php files to allow debugging and lib loading
 $debug = $_GET['debug'] ?? 0;
-include_once '../src/main/php/zu_lib.php';
+const ROOT_PATH = __DIR__ . '/../';
+include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 
 // open database
 $db_con = prg_start("verb_edit");
@@ -44,23 +45,21 @@ $usr = new user;
 $result .= $usr->get();
 
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
-if ($usr->id > 0) {
+if ($usr->id() > 0) {
 
     load_usr_data();
 
     // prepare the display
     $dsp = new view_dsp_old($usr);
-    $dsp->id = cl(db_cl::VIEW, view::VERB_EDIT);
-    $dsp->load();
+    $dsp->load_by_code_id(view::VERB_EDIT);
     $back = $_GET['back']; // the original calling page that should be shown after the change is finished
 
     // create the verb object to have an place to update the parameters
     $vrb = new verb;
-    $vrb->id = $_GET['id'];
-    $vrb->usr = $usr;
-    $vrb->load();
+    $vrb->set_user($usr);
+    $vrb->load_by_id($_GET['id']);
 
-    if ($vrb->id <= 0) {
+    if ($vrb->id() <= 0) {
         $result .= log_err("No verb found to change because the id is missing.", "verb_edit.php");
     } else {
 
@@ -69,7 +68,7 @@ if ($usr->id > 0) {
 
             // get the parameters (but if not set, use the database value)
             if (isset($_GET['name'])) {
-                $vrb->name = $_GET['name'];
+                $vrb->set_name($_GET['name']);
             }
             if (isset($_GET['plural'])) {
                 $vrb->plural = $_GET['plural'];
@@ -87,7 +86,7 @@ if ($usr->id > 0) {
             // if update was successful ...
             if (str_replace('1', '', $upd_result) == '') {
                 // remember the verb for the next values to add
-                $usr->set_verb($vrb->id);
+                $usr->set_verb($vrb->id());
 
                 // ... and display the calling view
                 $result .= dsp_go_back($back, $usr);

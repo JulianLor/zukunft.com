@@ -86,7 +86,7 @@ class value_time_series extends user_sandbox_display
     {
         parent::__construct($usr);
         $this->obj_type = user_sandbox::TYPE_VALUE;
-        $this->obj_name = DB_TYPE_VALUE_TIME_SERIES;
+        $this->obj_name = sql_db::TBL_VALUE_TIME_SERIES;
 
         $this->rename_can_switch = UI_CAN_CHANGE_VALUE;
 
@@ -97,7 +97,7 @@ class value_time_series extends user_sandbox_display
     {
         parent::reset();
 
-        $this->grp = new phrase_group($this->usr);
+        $this->grp = new phrase_group($this->user());
         $this->source = null;
 
         $this->last_update = new DateTime();
@@ -111,17 +111,22 @@ class value_time_series extends user_sandbox_display
      * map the database fields to the object fields
      *
      * @param array $db_row with the data directly from the database
-     * @param bool $map_usr_fields false for using the standard protection settings for the default value time series used for all users
+     * @param bool $load_std true if only the standard user sandbox object ist loaded
+     * @param bool $allow_usr_protect false for using the standard protection settings for the default object used for all users
      * @param string $id_fld the name of the id field as defined in this child and given to the parent
      * @return bool true if the value time series is loaded and valid
      */
-    function row_mapper(array $db_row, bool $map_usr_fields = true, string $id_fld = self::FLD_ID): bool
+    function row_mapper(
+        ?array $db_row,
+        bool   $load_std = false,
+        bool   $allow_usr_protect = true,
+        string $id_fld = self::FLD_ID): bool
     {
-        $result = parent::row_mapper($db_row, $map_usr_fields, self::FLD_ID);
+        $result = parent::row_mapper($db_row, $load_std, $allow_usr_protect, self::FLD_ID);
         if ($result) {
             $this->grp->id = $db_row[phrase_group::FLD_ID];
             if ($db_row[source::FLD_ID] > 0) {
-                $this->source = new source($this->usr);
+                $this->source = new source($this->user());
                 $this->source->id = $db_row[source::FLD_ID];
             }
             $this->last_update = $this->get_datetime($db_row[self::FLD_LAST_UPDATE], $this->dsp_id());
@@ -133,12 +138,12 @@ class value_time_series extends user_sandbox_display
      * create the SQL to load the default time series always by the id
      * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
      */
-    function load_standard_sql(sql_db $db_con, string $class = ''): sql_par
+    function load_standard_sql(sql_db $db_con, string $class = self::class): sql_par
     {
-        $db_con->set_type(DB_TYPE_VALUE_TIME_SERIES);
+        $db_con->set_type(sql_db::TBL_VALUE_TIME_SERIES);
         $db_con->set_fields(array_merge(self::FLD_NAMES, self::FLD_NAMES_NUM_USR, array(sql_db::FLD_USER_ID)));
 
-        return parent::load_standard_sql($db_con, self::class);
+        return parent::load_standard_sql($db_con, $class);
     }
 
     /**
@@ -151,7 +156,7 @@ class value_time_series extends user_sandbox_display
     {
         global $db_con;
         $qp = $this->load_standard_sql($db_con);
-        return parent::load_standard($qp, self::class);
+        return parent::load_standard($qp, $class);
     }
 
     /**
@@ -160,12 +165,12 @@ class value_time_series extends user_sandbox_display
      * @param sql_db $db_con the db connection object as a function parameter for unit testing
      * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
      */
-    function load_sql(sql_db $db_con, string $class = ''): sql_par
+    function load_sql_obj_vars(sql_db $db_con, string $class = self::class): sql_par
     {
+        $db_con->set_type(sql_db::TBL_VALUE_TIME_SERIES);
         $qp = new sql_par(self::class);
         $sql_where = '';
 
-        $db_con->set_type(DB_TYPE_VALUE_TIME_SERIES);
 
         if ($this->id > 0) {
             $qp->name .= 'id';
@@ -179,12 +184,12 @@ class value_time_series extends user_sandbox_display
 
         if ($sql_where != '') {
             $db_con->set_name($qp->name);
-            $db_con->set_usr($this->usr->id);
+            $db_con->set_usr($this->user()->id());
             $db_con->set_fields(self::FLD_NAMES);
             $db_con->set_usr_num_fields(self::FLD_NAMES_NUM_USR);
             $db_con->set_usr_only_fields(self::FLD_NAMES_USR_ONLY);
             $db_con->set_where_text($sql_where);
-            $qp->sql = $db_con->select_by_id();
+            $qp->sql = $db_con->select_by_set_id();
             $qp->par = $db_con->get_par();
         }
 
@@ -197,18 +202,18 @@ class value_time_series extends user_sandbox_display
      *
      * TODO load the related time series data
      */
-    function load(): bool
+    function load_obj_vars(): bool
     {
         global $db_con;
         $result = true;
 
         // check the all minimal input parameters
-        if (!isset($this->usr)) {
+        if (!$this->user()->is_set()) {
             log_err('The user must be set to load a time series for a user', self::class . '->load');
         } else {
-            log_debug(self::class . '->load');
+            log_debug();
 
-            $qp = $this->load_sql($db_con);
+            $qp = $this->load_sql_obj_vars($db_con);
             $db_val = $db_con->get1($qp);
             $result = $this->row_mapper($db_val);
         }
@@ -225,18 +230,18 @@ class value_time_series extends user_sandbox_display
      */
     function add(): user_message
     {
-        log_debug(self::class . '->add');
+        log_debug('->add');
 
         global $db_con;
         $result = new user_message();
 
         // log the insert attempt first
         $log = $this->log_add();
-        if ($log->id > 0) {
-            $db_con->set_type(DB_TYPE_VALUE_TIME_SERIES);
+        if ($log->id() > 0) {
+            $db_con->set_type(sql_db::TBL_VALUE_TIME_SERIES);
             $this->id = $db_con->insert(
                 array(phrase_group::FLD_ID, self::FLD_USER, self::FLD_LAST_UPDATE),
-                array($this->grp->id, $this->usr->id, "Now()"));
+                array($this->grp->id, $this->user()->id, "Now()"));
             if ($this->id > 0) {
                 // update the reference in the log
                 if (!$log->add_ref($this->id)) {
@@ -253,7 +258,7 @@ class value_time_series extends user_sandbox_display
                 */
 
                 // create an empty db_rec element to force saving of all set fields
-                //$db_vts = new value_time_series($this->usr);
+                //$db_vts = new value_time_series($this->user());
                 //$db_vts->id = $this->id;
                 // TODO add the data list saving
             }
@@ -267,21 +272,21 @@ class value_time_series extends user_sandbox_display
      */
     function save(): string
     {
-        log_debug(self::class . '->save');
+        log_debug('->save');
 
         global $db_con;
         $result = '';
 
         // build the database object because the is anyway needed
-        $db_con->set_type(DB_TYPE_VALUE_TIME_SERIES);
-        $db_con->set_usr($this->usr->id);
+        $db_con->set_type(sql_db::TBL_VALUE_TIME_SERIES);
+        $db_con->set_usr($this->user()->id());
 
         // check if a new time series is supposed to be added
         if ($this->id <= 0) {
             // check if a time series for the phrase group is already in the database
-            $db_chk = new value_time_series($this->usr);
+            $db_chk = new value_time_series($this->user());
             $db_chk->grp = $this->grp;
-            $db_chk->load();
+            $db_chk->load_obj_vars();
             if ($db_chk->id > 0) {
                 $this->id = $db_chk->id;
             }
@@ -295,10 +300,10 @@ class value_time_series extends user_sandbox_display
 
             // read the database value to be able to check if something has been changed
             // done first, because it needs to be done for user and general values
-            $db_rec = new value_time_series($this->usr);
+            $db_rec = new value_time_series($this->user());
             $db_rec->id = $this->id;
-            $db_rec->load();
-            $std_rec = new value_time_series($this->usr); // user must also be set to allow to take the ownership
+            $db_rec->load_obj_vars();
+            $std_rec = new value_time_series($this->user()); // user must also be set to allow to take the ownership
             $std_rec->id = $this->id;
             $std_rec->load_standard();
 

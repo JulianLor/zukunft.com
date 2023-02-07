@@ -2,7 +2,7 @@
 
 /*
 
-    web\user\user_type_list.php - the display extension of the user specific api type list object
+    /web/user/user_type_list.php - the display extension of the user specific api type list object
     ---------------------------
 
     to create the HTML code to display a list of object types
@@ -34,18 +34,31 @@
 
 namespace html;
 
-use api\user_type_list_api;
+use api\type_list_api;
 
-class user_type_list_dsp extends user_type_list_api
+class _type_list_dsp extends type_list_api
 {
 
-    function list(string $item_type, string $title = ''): string
+    function list(string $class, string $title = ''): string
     {
         $html = new html_base();
         if ($title != '') {
             $title = $html->text_h2($title);
         }
-        return $title . $html->list($this->lst(), $item_type);
+        return $title . $html->list($this->lst(), $class);
+    }
+
+    /**
+     * @returns string the html code to select a type from this list
+     */
+    function selector(string $name = '', string $form = '', int $selected = 0): string
+    {
+        $sel = new html_selector();
+        $sel->name = $name;
+        $sel->form = $form;
+        $sel->lst = $this->lst_key();
+        $sel->selected = $selected;
+        return $sel->dsp();
     }
 
 }

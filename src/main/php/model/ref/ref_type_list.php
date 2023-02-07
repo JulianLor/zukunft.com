@@ -31,7 +31,9 @@
 
 global $ref_types;
 
-class ref_type_list extends user_type_list
+use cfg\type_list;
+
+class ref_type_list extends type_list
 {
 
     /*
@@ -47,18 +49,44 @@ class ref_type_list extends user_type_list
      *
      * @param sql_db $db_con the database connection that can be either the real database connection or a simulation used for testing
      * @param string $db_type the database name e.g. the table name without s
+     * @param string $query_name the name extension to make the query name unique
+     * @param string $order_field set if the type list should e.g. be sorted by the name instead of the id
      * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
      */
-    function load_sql(sql_db $db_con, string $db_type): sql_par
+    function load_sql(
+        sql_db $db_con,
+        string $db_type,
+        string $query_name = 'all',
+        string $order_field = ''): sql_par
     {
+        $db_con->set_type($db_type);
         $qp = new sql_par($db_type);
         $qp->name = $db_type;
-        $db_con->set_type($db_type);
         $db_con->set_name($qp->name);
+        //TODO check if $db_con->set_usr($this->user()->id()); is needed
         $db_con->set_fields(array(sql_db::FLD_DESCRIPTION, sql_db::FLD_CODE_ID, self::FLD_URL));
-        $db_con->set_page_par(SQL_ROW_MAX);
+        if ($order_field == '') {
+            $order_field = $db_con->get_id_field_name($db_type);
+        }
+        $db_con->set_order($order_field);
+
+        return $qp;
+    }
+
+    /**
+     * create an SQL statement to load all refs types from the database
+     *
+     * @param sql_db $db_con the db connection object as a function parameter for unit testing
+     * @param string $db_type the class name to be compatible with the user sandbox load_sql functions
+     * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
+     */
+    public function load_sql_all(sql_db $db_con, string $db_type): sql_par
+    {
+        $qp = $this->load_sql($db_con, $db_type);
+        $db_con->set_page_par(SQL_ROW_MAX, 0);
         $qp->sql = $db_con->select_all();
         $qp->par = $db_con->get_par();
+
         return $qp;
     }
 
@@ -71,15 +99,15 @@ class ref_type_list extends user_type_list
     private function load_list(sql_db $db_con, string $db_type): void
     {
         $this->lst = array();
-        $qp = $this->load_sql($db_con, $db_type);
+        $qp = $this->load_sql_all($db_con, $db_type);
         $db_lst = $db_con->get($qp);
         if ($db_lst != null) {
             foreach ($db_lst as $db_entry) {
-                $type_obj = new ref_type();
+                $type_code_id = strval($db_entry[sql_db::FLD_CODE_ID]);
+                $type_name = strval($db_entry[sql_db::FLD_TYPE_NAME]);
+                $type_comment = strval($db_entry[sql_db::FLD_DESCRIPTION]);
+                $type_obj = new ref_type($type_code_id, $type_name, $type_comment);
                 $type_obj->id = $db_entry[self::FLD_ID];
-                $type_obj->name = $db_entry[sql_db::FLD_TYPE_NAME];
-                $type_obj->comment = $db_entry[sql_db::FLD_DESCRIPTION];
-                $type_obj->code_id = $db_entry[sql_db::FLD_CODE_ID];
                 $type_obj->url = $db_entry[self::FLD_URL];
                 $this->lst[$db_entry[$db_con->get_id_field_name($db_type)]] = $type_obj;
             }
@@ -92,7 +120,7 @@ class ref_type_list extends user_type_list
      * @param sql_db $db_con the database connection that can be either the real database connection or a simulation used for testing
      * @return bool true if load was successful
      */
-    function load(sql_db $db_con, string $db_type = DB_TYPE_REF_TYPE): bool
+    function load(sql_db $db_con, string $db_type = sql_db::TBL_REF_TYPE): bool
     {
         $result = false;
         $this->load_list($db_con, $db_type);
@@ -106,13 +134,11 @@ class ref_type_list extends user_type_list
     /**
      * adding the ref types used for unit tests to the dummy list
      */
-    function load_dummy()
+    function load_dummy(): void
     {
         parent::load_dummy();
-        $type = new ref_type();
+        $type = new ref_type(ref_type::WIKIPEDIA, ref_type::WIKIPEDIA);
         $type->id = 2;
-        $type->name = ref_type::WIKIPEDIA;
-        $type->code_id = ref_type::WIKIPEDIA;
         $this->lst[2] = $type;
         $this->hash[ref_type::WIKIPEDIA] = 2;
     }
@@ -128,9 +154,9 @@ class ref_type_list extends user_type_list
     /**
      * overwrite the user_type_list get function to be able to return the correct object
      * @param int $id the database id of the expected type
-     * @return ref_type the type object
+     * @return ref_type|null the type object
      */
-    function get_by_id(int $id): ref_type
+    function get_by_id(int $id): ?ref_type
     {
         global $ref_types;
         $result = null;
@@ -150,9 +176,9 @@ class ref_type_list extends user_type_list
 /**
  * exception to get_type that returns an extended user_type object
  * @param string $code_id the code id that must be unique within the given type
- * @return ref_type the loaded ref type object
+ * @return ref_type|null the loaded ref type object
  */
-function get_ref_type(string $code_id): ref_type
+function get_ref_type(string $code_id): ?ref_type
 {
     global $ref_types;
     $id = $ref_types->id($code_id);

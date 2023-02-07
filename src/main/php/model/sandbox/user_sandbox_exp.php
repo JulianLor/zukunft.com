@@ -2,9 +2,12 @@
 
 /*
 
-    user_sandbox_exp.php - the superclass for the export objects
-    --------------------
+    exp_obj.php - the superclass for the export objects
+    -----------
 
+    is used in service/export/json.php
+
+    similar to the api objects, but the export objects does not contain any
 
     This file is part of zukunft.com - calc with words
 
@@ -30,7 +33,18 @@
 
 */
 
-class user_sandbox_exp
+namespace export;
+
+class exp_obj
 {
+    // the field names used for the im- and export in the json or yaml format
+    const FLD_NAME = 'name';
+    const FLD_TYPE = 'type';
+    const FLD_TYPE_ID = 'type_id';
+    const FLD_DESCRIPTION = 'description';
+    const FLD_CODE_ID = 'code_id';
+    const FLD_VIEW = 'view';
+    const FLD_TIMESTAMP = 'timestamp';
+    const FLD_NUMBER = 'number';
 
 }

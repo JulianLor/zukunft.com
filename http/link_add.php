@@ -34,7 +34,8 @@
 
 // standard zukunft header for callable php files to allow debugging and lib loading
 $debug = $_GET['debug'] ?? 0;
-include_once '../src/main/php/zu_lib.php';
+const ROOT_PATH = __DIR__ . '/../';
+include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 
 // open database
 $db_con = prg_start("link_add");
@@ -47,35 +48,34 @@ $usr = new user;
 echo $usr->get(); // if the usr identification fails, show any message immediately because this should never happen
 
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
-if ($usr->id > 0) {
+if ($usr->id() > 0) {
 
     load_usr_data();
 
     // prepare the display
     $dsp = new view_dsp_old($usr);
-    $dsp->id = cl(db_cl::VIEW, view::LINK_ADD);
-    $dsp->load();
+    $dsp->load_by_code_id(view::LINK_ADD);
     $back = $_GET['back'];      // the calling word which should be displayed after saving
 
     // create the object to store the parameters so that if the add form is shown again it is already filled
-    $lnk = new word_link($usr);
+    $lnk = new triple($usr);
 
     // load the parameters to the triple object to display it again in case of an error
     if (isset($_GET['from'])) {
-        $lnk->from->id = $_GET['from'];
+        $lnk->from->set_id($_GET['from']);
     }   // the word or triple to be linked
     if (isset($_GET['verb'])) {
-        $lnk->verb->id = $_GET['verb'];
+        $lnk->verb->set_id($_GET['verb']);
     }   // the link type (verb)
     if (isset($_GET['phrase'])) {
-        $lnk->to->id = $_GET['phrase'];
+        $lnk->to->set_id($_GET['phrase']);
     }
 
     // if the user has pressed save at least once
     if ($_GET['confirm'] == 1) {
 
         // check essential parameters
-        if ($lnk->from->id == 0 or $lnk->verb->id == 0 or $lnk->to->id == 0) {
+        if ($lnk->from->id() == 0 or $lnk->verb->id() == 0 or $lnk->to->id() == 0) {
             $msg .= 'Please select two words and a verb.';
         } else {
 

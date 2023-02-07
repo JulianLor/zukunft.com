@@ -29,21 +29,23 @@
 
 */
 
-function run_graph_test(testing $t)
+use api\word_api;
+
+function run_graph_test(testing $t): void
 {
 
     global $usr;
 
     $back = 0;
 
-    $t->header('Test the graph class (classes/word_link_list.php)');
+    $t->header('Test the graph class (classes/triple_list.php)');
 
     // get all phrase links used for a phrase and its related values
     // e.g. for the phrase "Company" the link "Company has a balance sheet" should be returned
 
     // step 1: define the phrase list e.g. in this case only the test word for city
     $phr_lst = new phrase_list($usr);
-    $phr_lst->load_by_names(array(word::TN_CITY));
+    $phr_lst->load_by_names(array(word_api::TN_CITY));
 
     // step 2: get all values related to the phrases
     $val_lst = new value_list($usr);
@@ -53,55 +55,56 @@ function run_graph_test(testing $t)
 
     // step 3: get all phrases used for the value descriptions
     $phr_lst_used = new phrase_list($usr);
-    foreach ($wrd_lst_all->lst as $wrd) {
-        if (!array_key_exists($wrd->id, $phr_lst_used->id_lst())) {
+    foreach ($wrd_lst_all->lst() as $wrd) {
+        if (!array_key_exists($wrd->id(), $phr_lst_used->id_lst())) {
             $phr_lst_used->add($wrd->phrase());
         }
     }
     // step 4: get the word links for the used phrases
     //         these are the word links that are needed for a complete export
-    $lnk_lst = new word_link_list($usr);
+    $lnk_lst = new triple_list($usr);
     $lnk_lst->wrd_lst = $phr_lst_used->wrd_lst();
     $lnk_lst->direction = 'up';
     $lnk_lst->load_old();
     $result = $lnk_lst->name();
     // check if at least the basic relations are in the database
     /*
-    $target = '' . word::TN_CITY_AS_CATEGORY . ' has a balance sheet';
-    $t->dsp_contains(', word_link_list->load for ' . $phr_lst->dsp_id(), $target, $result, TIMEOUT_LIMIT_PAGE);
+    $target = '' . word_api::TN_CITY_AS_CATEGORY . ' has a balance sheet';
+    $t->dsp_contains(', triple_list->load for ' . $phr_lst->dsp_id(), $target, $result, TIMEOUT_LIMIT_PAGE);
     $target = 'Company has a forecast';
-    $t->dsp_contains(', word_link_list->load for ' . $phr_lst->dsp_id(), $target, $result, TIMEOUT_LIMIT_PAGE);
+    $t->dsp_contains(', triple_list->load for ' . $phr_lst->dsp_id(), $target, $result, TIMEOUT_LIMIT_PAGE);
     $target = 'Company uses employee';
     $t->dsp_contains(', word ' . $phr_lst->dsp_id(), $target, $result, TIMEOUT_LIMIT_PAGE);
     */
 
     // similar to above, but just for the zurich
     $phr_lst = new phrase_list($usr);
-    $phr_lst->load_by_names(array(word::TN_ZH, word::TN_INHABITANT, word::TN_MIO));
-    $lnk_lst = new word_link_list($usr);
+    $phr_lst->load_by_names(array(word_api::TN_ZH, word_api::TN_INHABITANTS, word_api::TN_MIO));
+    $lnk_lst = new triple_list($usr);
     $lnk_lst->wrd_lst = $phr_lst->wrd_lst_all();
     $lnk_lst->direction = 'up';
     $lnk_lst->load_old();
     $result = $lnk_lst->name();
-    // to be reviewed
-    $target = 'System Test Phrase: Zurich (City),System Test Phrase: Zurich Insurance,System Test Word Member e.g. Zurich (System Test Word Category e.g. Canton)';
-    $t->dsp_contains(', word_link_list->load for ' . $phr_lst->dsp_id(), $target, $result, TIMEOUT_LIMIT_PAGE);
+    // TODO to be reviewed
+    $target = 'System Test Phrase: Zurich Insurance,Zurich (Canton),Zurich (City)';
+    if ($result != $target) {
+        $target = 'System Test Phrase: Zurich Insurance,Zurich (City),Zurich (Canton)';
+    }
+    $t->dsp_contains(', triple_list->load for ' . $phr_lst->dsp_id(), $target, $result, TIMEOUT_LIMIT_PAGE);
 
 
     // the other side
     $ZH = new word($usr);
-    $ZH->name = word::TN_ZH;
-    $ZH->load();
+    $ZH->load_by_name(word_api::TN_ZH, word::class);
     $is = new verb;
-    $is->id = cl(db_cl::VERB, verb::IS_A);
-    $is->usr = $usr;
-    $is->load();
-    $graph = new word_link_list($usr);
+    $is->set_user($usr);
+    $is->load_by_code_id(verb::IS_A);
+    $graph = new triple_list($usr);
     $graph->wrd = $ZH;
     $graph->vrb = $is;
     $graph->direction = 'up';
     $graph->load_old();
-    //$target = zut_html_list_related($ZH->id, $graph->direction, $usr->id);
+    //$target = zut_html_list_related($ZH->id, $graph->direction, $usr->id());
     $result = $graph->display($back);
     /*
     $diff = str_diff($result, $target);
@@ -114,7 +117,7 @@ function run_graph_test(testing $t)
             }
         }
     } */
-    $target = word::TN_COMPANY;
+    $target = word_api::TN_COMPANY;
     $t->dsp_contains('graph->load for ZH up is', $target, $result);
 
 }

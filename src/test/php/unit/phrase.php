@@ -3,7 +3,7 @@
 /*
 
     test/unit/phrase.php - unit testing of the phrase functions
-    ------------------
+    --------------------
 
 
     This file is part of zukunft.com - calc with words
@@ -30,41 +30,56 @@
 
 */
 
+use api\word_api;
+use cfg\phrase_type;
+
 class phrase_unit_tests
 {
 
-    function run(testing $t)
+    function run(testing $t): void
     {
 
         global $usr;
 
         // init
         $db_con = new sql_db();
-        $t->name = 'word->';
+        $t->name = 'phrase->';
         $t->resource_path = 'db/phrase/';
         $json_file = 'unit/phrase/second.json';
-        $usr->id = 1;
+        $usr->set_id(1);
 
-        $t->header('Unit tests of the word class (src/main/php/model/phrase/phrase.php)');
 
+        $t->header('Unit tests of the phrase class (src/main/php/model/phrase/phrase.php)');
 
         $t->subheader('SQL statement tests');
 
-        // sql to load the word by id
         $phr = new phrase($usr);
-        $phr->id = 2;
+        $t->assert_load_sql_id($db_con, $phr);
+        $t->assert_load_sql_name($db_con, $phr);
+
+        // sql to load the phrase by id
+        $phr = new phrase($usr);
+        $phr->set_id(2);
 
         // check the PostgreSQL query syntax
         $wrd_company = new word($usr);
-        $wrd_company->id = 2;
-        $wrd_company->name = word::TN_COMPANY;
+        $wrd_company->set(2, word_api::TN_COMPANY);
         $sql_name = 'phrase_list_related';
         $db_con->db_type = sql_db::POSTGRES;
         $file_name = $t->resource_path . $sql_name . test_base::FILE_EXT;
         $created_sql = $phr->sql_list($wrd_company);
         $expected_sql = $t->file($file_name);
-        $result = $t->assert_sql($t->name . $sql_name, $created_sql, $expected_sql
+        $t->assert_sql($t->name . $sql_name, $created_sql, $expected_sql
         );
+
+
+        $t->header('Unit tests of the phrase type class (src/main/php/model/phrase/phrase_type.php)');
+
+        $t->subheader('API unit tests');
+
+        global $phrase_types;
+        $phr_typ = $phrase_types->get_by_code_id(phrase_type::PERCENT);
+        $t->assert_api($phr_typ, 'phrase_type');
 
     }
 

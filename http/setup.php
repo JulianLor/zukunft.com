@@ -12,7 +12,8 @@
 use cfg\phrase_type;
 
 if (isset($_GET['debug'])) { $debug = $_GET['debug']; } else { $debug = 0; }
-include_once '../src/main/php/zu_lib.php'; if ($debug > 0) { echo 'libs loaded<br>'; }
+const ROOT_PATH = __DIR__ . '/../';
+include_once ROOT_PATH . 'src/main/php/zu_lib.php'; if ($debug > 0) { echo 'libs loaded<br>'; }
 
 /*
 
@@ -20,7 +21,7 @@ The steps should be
 1. ask for the database connection and test it
 2. ask for the admin user and set the database user
 3. write the database connection to a config file, which should not be readable for the www user
-4. create the database using zukunft_structure.sql
+4. create the database using src/main/php/db/.../zukunft_structure.sql
 5. load the coded linked database rows
 6. import the initial usr data with JSON
 7. on each start it is checked if the local config exists and if no the setup is started
@@ -34,7 +35,7 @@ $usr = new user;
 $result = $usr->get();
 
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
-if ($usr->id > 0) {
+if ($usr->id() > 0) {
     if ($usr->is_admin()) {
 
         // recreate the code link database rows

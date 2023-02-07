@@ -30,6 +30,7 @@
 
 */
 
+use api\word_api;
 use html\html_base;
 use html\word_dsp;
 
@@ -42,8 +43,8 @@ class word_display_unit_tests
 
         $t->subheader('Word tests');
 
-        $wrd = new word_dsp(1, word::TN_READ);
-        $wrd_pi = new word_dsp(2, word::TN_CONST_DSP);
+        $wrd = new word_dsp(1, word_api::TN_READ);
+        $wrd_pi = new word_dsp(2, word_api::TN_CONST);
         $test_page = $html->text_h2('Word display test');
         $test_page .= 'with tooltip: ' . $wrd->dsp() . '<br>';
         $test_page .= 'with link: ' . $wrd->dsp_link() . '<br>';
@@ -54,8 +55,12 @@ class word_display_unit_tests
         $test_page .= 'unlink in columns: ' . $wrd_pi->dsp_unlink($wrd->id()) . '<br>';
         $test_page .= 'view header<br>';
         $test_page .= $wrd->header() . '<br>';
+        $test_page .= 'add mask<br>';
+        $test_page .= $wrd->form_add('') . '<br>';
         $test_page .= 'edit mask<br>';
-        $test_page .= $wrd->dsp_edit('', '', '', '') . '<br>';
+        $test_page .= $wrd->form_edit('', '', '', '') . '<br>';
+        $test_page .= 'del mask<br>';
+        $test_page .= $wrd->form_del('') . '<br>';
         $t->html_test($test_page, 'word', $t);
     }
 

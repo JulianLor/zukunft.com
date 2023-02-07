@@ -2,8 +2,8 @@
 
 /*
 
-    api\phrase_group.php - the minimal phrase group object used for the back- to frontend api
-    --------------------
+    api/phrase/phrase_group.php - the minimal phrase group object used for the back- to frontend api
+    ---------------------------
 
 
     This file is part of zukunft.com - calc with words
@@ -33,10 +33,24 @@
 namespace api;
 
 use html\phrase_group_dsp;
-use phrase_list_dsp;
+use html\phrase_list_dsp;
 
 class phrase_group_api extends user_sandbox_named_api
 {
+
+    /*
+     * const for system testing
+     */
+
+    // persevered phrase group names for unit and integration tests
+    const TN_READ = 'Pi (math)';
+
+    const TN_ZH_2019 = 'inhabitant in the city of Zurich (2019)';
+    const TN_CH_2019 = 'inhabitant of Switzerland in Mio (2019)';
+
+    /*
+     * object vars
+     */
 
     // list of word_min and triple_min objects
     private array $lst;
@@ -80,17 +94,18 @@ class phrase_group_api extends user_sandbox_named_api
     function set_lst($lst): void
     {
         $this->lst = $lst;
-        $this->set_lst_dirty();
-        $this->set_name_dirty();
+        $this->set_dirty();
     }
 
-    function set_lst_dirty(): void
+    function reset_lst(): void
+    {
+        $this->lst = array();
+        $this->set_dirty();
+    }
+
+    function set_dirty(): void
     {
         $this->lst_dirty = true;
-    }
-
-    function set_name_dirty(): void
-    {
         $this->name_dirty = true;
     }
 
@@ -140,8 +155,7 @@ class phrase_group_api extends user_sandbox_named_api
         $result = false;
         if (!in_array($phr->id, $this->id_lst())) {
             $this->lst[] = $phr;
-            $this->set_lst_dirty();
-            $this->set_name_dirty();
+            $this->set_dirty();
             $result = true;
         }
         return $result;
@@ -166,8 +180,9 @@ class phrase_group_api extends user_sandbox_named_api
         return $this->phr_lst()->has_percent();
     }
 
+
     /*
-     * casting objects
+     * cast
      */
 
     /**

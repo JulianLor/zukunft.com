@@ -30,7 +30,10 @@
 
 */
 
-function run_export_test(testing $t)
+use api\word_api;
+use export\json_io;
+
+function run_export_test(testing $t): void
 {
 
     global $usr;
@@ -38,7 +41,7 @@ function run_export_test(testing $t)
     $t->header('Test the xml export class (classes/xml.php)');
 
     $phr_lst = new phrase_list($usr);
-    $phr_lst->load_by_names(array(word::TN_READ));
+    $phr_lst->load_by_names(array(word_api::TN_READ));
     $xml_export = new xml_io;
     $xml_export->usr = $usr;
     $xml_export->phr_lst = $phr_lst;
@@ -48,9 +51,7 @@ function run_export_test(testing $t)
 
     $t->header('Test the json export class (classes/json.php)');
 
-    $json_export = new json_io;
-    $json_export->usr = $usr;
-    $json_export->phr_lst = $phr_lst;
+    $json_export = new json_io($usr, $phr_lst);
     $result = $json_export->export();
     $target = 'Mathematical constant';
     $t->dsp_contains(', json->export for ' . $phr_lst->dsp_id() . ' contains at least ' . $target, $target, $result, TIMEOUT_LIMIT_PAGE);

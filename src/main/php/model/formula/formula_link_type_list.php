@@ -31,7 +31,10 @@
 
 global $formula_link_types;
 
-class formula_link_type_list extends user_type_list
+use cfg\type_list;
+use cfg\type_object;
+
+class formula_link_type_list extends type_list
 {
 
     /**
@@ -39,7 +42,7 @@ class formula_link_type_list extends user_type_list
      * @param sql_db $db_con the database connection that can be either the real database connection or a simulation used for testing
      * @return bool true if load was successful
      */
-    function load(sql_db $db_con, string $db_type = DB_TYPE_FORMULA_LINK_TYPE): bool
+    function load(sql_db $db_con, string $db_type = sql_db::TBL_FORMULA_LINK_TYPE): bool
     {
         return parent::load($db_con, $db_type);
     }
@@ -47,19 +50,13 @@ class formula_link_type_list extends user_type_list
     /**
      * adding the formula link types used for unit tests to the dummy list
      */
-    function load_dummy()
+    function load_dummy(): void
     {
         parent::load_dummy();
-        $type = new user_type();
-        $type->name = formula_link::DEFAULT;
-        $type->code_id = formula_link::DEFAULT;
-        $this->lst[2] = $type;
-        $this->hash[formula_link::DEFAULT] = 2;
-        $type = new user_type();
-        $type->name = formula_link::TIME_PERIOD;
-        $type->code_id = formula_link::TIME_PERIOD;
-        $this->lst[3] = $type;
-        $this->hash[formula_link::TIME_PERIOD] = 3;
+        $type = new type_object(formula_link::DEFAULT, formula_link::DEFAULT, '', 2);
+        $this->add($type);
+        $type = new type_object(formula_link::TIME_PERIOD, formula_link::TIME_PERIOD, '', 3);
+        $this->add($type);
     }
 
     /**

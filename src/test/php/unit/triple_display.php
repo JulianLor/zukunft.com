@@ -30,6 +30,7 @@
 
 */
 
+use api\word_api;
 use html\html_base;
 use html\triple_dsp;
 use html\word_dsp;
@@ -43,8 +44,8 @@ class triple_display_unit_tests
 
         $t->subheader('Triple tests');
 
-        $trp = new triple_dsp(-1, word::TN_READ);
-        $wrd = new word_dsp(1, word::TN_READ);
+        $trp = new triple_dsp(-1, word_api::TN_READ);
+        $wrd = new word_dsp(1, word_api::TN_READ);
         $test_page = $html->text_h2('Triple display test');
         $test_page .= 'with tooltip: ' . $trp->dsp() . '<br>';
         $test_page .= 'edit button: ' . $trp->btn_edit($wrd->phrase()) . '<br>';

@@ -31,7 +31,8 @@
 
 // standard zukunft header for callable php files to allow debugging and lib loading
 $debug = $_GET['debug'] ?? 0;
-include_once '../src/main/php/zu_lib.php';
+const ROOT_PATH = __DIR__ . '/../';
+include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 
 // open database
 $db_con = prg_start("value_edit");
@@ -44,22 +45,20 @@ $usr = new user;
 $result .= $usr->get();
 
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
-if ($usr->id > 0) {
+if ($usr->id() > 0) {
 
     load_usr_data();
 
     // prepare the display
     $dsp = new view_dsp_old($usr);
-    $dsp->id = cl(db_cl::VIEW, view::VALUE_EDIT);
-    $dsp->load();
+    $dsp->load_by_code_id(view::VALUE_EDIT);
     $back = $_GET['back'];     // the word id from which this value change has been called (maybe later any page)
 
     // create the value object to store the parameters so that if the edit form is shown again it is already filled
     $val = new value($usr);
-    $val->id = $_GET['id'];            // the database id of the value that should be changed
-    $val->load();              // to load any missing parameters of the edit view like the group and phrases from the database
+    $val->load_by_id($_GET['id']); // to load any missing parameters of the edit view like the group and phrases from the database
 
-    if ($val->id <= 0) {
+    if ($val->id() <= 0) {
         $result .= log_err("Value id missing for value_edit called from " . $back, "value_edit.php");
     } else {
 
@@ -89,8 +88,8 @@ if ($usr->id > 0) {
                 }
                 $phr_pos++;
             }
-            log_debug("value_edit -> phrases " . implode(",", $phr_ids) . ".");
-            log_debug("value_edit -> types " . implode(",", $type_ids) . ".");
+            log_debug("phrases " . implode(",", $phr_ids) . ".");
+            log_debug("types " . implode(",", $type_ids) . ".");
 
             $val->ids = $phr_ids;
         }
@@ -100,7 +99,7 @@ if ($usr->id > 0) {
 
             // if a phrase is added or removed used the database value as a fallback
             if ($val->usr_value == '') {
-                $val->usr_value = $val->number;
+                $val->usr_value = $val->number();
             }
             // an empty value should never be saved; instead the value should be deleted)
             if ($val->usr_value == '') {

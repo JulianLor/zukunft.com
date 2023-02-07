@@ -12,12 +12,33 @@
     4. commit
 
     but first this needs to be fixed:
+    TODO define all database field names as const
+    TODO for reference field names use the destination object
+            e.g. for the field name phrase_group_id use phrase_group::FLD_ID
+    TODO move the time field of phrase groups to the group
+    TODO load_obj_vars: replace the load_obj_vars with more specific load_by_ functions
+    TODO unit test: create a unit test for all possible class functions next to review: formula expression
+    TODO api load: expose all load functions to the api (with security check!)
     TODO use always prepared queries based on the value_phrase_link_list_by_phrase_id.sql sample
     TODO fix error in upgrade process for MySQL
     TODO fix syntax suggestions in existing code
     TODO add the view result at least as simple text to the JSON export
 
     after that this should be done while keeping step 1. to 4. for each commit:
+    TODO check if reading triples should use a view to generate the triple name and the generated name
+    TODO use the sandbox list for all user lists
+    TODO use in the frontend only the code id of types
+    TODO use in the backend always the type object instead of the db type id
+    TODO always use the frontend path CONST instead of 'http'
+    TODO replace the fixed edit masks with a view call of a mask with a code id
+    TODO review cast to display objects to always use display objects
+    TODO make all vars of display objects private or protected
+    TODO move display functions to frontend objects
+    TODO check that all queries are parameterized by setting $db_con->set_name
+    TODO add text report table to save a text related to a phrase group (and a timestamp)
+    TODO check that all load function have an API and are added in the OpenAPI document
+    TODO use the api functions and the html frontend function
+    TODO create a vue.js based frontend
     TODO capsule (change from public to private or protected) all class vars that have dependencies e.g lst of user_type_list
     TODO split frontend and backend an connect them using api objects
     TODO add a text export format to the display objects and use it for JSON import validation e.g. for the travel list
@@ -31,6 +52,8 @@
     TODO add a simple UI API JSON to text frontend for the view validation
     TODO exclude any search objects from list objects e.g. remove the phrase from the value list which implies to split the list loading into single functions such as load_by_phr
     TODO use a key-value table without a phrase group if a value is not user specific and none of the default settings has been changed
+         for the key-value table without a phrase group encode the key, so that automatically a virtual phrase group can be created
+         e.g. convert -12,3,67 to something like 4c48d5685a7e with the possibility to reverse
     TODO move all sample SQL statements from the unit test to separate files for auto syntax check
     TODO check that all sample SQL statements are checked for the unique name and for mysql syntax
     TODO cleanup the objects and remove all vars not needed any more e.g. id arrays
@@ -42,7 +65,7 @@
     TODO create unit tests
     TODO cleanup object by removing duplicates
     TODO call include only if needed
-    TODO use the git concept of merge and rebase for group changes e.g. if some formulas are assinged to a group these formulas can be used by all members of a group
+    TODO use the git concept of merge and rebase for group changes e.g. if some formulas are assigned to a group these formulas can be used by all members of a group
     TODO additional to the git concept of merge allow also subscribe or auto merge
     TODO create a simple value table with the compressed phrase ids as a key and the value as a key-value table
     TODO check that all class function follow the setup suggested in user_message
@@ -83,6 +106,7 @@
     TODO load the config, that is not expected to be changed during a session once at startup
     TODO start the backend only once and react to REST calls from the frontend
     TODO make use of __DIR__ ?
+    TODO check the install of needed packages e.g. to make sure curl_init() works
     TODO create a User Interface API
     TODO offer to use FreeOTP for two factor authentication
     TODO change config files from json to yaml to complete "reduce to the max"
@@ -106,6 +130,11 @@
     TODO create a LaTeX extension for charts and values, so that studies can be recreated based on the LaTeX document
     TODO for fail over in the underlying technologies, create a another backend in python and java  and allow the user to select or auto select the backend technology
     TODO for fail over in the underlying database technologies, auto sync the casandra, hadoop, postgreSQL and mariaDB databases
+    TODO auto create two triple for an OR condition in a value selection; this implies that to select a list of values only AND needs to be used and brackets are also not needed
+    TODO add a phrase group to sources and allow to import it with "keys:"
+    TODO allow to assign more phrases to a source for better suggestion of sources
+    TODO add a request time to each frontend request to check the automatically the response times
+    TODO check that all external links from external libraries are removed, so that the cookie disclaimer can be avoided
 
 
     TODO create a table startup page with a
@@ -124,6 +153,22 @@
          - html: for the pure html frontend
          - vue: for the vue.js based frontend, which can cache api objects for read only. This implies that the backend has an api to reload single objects
          - db: for the persistence layer
+
+    TODO for all objects (in progress: user)
+        1. complete phpDOCS
+        2. add type to all function parameter
+        3. create unit test for all functions
+            a) prefer assert_qp vs assert_sql
+            b) prefer assert vs dsp
+        4. create db and api tests
+        5. update the OpenAPI doc
+        6. use parametrized queries
+        7. use translated user interface messages
+        8. use const
+            a) for db fields
+        9. remove class and function from debug
+       10. capsule object vars
+        done:
 
 
     This file is part of zukunft.com - calc with words
@@ -150,73 +195,15 @@
 
 */
 
-// a list of all object names used
-// the used database objects (the table name is in most cases with an extra 's', because each table contains the data for many objects)
-// TODO use const for all object names
 use html\html_base;
-
-const DB_TYPE_USER = 'user';
-const DB_TYPE_USER_TYPE = 'user_type';
-const DB_TYPE_USER_PROFILE = 'user_profile';
-const DB_TYPE_USER_OFFICIAL_TYPE = 'user_official_type';
-const DB_TYPE_WORD = 'word';
-const DB_TYPE_WORD_TYPE = 'word_type';
-const DB_TYPE_TRIPLE = 'word_link';
-const DB_TYPE_VERB = 'verb';
-const DB_TYPE_PHRASE = 'phrase';
-const DB_TYPE_PHRASE_GROUP = 'phrase_group';
-const DB_TYPE_PHRASE_GROUP_WORD_LINK = 'phrase_group_word_link';
-const DB_TYPE_PHRASE_GROUP_TRIPLE_LINK = 'phrase_group_triple_link';
-const DB_TYPE_VALUE = 'value';
-const DB_TYPE_VALUE_TIME_SERIES = 'value_time_series';
-const DB_TYPE_VALUE_TIME_SERIES_DATA = 'value_ts_data';
-const DB_TYPE_VALUE_PHRASE_LINK = 'value_phrase_link';
-const DB_TYPE_SOURCE = 'source';
-const DB_TYPE_SOURCE_TYPE = 'source_type';
-const DB_TYPE_REF = 'ref';
-const DB_TYPE_REF_TYPE = 'ref_type';
-const DB_TYPE_FORMULA = 'formula';
-const DB_TYPE_FORMULA_TYPE = 'formula_type';
-const DB_TYPE_FORMULA_LINK = 'formula_link';
-const DB_TYPE_FORMULA_LINK_TYPE = 'formula_link_type';
-const DB_TYPE_FORMULA_ELEMENT = 'formula_element';
-const DB_TYPE_FORMULA_ELEMENT_TYPE = 'formula_element_type';
-const DB_TYPE_FORMULA_VALUE = 'formula_value';
-const DB_TYPE_VIEW = 'view';
-const DB_TYPE_VIEW_TYPE = 'view_type';
-const DB_TYPE_VIEW_COMPONENT = 'view_component';
-const DB_TYPE_VIEW_COMPONENT_LINK = 'view_component_link';
-const DB_TYPE_VIEW_COMPONENT_TYPE = 'view_component_type';
-const DB_TYPE_VIEW_COMPONENT_LINK_TYPE = 'view_component_link_type';
-
-const DB_TYPE_CHANGE = 'change';
-const DB_TYPE_CHANGE_TABLE = 'change_table';
-const DB_TYPE_CHANGE_FIELD = 'change_field';
-const DB_TYPE_CHANGE_ACTION = 'change_action';
-const DB_TYPE_CHANGE_LINK = 'change_link';
-const DB_TYPE_CONFIG = 'config';
-const DB_TYPE_IP = 'user_blocked_ip';
-const DB_TYPE_SYS_LOG = 'sys_log';
-const DB_TYPE_SYS_LOG_STATUS = 'sys_log_status';
-const DB_TYPE_SYS_LOG_FUNCTION = 'sys_log_function';
-const DB_TYPE_SYS_SCRIPT = 'sys_script'; // to log the execution times for code optimising
-const DB_TYPE_TASK = 'calc_and_cleanup_task';
-const DB_TYPE_TASK_TYPE = 'calc_and_cleanup_task_type';
-
-const DB_TYPE_LANGUAGE_FORM = 'language_form';
-
-const DB_TYPE_SHARE = 'share_type';
-const DB_TYPE_PROTECTION = 'protection_type';
-
-const DB_TYPE_USER_PREFIX = 'user_';
-
-const DB_FIELD_EXT_ID = '_id';
-const DB_FIELD_EXT_NAME = '_name';
 
 // the fixed system user
 const SYSTEM_USER_ID = 1; //
+const SYSTEM_USER_TEST_ID = 2; //
 
-const ROOT_PATH = '../';
+// parameters for internal testing and debugging
+const LIST_MIN_NAMES = 4; // number of object names that should al least be shown
+const DEBUG_SHOW_USER = 10; // starting from this debug level the user should be shown in the debug text
 
 
 // the main global vars to shorten the code by avoiding them in many function calls as parameter
@@ -237,32 +224,48 @@ $sys_time_start = time();
 $sys_time_limit = time() + 2;
 $sys_log_msg_lst = array();
 
-/*
-global $root_path;
-
-if ($root_path == '') {
-    $root_path = '../';
-}
-*/
-
 
 // set the paths of the program code
 $path_php = ROOT_PATH . 'src/main/php/'; // path of the main php source code
 
+// check php version
+$version = explode('.', PHP_VERSION);
+if ($version[0] < 8) {
+    if ($version[1] < 1) {
+        echo 'at least php version 8.1 is needed';
+    }
+}
+//check if "sudo apt-get install php-curl" is done for testing
+//phpinfo();
+
 // database links
-include_once ROOT_PATH . 'database/sql_db.php';
+include_once $path_php . 'db/sql_db.php';
 include_once $path_php . 'db/db_check.php';
 // utils
 include_once $path_php . 'utils/json_utils.php';
-include_once $path_php . 'model/helper/object_type.php';
-include_once $path_php . 'model/user/user_type_list.php';
-include_once $path_php . 'model/system/type_list.php';
+include_once $path_php . 'model/helper/library.php';
+include_once $path_php . 'model/helper/db_object.php';
+include_once $path_php . 'model/helper/db_object_named.php';
+include_once $path_php . 'model/helper/type_object.php';
+include_once $path_php . 'model/helper/type_list.php';
+include_once $path_php . 'model/helper/type_lists.php';
+include_once $path_php . 'model/system/list.php';
 include_once $path_php . 'model/system/log.php';
 include_once $path_php . 'model/system/system_utils.php';
 include_once $path_php . 'model/system/system_error_log_status_list.php';
 include_once $path_php . 'model/system/ip_range.php';
-include_once $path_php . 'model/change/log_table.php';
-include_once $path_php . 'model/helper/link_list.php';
+include_once $path_php . 'model/system/ip_range_list.php';
+include_once $path_php . 'model/log/change_log.php';
+include_once $path_php . 'model/log/change_log_named.php';
+include_once $path_php . 'model/log/change_log_link.php';
+include_once $path_php . 'model/log/change_log_action.php';
+include_once $path_php . 'model/log/change_log_table.php';
+include_once $path_php . 'model/log/change_log_field.php';
+include_once $path_php . 'model/log/change_log_list.php';
+include_once $path_php . 'model/language/language.php';
+include_once $path_php . 'model/language/language_list.php';
+include_once $path_php . 'model/language/language_form.php';
+include_once $path_php . 'model/language/language_form_list.php';
 // service
 include_once $path_php . 'service/import/import_file.php';
 include_once $path_php . 'service/import/import.php';
@@ -272,42 +275,45 @@ include_once $path_php . 'service/export/xml.php';
 // user sandbox classes
 include_once $path_php . 'model/user/user.php';
 include_once $path_php . 'model/user/user_message.php';
-include_once $path_php . 'model/user/user_type.php';
 include_once $path_php . 'model/user/user_profile.php';
 include_once $path_php . 'model/user/user_profile_list.php';
 include_once $path_php . 'model/user/user_list.php';
-include_once $path_php . 'model/user/user_log.php';
-include_once $path_php . 'model/user/user_log_named.php';
-include_once $path_php . 'model/user/user_log_link.php';
 include_once $path_php . 'model/sandbox/user_sandbox.php';
 include_once $path_php . 'model/sandbox/user_sandbox_named.php';
 include_once $path_php . 'model/sandbox/user_sandbox_value.php';
 include_once $path_php . 'model/sandbox/user_sandbox_link.php';
-include_once $path_php . 'model/sandbox/user_sandbox_link_description.php';
-include_once $path_php . 'model/sandbox/user_sandbox_description.php';
+include_once $path_php . 'model/sandbox/user_sandbox_link_with_type.php';
+include_once $path_php . 'model/sandbox/user_sandbox_link_named.php';
+include_once $path_php . 'model/sandbox/user_sandbox_link_named_with_type.php';
+include_once $path_php . 'model/sandbox/user_sandbox_named_with_type.php';
 include_once $path_php . 'model/sandbox/user_sandbox_exp.php';
 include_once $path_php . 'model/sandbox/user_sandbox_exp_named.php';
 include_once $path_php . 'model/sandbox/user_sandbox_exp_link.php';
+include_once $path_php . 'model/sandbox/user_sandbox_list.php';
+include_once $path_php . 'model/sandbox/user_sandbox_list_named.php';
+include_once $path_php . 'model/user/user_exp.php';
 include_once $path_php . 'model/sandbox/share_type.php';
 include_once $path_php . 'model/sandbox/share_type_list.php';
+include_once $path_php . 'model/sandbox/protection_type.php';
 include_once $path_php . 'model/sandbox/protection_type_list.php';
 include_once $path_php . 'web/user_sandbox_display.php';
 // system classes
-include_once $path_php . 'model/system/system_error_log.php';
-include_once $path_php . 'model/system/system_error_log_list.php';
+include_once $path_php . 'model/system/system_log.php';
+include_once $path_php . 'model/system/system_log_list.php';
 include_once $path_php . 'model/system/batch_job.php';
 include_once $path_php . 'model/system/batch_job_list.php';
 include_once $path_php . 'model/system/batch_job_type_list.php';
-include_once $path_php . 'model/helper/word_link_object.php';
+include_once $path_php . 'model/helper/triple_object.php';
 // model classes
 include_once $path_php . 'model/word/word.php';
 include_once $path_php . 'model/word/word_exp.php';
 include_once $path_php . 'model/word/word_type.php';
 include_once $path_php . 'model/word/word_type_list.php';
 include_once $path_php . 'model/word/word_list.php';
-include_once $path_php . 'model/word/word_link.php';
-include_once $path_php . 'model/word/word_link_exp.php';
-include_once $path_php . 'model/word/word_link_list.php';
+include_once $path_php . 'model/word/word_change_list.php';
+include_once $path_php . 'model/word/triple.php';
+include_once $path_php . 'model/word/triple_exp.php';
+include_once $path_php . 'model/word/triple_list.php';
 include_once $path_php . 'model/phrase/phrase.php';
 include_once $path_php . 'model/phrase/phrase_list.php';
 include_once $path_php . 'model/phrase/phrase_list_dsp.php';
@@ -317,9 +323,10 @@ include_once $path_php . 'model/phrase/phrase_group_link.php';
 include_once $path_php . 'model/phrase/phrase_group_word_link.php';
 include_once $path_php . 'model/phrase/phrase_group_triple_link.php';
 include_once $path_php . 'model/phrase/phrase_type.php';
+include_once $path_php . 'model/phrase/term.php';
+include_once $path_php . 'model/phrase/term_list.php';
 include_once $path_php . 'model/verb/verb.php';
 include_once $path_php . 'model/verb/verb_list.php';
-include_once $path_php . 'model/phrase/term.php';
 include_once $path_php . 'model/value/value.php';
 include_once $path_php . 'model/value/value_dsp.php';
 include_once $path_php . 'model/value/value_exp.php';
@@ -331,12 +338,16 @@ include_once $path_php . 'model/value/value_time_series.php';
 include_once $path_php . 'model/ref/source.php';
 include_once $path_php . 'model/ref/source_exp.php';
 include_once $path_php . 'model/ref/ref.php';
+include_once $path_php . 'model/ref/ref_list.php';
 include_once $path_php . 'model/ref/ref_exp.php';
 include_once $path_php . 'model/ref/ref_type.php';
 include_once $path_php . 'model/ref/ref_type_list.php';
+include_once $path_php . 'model/ref/source_type.php';
+include_once $path_php . 'model/ref/source_type_list.php';
 include_once $path_php . 'model/formula/expression.php';
 include_once $path_php . 'model/formula/formula.php';
 include_once $path_php . 'model/formula/formula_exp.php';
+include_once $path_php . 'model/formula/formula_type.php';
 include_once $path_php . 'model/formula/formula_type_list.php';
 include_once $path_php . 'model/formula/formula_list.php';
 include_once $path_php . 'model/formula/formula_link.php';
@@ -355,33 +366,52 @@ include_once $path_php . 'model/formula/figure_list.php';
 include_once $path_php . 'model/view/view.php';
 include_once $path_php . 'model/view/view_exp.php';
 include_once $path_php . 'model/view/view_list.php';
+include_once $path_php . 'model/view/view_sys_list.php';
 include_once $path_php . 'model/view/view_type_list.php';
 include_once $path_php . 'model/view/view_cmp.php';
 include_once $path_php . 'model/view/view_cmp_exp.php';
 include_once $path_php . 'model/view/view_cmp_dsp.php';
 include_once $path_php . 'model/view/view_cmp_type.php';
 include_once $path_php . 'model/view/view_cmp_type_list.php';
+include_once $path_php . 'model/view/view_cmp_pos_type.php';
+include_once $path_php . 'model/view/view_cmp_pos_type_list.php';
 include_once $path_php . 'model/view/view_cmp_link.php';
 include_once $path_php . 'model/view/view_cmp_link_list.php';
 include_once $path_php . 'model/view/view_cmp_link_types.php';
 // general frontend API classes
 include_once $path_php . 'api/message_header.php';
-include_once $path_php . 'api/system/error_log.php';
-include_once $path_php . 'api/system/error_log_list.php';
+include_once $path_php . 'api/controller.php';
+include_once $path_php . 'api/sandbox/list.php';
+include_once $path_php . 'api/system/system_log.php';
+include_once $path_php . 'api/system/system_log_list.php';
+include_once $path_php . 'api/system/type_object.php';
+include_once $path_php . 'api/system/type_list.php';
+include_once $path_php . 'api/system/type_lists.php';
+include_once $path_php . 'api/system/batch_job.php';
+include_once $path_php . 'api/system/batch_job_list.php';
 include_once $path_php . 'api/sandbox/user_sandbox.php';
 include_once $path_php . 'api/sandbox/user_sandbox_named.php';
+include_once $path_php . 'api/sandbox/user_sandbox_named_with_type.php';
 include_once $path_php . 'api/sandbox/user_sandbox_value.php';
 include_once $path_php . 'api/sandbox/user_config.php';
-include_once $path_php . 'api/sandbox/list.php';
 include_once $path_php . 'api/sandbox/list_value.php';
-include_once $path_php . 'api/user/user_type_list.php';
+include_once $path_php . 'api/sandbox/type_object.php';
+include_once $path_php . 'api/user/user.php';
+include_once $path_php . 'api/log/change_log.php';
+include_once $path_php . 'api/log/change_log_named.php';
+include_once $path_php . 'api/log/change_log_list.php';
+include_once $path_php . 'api/language/language.php';
+include_once $path_php . 'api/language/language_form.php';
 // model frontend API classes
 include_once $path_php . 'api/word/word.php';
 include_once $path_php . 'api/word/word_list.php';
 include_once $path_php . 'api/word/triple.php';
 include_once $path_php . 'api/phrase/phrase.php';
+include_once $path_php . 'api/phrase/phrase_type.php';
 include_once $path_php . 'api/phrase/phrase_list.php';
 include_once $path_php . 'api/phrase/phrase_group.php';
+include_once $path_php . 'api/phrase/term.php';
+include_once $path_php . 'api/phrase/term_list.php';
 include_once $path_php . 'api/verb/verb.php';
 include_once $path_php . 'api/value/value.php';
 include_once $path_php . 'api/value/value_list.php';
@@ -390,14 +420,23 @@ include_once $path_php . 'api/formula/formula_list.php';
 include_once $path_php . 'api/formula/formula_value.php';
 include_once $path_php . 'api/formula/formula_value_list.php';
 include_once $path_php . 'api/view/view.php';
+include_once $path_php . 'api/view/view_list.php';
 include_once $path_php . 'api/view/view_cmp.php';
+include_once $path_php . 'api/view/view_cmp_list.php';
+include_once $path_php . 'api/ref/ref.php';
+include_once $path_php . 'api/ref/source.php';
 // general HTML frontend classes
 include_once $path_php . 'web/back_trace.php';
-include_once $path_php . 'web/user_display.php';
+include_once $path_php . 'web/user_display_old.php';
+include_once $path_php . 'web/log/change_log_named.php';
+include_once $path_php . 'web/log/change_log_list.php';
 include_once $path_php . 'web/user_log_display.php';
+include_once $path_php . 'web/user/user.php';
 include_once $path_php . 'web/user/user_type_list.php';
 include_once $path_php . 'web/system/messages.php';
-include_once $path_php . 'web/system/error_log_list.php';
+include_once $path_php . 'web/system/batch_job.php';
+include_once $path_php . 'web/system/batch_job_list.php';
+include_once $path_php . 'web/system/system_log_list.php';
 include_once $path_php . 'web/html/api_const.php';
 include_once $path_php . 'web/html/html_base.php';
 include_once $path_php . 'web/html/button.php';
@@ -410,6 +449,8 @@ include_once $path_php . 'web/word/triple.php';
 include_once $path_php . 'web/phrase/phrase.php';
 include_once $path_php . 'web/phrase/phrase_list.php';
 include_once $path_php . 'web/phrase/phrase_group.php';
+include_once $path_php . 'web/phrase/term.php';
+include_once $path_php . 'web/phrase/term_list.php';
 include_once $path_php . 'web/verb/verb.php';
 include_once $path_php . 'web/value/value.php';
 include_once $path_php . 'web/value/value_list.php';
@@ -418,8 +459,12 @@ include_once $path_php . 'web/formula/formula_list.php';
 include_once $path_php . 'web/formula/formula_value.php';
 include_once $path_php . 'web/formula/formula_value_list.php';
 include_once $path_php . 'web/view/view.php';
+include_once $path_php . 'web/view/view_list.php';
 include_once $path_php . 'web/view/view_cmp.php';
 include_once $path_php . 'web/view/view_cmp_link_dsp.php';
+include_once $path_php . 'web/view/view_cmp_list.php';
+include_once $path_php . 'web/ref/ref.php';
+include_once $path_php . 'web/ref/source.php';
 
 // deprecated HTML frontend classes
 include_once $path_php . 'web/phrase/phrase_display.php';
@@ -451,21 +496,6 @@ include_once $path_php . 'application.php';
 /*
 include_once $root_path.'lib/test/zu_lib_auth.php';               if ($debug > 9) { echo 'user authentication loaded<br>'; }
 include_once $root_path.'lib/test/config.php';             if ($debug > 9) { echo 'configuration loaded<br>'; }
-*/
-
-// libraries that can be dismissed, but still used for regression testing (using test.php)
-/*
-include_once $root_path.'lib/test/zu_lib_word_dsp.php';           if ($debug > 9) { echo 'lib word display loaded<br>'; }
-include_once $root_path.'lib/test/zu_lib_sql.php';                if ($debug > 9) { echo 'lib sql loaded<br>'; }
-include_once $root_path.'lib/test/zu_lib_link.php';               if ($debug > 9) { echo 'lib link loaded<br>'; }
-include_once $root_path.'lib/test/zu_lib_sql_naming.php';         if ($debug > 9) { echo 'lib sql naming loaded<br>'; }
-include_once $root_path.'lib/test/zu_lib_value.php';              if ($debug > 9) { echo 'lib value loaded<br>'; }
-include_once $root_path.'lib/test/zu_lib_word.php';               if ($debug > 9) { echo 'lib word loaded<br>'; }
-include_once $root_path.'lib/test/zu_lib_word_db.php';            if ($debug > 9) { echo 'lib word database link loaded<br>'; }
-include_once $root_path.'lib/test/zu_lib_calc.php';               if ($debug > 9) { echo 'lib calc loaded<br>'; }
-include_once $root_path.'lib/test/zu_lib_value_dsp.php';          if ($debug > 9) { echo 'lib value display loaded<br>'; }
-include_once $root_path.'lib/test/zu_lib_user.php';               if ($debug > 9) { echo 'lib user loaded<br>'; }
-include_once $root_path.'lib/test/zu_lib_html.php';               if ($debug > 9) { echo 'lib html loaded<br>'; }
 */
 
 /*
@@ -503,16 +533,10 @@ const UI_CAN_CHANGE_VIEW_NAME = TRUE;
 const UI_CAN_CHANGE_VIEW_COMPONENT_NAME = TRUE; // dito for view components
 const UI_CAN_CHANGE_VIEW_COMPONENT_LINK = TRUE; // dito for view component links
 const UI_CAN_CHANGE_WORD_NAME = TRUE; // dito for words
-const UI_CAN_CHANGE_WORD_LINK_NAME = TRUE; // dito for phrases
+const UI_CAN_CHANGE_triple_NAME = TRUE; // dito for phrases
 const UI_CAN_CHANGE_FORMULA_NAME = TRUE; // dito for formulas
 const UI_CAN_CHANGE_VERB_NAME = TRUE; // dito for verbs
 const UI_CAN_CHANGE_SOURCE_NAME = TRUE; // dito for sources
-
-// program configuration names
-const CFG_SITE_NAME = 'site_name';                           // the name of the pod
-const CFG_VERSION_DB = 'version_database';                   // the version of the database at the moment to trigger an update script if needed
-const CFG_LAST_CONSISTENCY_CHECK = 'last_consistency_check'; // datetime of the last database consistency check
-const CFG_AVG_CALC_TIME = 'average_calculation_time';        // the average time to calculate and update all results of one formula in milliseconds
 
 // data retrieval settings
 const SQL_ROW_LIMIT = 20; // default number of rows per page/query if not defined
@@ -530,44 +554,16 @@ const DEFAULT_DEC_POINT = ".";
 const DEFAULT_THOUSAND_SEP = "'";
 const DEFAULT_PERCENT_DECIMALS = 2;
 
-// text conversion const (used to convert word, verbs or formula text to a database reference)
-const ZUP_CHAR_WORD = '"';    // or a zukunft verb or a zukunft formula
-const ZUP_CHAR_WORDS_START = '[';    //
-const ZUP_CHAR_WORDS_END = ']';    //
-const ZUP_CHAR_SEPERATOR = ',';    //
-const ZUP_CHAR_RANGE = ':';    //
-const ZUP_CHAR_TEXT_CONCAT = '&';    //
-
 const ZUC_MAX_CALC_LAYERS = '10000';    // max number of calculation layers
-
-// math calc (probably not needed any more if r-project.org is used)
-const ZUP_CHAR_CALC = '=';    //
-const ZUP_OPER_ADD = '+';    //
-const ZUP_OPER_SUB = '-';    //
-const ZUP_OPER_MUL = '*';    //
-const ZUP_OPER_DIV = '/';    //
-
-const ZUP_OPER_AND = '&';    //
-const ZUP_OPER_OR = '|';    //
-
-// fixed functions
-const ZUP_FUNC_IF = 'if';    //
-const ZUP_FUNC_SUM = 'sum';    //
-const ZUP_FUNC_ISNUM = 'is.numeric';    //
-
-// text conversion const (used to convert word, formula or verbs text to a reference)
-const ZUP_CHAR_BRAKET_OPEN = '(';    //
-const ZUP_CHAR_BRAKET_CLOSE = ')';    //
-const ZUP_CHAR_TXT_FIELD = '"';    // don't look for math symbols in text that is a high quotes
 
 
 // file links used
-//const ZUH_IMG_ADD       = "../images/button_add_small.jpg";
-//const ZUH_IMG_EDIT      = "../images/button_edit_small.jpg";
-const ZUH_IMG_ADD = "../images/button_add.svg";
-const ZUH_IMG_EDIT = ".../images/button_edit.svg";
-const ZUH_IMG_DEL = "../images/button_del.svg";
-const ZUH_IMG_UNDO = "../images/button_undo.svg";
+//const ZUH_IMG_ADD       = "/src/main/resources/images/button_add_small.jpg";
+//const ZUH_IMG_EDIT      = "/src/main/resources/images/button_edit_small.jpg";
+const ZUH_IMG_ADD = "/src/main/resources/images/button_add.svg";
+const ZUH_IMG_EDIT = "/src/main/resources/images/button_edit.svg";
+const ZUH_IMG_DEL = "/src/main/resources/images/button_del.svg";
+const ZUH_IMG_UNDO = "/src/main/resources/images/button_undo.svg";
 
 # list of JSON files that define the base configuration of zukunft.com that is supposed never to be changed
 define("PATH_BASE_CONFIG_FILES", ROOT_PATH . 'src/main/resources/');
@@ -576,6 +572,7 @@ define("BASE_CODE_LINK_FILES", serialize(array(
     'calc_and_cleanup_task_types',
     'change_actions',
     'change_tables',
+    'change_fields',
     'formula_element_types',
     'formula_link_types',
     'formula_types',
@@ -602,8 +599,8 @@ const SYSTEM_VERB_CONFIG_FILE = PATH_BASE_CONFIG_FILES . 'verbs.json';
 const PATH_BASE_CONFIG_MESSAGE_FILES = PATH_BASE_CONFIG_FILES . 'messages/';
 define("BASE_CONFIG_FILES", serialize(array(
     'system_views.json',
-    'scaling.json',
     'units.json',
+    'scaling.json',
     'time_definition.json',
     'ip_blacklist.json',
     'country.json',
@@ -611,9 +608,11 @@ define("BASE_CONFIG_FILES", serialize(array(
 )));
 
 # list of all static import files for testing the system consistency
+const PATH_RESOURCE_FILES = ROOT_PATH . 'src/main/resources/';
 const PATH_TEST_FILES = ROOT_PATH . 'src/test/resources/';
 const PATH_TEST_IMPORT_FILES = ROOT_PATH . 'src/test/resources/import/';
 define("TEST_IMPORT_FILE_LIST", serialize(array(
+    'wind_investment.json',
     'companies.json',
     'ABB_2013.json',
     'ABB_2017.json',
@@ -626,6 +625,7 @@ define("TEST_IMPORT_FILE_LIST", serialize(array(
     'personal_climate_gas_emissions_timon.json',
     'THOMY_test.json')));
 define("TEST_IMPORT_FILE_LIST_ALL", serialize(array(
+    'wind_investment.json',
     'companies.json',
     'ABB_2013.json',
     'ABB_2017.json',
@@ -650,10 +650,16 @@ define ("TEST_IMPORT_FILE_LIST_QUICK", serialize (array ('ABB_2013.json','work.j
 */
 define("TEST_IMPORT_FILE_LIST_QUICK", serialize(array('car_costs.json')));
 
-// for internal functions debugging
-// each complex function should call this at the beginning with the parameters and with -1 at the end with the result
-// called function should use $debug-1
-function log_debug($msg_text, $debug_overwrite = null)
+/**
+ * for internal functions debugging
+ * each complex function should call this at the beginning with the parameters and with -1 at the end with the result
+ * called function should use $debug-1
+ *
+ * @param string $msg_text debug information additional to the class and function
+ * @param int|null $debug_overwrite used to force the output
+ * @return string the final output text
+ */
+function log_debug(string $msg_text = '', int $debug_overwrite = null): string
 {
     global $debug;
 
@@ -663,28 +669,43 @@ function log_debug($msg_text, $debug_overwrite = null)
         $debug_used = $debug_overwrite;
     }
 
+    // add the standard prefix
+    if ($msg_text != '') {
+        $msg_text = ': ' . $msg_text;
+    }
+    if (array_key_exists('class', debug_backtrace()[1])) {
+        $msg_text = debug_backtrace()[1]['class'] . '->' . debug_backtrace()[1]['function'] . $msg_text;
+    } else {
+        $msg_text = debug_backtrace()[1]['function'] . $msg_text;
+    }
+
     if ($debug_used > 0) {
         echo $msg_text . '.<br>';
         //ob_flush();
         //flush();
     }
+
+    return $msg_text;
 }
 
-// for system messages no debug calls to avoid loops
-// $msg_text        is a short description that is used to group and limit the number of error messages
-// $msg_description is the description or the problem with all details if two errors have the same $msg_text only one is used
-// $msg_type_id     is the criticality level e.g. debug, info, warning, error or fatal error
-// $function_name   is the function name which has most likely caused the error
-// $function_trace  is the complete system trace to get more details
-// $usr             is the user id who has probably seen the error message
-// return           the text that can be shown to the user in the navigation bar
-// TODO return the link to the log message so that the user can trace the bug fixing
+/**
+ * for system messages no debug calls to avoid loops
+ * @param string $msg_text is a short description that is used to group and limit the number of error messages
+ * @param string $msg_description is the description or the problem with all details if two errors have the same $msg_text only one is used
+ * @param string $msg_type_id is the criticality level e.g. debug, info, warning, error or fatal error
+ * @param string $function_name is the function name which has most likely caused the error
+ * @param string $function_trace is the complete system trace to get more details
+ * @param int $user_id is the user id who has probably seen the error message
+ * return           the text that can be shown to the user in the navigation bar
+ * TODO return the link to the log message so that the user can trace the bug fixing
+ */
 function log_msg(string $msg_text,
                  string $msg_description,
                  string $msg_log_level,
                  string $function_name,
                  string $function_trace,
-                 int    $user_id): string
+                 int    $user_id,
+                 bool   $force_log = false): string
 {
 
     global $sys_log_msg_lst;
@@ -697,14 +718,16 @@ function log_msg(string $msg_text,
     } else {
 
 
+        $lib = new library();
+
         // fill up fields with default values
         if ($msg_description == '') {
             $msg_description = $msg_text;
         }
         if ($function_name == '' or $function_name == null) {
             $function_name = (new Exception)->getTraceAsString();
-            $function_name = zu_str_right_of($function_name, '#1 /home/timon/git/zukunft.com/');
-            $function_name = zu_str_left_of($function_name, ': log_');
+            $function_name = $lib->str_right_of($function_name, '#1 /home/timon/git/zukunft.com/');
+            $function_name = $lib->str_left_of($function_name, ': log_');
         }
         if ($function_trace == '') {
             $function_trace = (new Exception)->getTraceAsString();
@@ -720,8 +743,8 @@ function log_msg(string $msg_text,
             $sys_log_id = 0;
 
             $sys_log_msg_lst[] = $msg_type_text;
-            if ($msg_log_level > LOG_LEVEL) {
-                $db_con->set_type(DB_TYPE_SYS_LOG_FUNCTION);
+            if ($msg_log_level > LOG_LEVEL or $force_log) {
+                $db_con->set_type(sql_db::TBL_SYS_LOG_FUNCTION);
                 $function_id = $db_con->get_id($function_name);
                 if ($function_id <= 0) {
                     $function_id = $db_con->add_id($function_name);
@@ -748,7 +771,8 @@ function log_msg(string $msg_text,
                     $fields[] = "user_id";
                     $values[] = $user_id;
                 }
-                $db_con->set_type(DB_TYPE_SYS_LOG);
+                $db_con->set_type(sql_db::TBL_SYS_LOG);
+
                 $sys_log_id = $db_con->insert($fields, $values, false);
                 //$sql_result = mysqli_query($sql) or die('zukunft.com system log failed by query '.$sql.': '.mysqli_error().'. If this happens again, please send this message to errors@zukunft.com.');
                 //$sys_log_id = mysqli_insert_id();
@@ -761,8 +785,7 @@ function log_msg(string $msg_text,
             } else {
                 if ($msg_log_level >= DSP_LEVEL) {
                     $usr = new user();
-                    $usr->id = $user_id;
-                    $usr->load($db_con);
+                    $usr->load_by_id($user_id);
                     $dsp = new view_dsp_old($usr);
                     $result .= $dsp->dsp_navbar_simple();
                     $result .= $msg_text . " (by " . $function_name . ").<br><br>";
@@ -773,15 +796,15 @@ function log_msg(string $msg_text,
     return $result;
 }
 
-function get_user_id(?user $calling_usr = null): int
+function get_user_id(?user $calling_usr = null): ?int
 {
     global $usr;
     $user_id = 0;
     if ($calling_usr != null) {
-        $user_id = $calling_usr->id;
+        $user_id = $calling_usr->id();
     } else {
         if ($usr != null) {
-            $user_id = $usr->id;
+            $user_id = $usr->id();
         }
     }
     return $user_id;
@@ -791,13 +814,15 @@ function log_info(string $msg_text,
                   string $function_name = '',
                   string $msg_description = '',
                   string $function_trace = '',
-                  ?user  $calling_usr = null): string
+                  ?user  $calling_usr = null,
+                  bool   $force_log = false): string
 {
     return log_msg($msg_text,
         $msg_description,
         sys_log_level::INFO,
         $function_name, $function_trace,
-        get_user_id($calling_usr));
+        get_user_id($calling_usr),
+        $force_log);
 }
 
 function log_warning(string $msg_text,
@@ -854,12 +879,10 @@ function prg_start(string $code_name, string $style = "", $echo_header = true): 
     // resume session (based on cookies)
     session_start();
 
-    log_debug($code_name . ' ...');
-
     $sys_time_start = time();
     $sys_script = $code_name;
 
-    log_debug($code_name . ' ... session_start');
+    log_debug($code_name . ': session_start');
 
     // html header
     if ($echo_header) {
@@ -877,82 +900,35 @@ function prg_start(string $code_name, string $style = "", $echo_header = true): 
  */
 function prg_restart(string $code_name): sql_db
 {
-    global $system_users;
-    global $user_profiles;
-    global $word_types;
-    global $formula_types;
-    global $formula_link_types;
-    global $formula_element_types;
-    global $view_types;
-    global $view_component_types;
-    global $view_component_link_types;
-    global $ref_types;
-    global $share_types;
-    global $protection_types;
-    global $verbs;
-    global $system_views;
-    global $sys_log_stati;
-    global $job_types;
-    global $change_log_tables;
 
     // link to database
     $db_con = new sql_db;
     $db_con->db_type = SQL_DB_TYPE;
-    log_debug($code_name . ' ... db set');
     $db_con->open();
-    log_debug($code_name . ' ... database link open');
+    if ($db_con->postgres_link === false) {
+        log_debug($code_name . ': start db setup');
+        $db_con->setup();
+        $db_con->open();
+        if ($db_con->postgres_link === false) {
+            log_fatal('Cannot connect to database', 'prg_restart');
+        }
+    } else {
+        log_debug($code_name . ': db open');
 
-    // check the system setup
-    $result = db_check($db_con);
-    if ($result != '') {
-        echo '\n';
-        echo $result;
-        $db_con->close();
-        $db_con = null;
+        // check the system setup
+        $result = db_check($db_con);
+        if ($result != '') {
+            echo '\n';
+            echo $result;
+            $db_con->close();
+            $db_con = null;
+        }
+
+        // preload all types from the database
+        $sys_typ_lst = new type_lists();
+        $sys_typ_lst->load($db_con, null);
+
     }
-
-    // load default records
-    $sys_log_stati = new sys_log_status();
-    $sys_log_stati->load($db_con);
-    $system_users = new user_list();
-    $system_users->load_system($db_con);
-
-    // load the type database enum
-    // these tables are expected to be so small that it is more efficient to load all database records once at start
-    $user_profiles = new user_profile_list();
-    $user_profiles->load($db_con);
-    $word_types = new word_type_list();
-    $word_types->load($db_con);
-    $formula_types = new formula_type_list();
-    $formula_types->load($db_con);
-    $formula_link_types = new formula_link_type_list();
-    $formula_link_types->load($db_con);
-    $formula_element_types = new formula_element_type_list();
-    $formula_element_types->load($db_con);
-    $view_types = new view_type_list();
-    $view_types->load($db_con);
-    $view_component_types = new view_cmp_type_list();
-    $view_component_types->load($db_con);
-    // not yet needed?
-    //$view_component_link_types = new view_component_link_type_list();
-    //$view_component_link_types->load($db_con);
-    $ref_types = new ref_type_list();
-    $ref_types->load($db_con);
-    $share_types = new share_type_list();
-    $share_types->load($db_con);
-    $protection_types = new protection_type_list();
-    $protection_types->load($db_con);
-    $job_types = new job_type_list();
-    $job_types->load($db_con);
-    $change_log_tables = new change_log_table();
-    $change_log_tables->load($db_con);
-
-    // preload the little more complex objects
-    $verbs = new verb_list();
-    $verbs->load($db_con);
-    //$system_views = new view_list();
-    //$system_views->load($db_con);
-
     return $db_con;
 }
 
@@ -980,7 +956,7 @@ function prg_start_api($code_name): sql_db
  * load the user specific data that is not supposed to be changed very rarely user
  * so if changed all data is reloaded once
  */
-function load_usr_data()
+function load_usr_data(): void
 {
     global $db_con;
     global $usr;
@@ -990,23 +966,22 @@ function load_usr_data()
     $verbs = new verb_list($usr);
     $verbs->load($db_con);
 
-    $system_views = new view_list($usr);
+    $system_views = new view_sys_list($usr);
     $system_views->load($db_con);
 
 }
 
-function prg_end($db_con)
+/**
+ * write the execution time to the database if it is long
+ */
+function prg_end_write_time($db_con): void
 {
     global $sys_time_start, $sys_time_limit, $sys_script, $sys_log_msg_lst;
 
-    $html = new html_base();
-    echo $html->footer();
-
-    // write the execution time to the database if it is long
     $sys_time_end = time();
     if ($sys_time_end > $sys_time_limit) {
         $db_con->usr_id = SYSTEM_USER_ID;
-        $db_con->set_type(DB_TYPE_SYS_SCRIPT);
+        $db_con->set_type(sql_db::TBL_SYS_SCRIPT);
         $sys_script_id = $db_con->get_id($sys_script);
         if ($sys_script_id <= 0) {
             $sys_script_id = $db_con->add_id($sys_script);
@@ -1022,17 +997,27 @@ function prg_end($db_con)
         $db_con->exe($sql);
     }
 
-    // Free result test
-    //mysqli_free_result($result);
-
-    // Closing connection
-    $db_con->close();
-
     // free the global vars
     unset($sys_log_msg_lst);
     unset($sys_script);
     unset($sys_time_limit);
     unset($sys_time_start);
+}
+
+function prg_end($db_con)
+{
+    global $sys_time_start, $sys_time_limit, $sys_script, $sys_log_msg_lst;
+
+    $html = new html_base();
+    echo $html->footer();
+
+    prg_end_write_time($db_con);
+
+    // Free result test
+    //mysqli_free_result($result);
+
+    // Closing connection
+    $db_con->close();
 
     log_debug(' ... database link closed');
 }
@@ -1046,14 +1031,10 @@ function prg_end_about($link)
     $html = new html_base();
     echo $html->footer(true);
 
+    prg_end_write_time($db_con);
+
     // Closing connection
     $db_con->close();
-
-    // free the global vars
-    unset($sys_log_msg_lst);
-    unset($sys_script);
-    unset($sys_time_limit);
-    unset($sys_time_start);
 
     log_debug(' ... database link closed');
 }
@@ -1065,23 +1046,31 @@ function prg_end_api($link)
     global $db_con;
     global $sys_time_start, $sys_time_limit, $sys_script, $sys_log_msg_lst;
 
+    prg_end_write_time($db_con);
+
     // Closing connection
     $db_con->close();
-
-    // free the global vars
-    unset($sys_log_msg_lst);
-    unset($sys_script);
-    unset($sys_time_limit);
-    unset($sys_time_start);
 
     log_debug(' ... database link closed');
 }
 
+/**
+ * @return string the content of a resource file
+ */
+function resource_file(string $resource_path): string
+{
+    $result = file_get_contents(PATH_RESOURCE_FILES . $resource_path);
+    if ($result === false) {
+        $result = 'Cannot get file from ' . PATH_RESOURCE_FILES . $resource_path;
+    }
+    return $result;
+}
+
+
+
 /*
-
-display functions
-
-*/
+ * display functions
+ */
 
 // to display a boolean var
 function zu_dsp_bool($bool_var): string
@@ -1158,64 +1147,11 @@ function zu_trim($text): string
     return trim(preg_replace('!\s+!', ' ', $text));
 }
 
-// 
-function zu_str_left_of($text, $maker)
-{
-    $result = "";
-    $pos = strpos($text, $maker);
-    if ($pos > 0) {
-        $result = substr($text, 0, strpos($text, $maker));
-    }
-    return $result;
-}
-
-function zu_str_right_of($text, $maker)
-{
-    $result = "";
-    if ($text === $maker) {
-        $result = "";
-    } else {
-        if (substr($text, strpos($text, $maker), strlen($maker)) === $maker) {
-            $result = substr($text, strpos($text, $maker) + strlen($maker));
-        }
-    }
-    return $result;
-}
-
-function zu_str_between($text, $maker_start, $maker_end)
-{
-    log_debug('zu_str_between "' . $text . '", start "' . $maker_start . '" end "' . $maker_end . '"');
-    $result = zu_str_right_of($text, $maker_start);
-    log_debug('zu_str_between -> "' . $result . '" is right of "' . $maker_start . '"');
-    $result = zu_str_left_of($result, $maker_end);
-    log_debug('zu_str_between -> "' . $result . '"');
-    return $result;
-}
 
 /*
 string functions (to be dismissed)
 */
 
-// some small string related functions to shorten code and make the code clearer
-function zu_str_left($text, $pos)
-{
-    return substr($text, 0, $pos);
-}
-
-function zu_str_right($text, $pos)
-{
-    return substr($text, $pos * -1);
-}
-
-// TODO rename to the php 8.0 function str_starts_with
-function zu_str_is_left(string $text, string $maker): string
-{
-    $result = false;
-    if (substr($text, 0, strlen($maker)) == $maker) {
-        $result = true;
-    }
-    return $result;
-}
 
 function zu_str_compute_diff($from, $to): array
 {
@@ -1365,13 +1301,16 @@ function array_trim(?array $in_array): array
  * @param array|null $in_array the array that should be formatted
  * @return string the value comma seperated or "null" if the array is empty
  */
-function dsp_array(?array $in_array): string
+function dsp_array(?array $in_array, bool $with_keys = false): string
 {
     $result = 'null';
     if ($in_array != null) {
         if (count($in_array) > 0) {
-            $result = implode(',', $in_array);
+            $result = implode(',', array_flat($in_array));
         }
+    }
+    if ($with_keys) {
+        $result .= ' (keys ' . dsp_array_keys($in_array) . ')';
     }
     return $result;
 }
@@ -1385,6 +1324,15 @@ function dsp_array_keys(?array $in_array): string
         }
     }
     return $result;
+}
+
+function array_flat(array $array): array
+{
+    $return = array();
+    array_walk_recursive($array, function ($a) use (&$return) {
+        $return[] = $a;
+    });
+    return $return;
 }
 
 function dsp_count(?array $in_array): int
@@ -1412,6 +1360,16 @@ function sql_array(array $in_array): string
     return $result;
 }
 
+function camelize(string $input, string $separator = '_'): string
+{
+    return str_replace($separator, '', lcfirst(ucwords($input, $separator)));
+}
+
+function camelize_ex_1(string $input, string $separator = '_'): string
+{
+    return str_replace($separator, '', ucwords($input, $separator));
+}
+
 // get all entries of the list that are not in the second list
 function zu_lst_not_in($in_lst, $exclude_lst): array
 {
@@ -1437,7 +1395,7 @@ function zu_lst_not_in_no_key(array $in_lst, array $exclude_lst): array
             $result[] = $lst_entry;
         }
     }
-    log_debug('zu_lst_not_in_no_key -> (' . dsp_array($result) . ')');
+    log_debug(dsp_array($result));
     return $result;
 }
 
@@ -1565,7 +1523,7 @@ function zu_lst_get_common_ids($val_lst, $sub_array_pos)
         }
     }
 
-    log_debug("zu_lst_get_common_ids -> (" . dsp_array($result) . ")");
+    log_debug(dsp_array($result));
     return $result;
 }
 
@@ -1573,7 +1531,7 @@ function zu_lst_get_common_ids($val_lst, $sub_array_pos)
 // if this is used for a val_lst_wrd and the sub_array_pos is 1 the common list of word ids is returned
 function zu_lst_all_ids($val_lst, $sub_array_pos)
 {
-    log_debug("zu_lst_all_ids (" . zu_lst_dsp($val_lst) . ",pos" . $sub_array_pos . ")");
+    log_debug(zu_lst_dsp($val_lst) . ",pos" . $sub_array_pos);
     $result = array();
     foreach ($val_lst as $val_entry) {
         if (is_array($val_entry)) {
@@ -1590,7 +1548,7 @@ function zu_lst_all_ids($val_lst, $sub_array_pos)
         }
     }
 
-    log_debug("zu_lst_all_ids -> (" . dsp_array($result) . ")");
+    log_debug(dsp_array($result));
     return $result;
 }
 
@@ -1608,10 +1566,10 @@ function zu_lst_id_filter($val_lst, $id_lst, $sub_array_pos): array
             $found = false;
             foreach ($wrd_ids as $wrd_id) {
                 if (!$found) {
-                    log_debug("zu_lst_id_filter -> test (" . $wrd_id . " in " . zu_lst_dsp($id_lst) . ")");
+                    log_debug("test (" . $wrd_id . " in " . zu_lst_dsp($id_lst) . ")");
                     if (array_key_exists($wrd_id, $id_lst)) {
                         $found = true;
-                        log_debug("zu_lst_id_filter -> found (" . $wrd_id . " in " . zu_lst_dsp($id_lst) . ")");
+                        log_debug("found (" . $wrd_id . " in " . zu_lst_dsp($id_lst) . ")");
                     }
                 }
             }
@@ -1621,7 +1579,7 @@ function zu_lst_id_filter($val_lst, $id_lst, $sub_array_pos): array
         }
     }
 
-    log_debug("zu_lst_id_filter -> (" . zu_lst_dsp($result) . ")");
+    log_debug(zu_lst_dsp($result));
     return $result;
 }
 
@@ -1634,10 +1592,10 @@ function zu_lst_to_flat_lst($complex_lst): array
         $lst_entry = $complex_lst[$lst_key];
         if (is_array($lst_entry)) {
             $result[$lst_key] = $lst_entry[0];
-            //zu_debug("zu_lst_to_array -> ".$lst_entry[0]." (first)");
+            //zu_debug("".$lst_entry[0]." (first)");
         } else {
             $result[$lst_key] = $lst_entry;
-            //zu_debug("zu_lst_to_array -> ".$lst_entry);
+            //zu_debug("".$lst_entry);
         }
     }
     return $result;

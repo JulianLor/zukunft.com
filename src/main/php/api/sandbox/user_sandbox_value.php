@@ -2,7 +2,7 @@
 
 /*
 
-    api\user_sandbox_value.php - the minimal superclass for the frontend API
+    api/user/user_sandbox_value.php - the minimal superclass for the frontend API
     --------------------------
 
     This superclass should be used by the classes word_min, formula_min, ... to enable user specific values and links
@@ -40,7 +40,7 @@ class user_sandbox_value_api extends user_sandbox_api
 {
 
     private phrase_group_api $grp; // the phrase group with the list of words and triples (not the source words and triples)
-    private ?float $val; // the number calculated by the system
+    private ?float $number; // the number calculated by the system
 
     /*
      * construct and map
@@ -51,7 +51,7 @@ class user_sandbox_value_api extends user_sandbox_api
         parent::__construct($id);
 
         $this->grp = new phrase_group_api();
-        $this->val = null;
+        $this->number = null;
     }
 
     /*
@@ -63,9 +63,9 @@ class user_sandbox_value_api extends user_sandbox_api
         $this->grp = $grp;
     }
 
-    public function set_val(float $val)
+    public function set_number(?float $number)
     {
-        $this->val = $val;
+        $this->number = $number;
     }
 
     public function grp(): phrase_group_api
@@ -73,13 +73,14 @@ class user_sandbox_value_api extends user_sandbox_api
         return $this->grp;
     }
 
-    public function val(): float
+    public function number(): ?float
     {
-        return $this->val;
+        return $this->number;
     }
 
+
     /*
-     * casting objects
+     * cast
      */
 
     public function grp_dsp(): phrase_group_dsp
@@ -101,7 +102,7 @@ class user_sandbox_value_api extends user_sandbox_api
      */
     public function value_linked(): string
     {
-        return $this->val;
+        return $this->number;
     }
 
     /*

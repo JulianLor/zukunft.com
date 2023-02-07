@@ -31,7 +31,8 @@
 
 // standard zukunft header for callable php files to allow debugging and lib loading
 $debug = $_GET['debug'] ?? 0;
-include_once '../src/main/php/zu_lib.php';
+const ROOT_PATH = __DIR__ . '/../';
+include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 
 echo 'logging off ...'; // reset the html code var
 
@@ -43,11 +44,11 @@ $usr = new user;
 $result = $usr->get(); // to check from which ip the user has logged in
 
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
-if ($usr->id > 0) {
-    $db_con->set_type(DB_TYPE_USER);
-    $db_con->set_usr($usr->id);
-    if (!$db_con->update($usr->id, "last_logoff", "Now()")) {
-        log_err('Logout time update failed for ' . $usr->id);
+if ($usr->id() > 0) {
+    $db_con->set_type(sql_db::TBL_USER);
+    $db_con->set_usr($usr->id());
+    if (!$db_con->update($usr->id(), "last_logoff", "Now()")) {
+        log_err('Logout time update failed for ' . $usr->id());
     }
 }
 

@@ -32,25 +32,28 @@
 
 */
 
-// TODO split the object into user_sandbox_base, user_sandbox_named and user_sandbox_link to reduce the object size to to minimum
 // TODO align the function return types with the source (ref) object
 // TODO use the user sandbox also for the word object
 // TODO check if handling of negative ids is correct
 // TODO split into a link and a named user sandbox object to always use the smallest possible object
 
 use cfg\phrase_type;
+use cfg\protection_type;
 use cfg\share_type;
+use export\exp_obj;
 
-class user_sandbox
+class user_sandbox extends db_object
 {
+
     /*
-     * types
+     * sandbox types
      */
 
     // the main types of user sandbox objects
     const TYPE_NAMED = 'named';  // for user sandbox objects which have a unique name like formulas
     const TYPE_LINK = 'link';    // for user sandbox objects that link two objects like formula links
     const TYPE_VALUE = 'value';  // for user sandbox objects that are used to save values
+
 
     /*
      * database link
@@ -81,14 +84,14 @@ class user_sandbox
     );
     // list of all user sandbox database types
     const DB_TYPES = array(
-        DB_TYPE_WORD,
-        DB_TYPE_TRIPLE,
-        DB_TYPE_VALUE,
-        DB_TYPE_FORMULA,
-        DB_TYPE_FORMULA_LINK,
-        DB_TYPE_VIEW,
-        DB_TYPE_VIEW_COMPONENT,
-        DB_TYPE_VIEW_COMPONENT_LINK
+        sql_db::TBL_WORD,
+        sql_db::TBL_TRIPLE,
+        sql_db::TBL_VALUE,
+        sql_db::TBL_FORMULA,
+        sql_db::TBL_FORMULA_LINK,
+        sql_db::TBL_VIEW,
+        sql_db::TBL_VIEW_COMPONENT,
+        sql_db::TBL_VIEW_COMPONENT_LINK
     );
 
     /*
@@ -101,9 +104,8 @@ class user_sandbox
     public bool $rename_can_switch = True; // true if renaming an object can switch to another object with the new name
 
     // database fields that are used in all objects and that have a specific behavior
-    public ?int $id = null;            // the database id of the object, which is the same for the standard and the user specific object
     public ?int $usr_cfg_id = null;    // the database id if there is already some user specific configuration for this object
-    public user $usr;                  // the person for whom the object is loaded, so to say the viewer
+    private user $usr;                 // the person for whom the object is loaded, so to say the viewer
     public ?int $owner_id = null;      // the user id of the person who created the object, which is the default object
     public ?int $share_id = null;      // id for public, personal, group or private
     public ?int $protection_id = null; // id for no, user, admin or full protection
@@ -112,21 +114,21 @@ class user_sandbox
     // when loading the word and saving the excluded field is handled as a normal user sandbox field,
     // but for calculation, use and display an excluded should not be used
 
-    // database fields only used for objects that have a name
-    public ?string $name = '';   // simply the object name, which cannot be empty if it is a named object
-
-    // database fields only used for the value object
-    public ?float $number = null; // simply the numeric value
-
-    // database fields only used for objects that link two objects
-    // TODO create a more specific object that covers all the objects that could be linked e.g. linkable_object
-    public ?string $from_name = null;  // the name of the from object type e.g. view for view_component_links
-    public ?string $to_name = '';      // the name of the  to  object type e.g. view for view_component_links
-
-    // database fields only used for the type objects such as words, formulas, values, terms and view component links
-    public ?int $type_id = null; // the id of the source type, view type, view component type or word type e.g. to classify measure words
-    // or the formula type to link special behavior to special formulas like "this" or "next"
-    public ?string $type_name = ''; // the name of the word type, word link type, view type, view component type or formula type
+    /*
+     * dummy var because many child objects use a type_id and to enable to add the common code here
+     *
+     * could and should be moved to a user_sandbox_type_extension object
+     * as soon as php allows something like 'extends user_sandbox_named and user_sandbox_type_extension'
+     *
+     * database id of the type used for named user sandbox objects with predefined functionality
+     * such as words, formulas, values, terms and view component links
+     * because all types are preloaded with the database id the name and code id can fast be received
+     * the id of the source type, view type, view component type or word type
+     * e.g. to classify measure words
+     * the id of the source type, view type, view component type or word type e.g. to classify measure words
+     * or the formula type to link special behavior to special formulas like "this" or "next"
+     */
+    public ?int $type_id = null;
 
 
     /*
@@ -141,9 +143,11 @@ class user_sandbox
      */
     function __construct(user $usr)
     {
+        parent::__construct();
+        // the default type that is overwritten by the child objects
         $this->obj_type = self::TYPE_NAMED;
 
-        $this->usr = $usr;
+        $this->set_user($usr);
     }
 
     /**
@@ -156,38 +160,41 @@ class user_sandbox
         $this->usr_cfg_id = null;
         $this->owner_id = null;
         $this->excluded = null;
-
     }
+
 
     /*
      * set and get
      */
 
-    public function set_id(int $id): void
+    /**
+     * set the user of the user sandbox object
+     *
+     * @param user $usr the person who wants to access the object e.g. the word
+     * @return void
+     */
+    function set_user(user $usr): void
     {
-        $this->id = $id;
+        $this->usr = $usr;
     }
 
     /**
-     * @return int the database id which is not 0 if the object has been saved
-     * the internal null value is used to detect if database saving has been tried
+     * @return user the person who wants to see a word, verb, triple, formula or view
      */
-    public function id(): int
+    function user(): user
     {
-        if ($this->id == Null) {
-            return 0;
-        } else {
-            return $this->id;
-        }
+        return $this->usr;
     }
 
+
     /*
-     * internal check function
+     * internal check
      */
 
     /**
      * simply return the id database field name of the object
      * should actually be static, but seems to be not yet possible
+     * TODO check if it can be combined with id_field()
      */
     function fld_id(): string
     {
@@ -225,17 +232,15 @@ class user_sandbox
     /**
      * fill a similar object that is extended with display interface functions
      *
-     * @return object the object fill with all user sandbox value
+     * @param object $dsp_obj the object that should be filled with all user sandbox values
      */
-    function fill_dsp_obj(object $dsp_obj): object
+    function fill_dsp_obj(object $dsp_obj): void
     {
         $dsp_obj->set_id($this->id());
         $dsp_obj->usr_cfg_id = $this->usr_cfg_id;
         $dsp_obj->usr = $this->usr;
         $dsp_obj->owner_id = $this->owner_id;
         $dsp_obj->excluded = $this->excluded;
-
-        return $dsp_obj;
     }
 
     /*
@@ -254,12 +259,21 @@ class user_sandbox
      * to be extended by the child functions
      *
      * @param array $db_row with the data directly from the database
-     * @param bool $map_usr_fields false for using the standard protection settings for the default object used for all users
+     * @param bool $load_std true if only the standard user sandbox object ist loaded
+     * @param bool $allow_usr_protect false for using the standard protection settings for the default object used for all users
      * @param string $id_fld the name of the id field as set in the child class
      * @return bool true if the user sandbox object is loaded and valid
      */
-    function row_mapper(array $db_row, bool $map_usr_fields = true, string $id_fld = ''): bool
+    function row_mapper(
+        ?array $db_row,
+        bool   $load_std = false,
+        bool   $allow_usr_protect = true,
+        string $id_fld = ''
+    ): bool
     {
+        if ($id_fld == '') {
+            $id_fld = $this->id_field();
+        }
         $this->id = 0;
         $result = false;
         if ($db_row != null) {
@@ -267,7 +281,10 @@ class user_sandbox
                 $this->id = $db_row[$id_fld];
                 $this->owner_id = $db_row[self::FLD_USER];
                 $this->excluded = $db_row[self::FLD_EXCLUDED];
-                if ($map_usr_fields) {
+                if (!$load_std) {
+                    $this->usr_cfg_id = $db_row[sql_db::TBL_USER_PREFIX . $id_fld];
+                }
+                if ($allow_usr_protect) {
                     $this->row_mapper_usr($db_row, $id_fld);
                 } else {
                     $this->row_mapper_std();
@@ -284,9 +301,8 @@ class user_sandbox
      * @param array $db_row with the data loaded from the database
      * @return void
      */
-    public function row_mapper_usr(array $db_row, $id_fld)
+    public function row_mapper_usr(array $db_row): void
     {
-        $this->usr_cfg_id = $db_row[DB_TYPE_USER_PREFIX . $id_fld];
         $this->share_id = $db_row[self::FLD_SHARE];
         $this->protection_id = $db_row[self::FLD_PROTECT];
     }
@@ -296,11 +312,16 @@ class user_sandbox
      *
      * @return void
      */
-    public function row_mapper_std()
+    public function row_mapper_std(): void
     {
         $this->share_id = cl(db_cl::SHARE_TYPE, share_type::PUBLIC);
-        $this->protection_id = cl(db_cl::PROTECTION_TYPE, protection_type_list::DBL_NO);
+        $this->protection_id = cl(db_cl::PROTECTION_TYPE, protection_type::NO_PROTECT);
     }
+
+
+    /*
+     * load
+     */
 
     /**
      * create the SQL to load the single default value always by the id
@@ -308,15 +329,15 @@ class user_sandbox
      * @param string $class the name of the child class from where the call has been triggered
      * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
      */
-    function load_standard_sql(sql_db $db_con, string $class): sql_par
+    function load_standard_sql(sql_db $db_con, string $class = self::class): sql_par
     {
         $qp = new sql_par($class, true);
         $qp->name .= 'id';
 
         $db_con->set_name($qp->name);
-        $db_con->set_usr($this->usr->id);
+        $db_con->set_usr($this->user()->id);
         $db_con->add_par(sql_db::PAR_INT, strval($this->id));
-        $qp->sql = $db_con->select_by_id();
+        $qp->sql = $db_con->select_by_set_id();
         $qp->par = $db_con->get_par();
 
         return $qp;
@@ -337,19 +358,99 @@ class user_sandbox
             log_err('The ' . $class . ' id must be set to load ' . $class, $class . '->load_standard');
         } else {
             $db_row = $db_con->get1($qp);
-            $result = $this->row_mapper($db_row, false);
+            $result = $this->row_mapper($db_row, true, false);
         }
         return $result;
     }
 
     /**
-     * create the SQL to load a single user specific value
+     * dummy function to create the common part of an SQL statement
+     * which is overwritten by the child objects
+     *
+     * @param sql_db $db_con the db connection object as a function parameter for unit testing
+     * @param string $query_name the name of the selection fields to make the query name unique
+     * @param string $class the name of the child class from where the call has been triggered
+     * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
+     */
+    protected function load_sql(sql_db $db_con, string $query_name, string $class): sql_par
+    {
+        log_warning('The parent load_sql function related to ' . $db_con->get_type() . ' should have never been called for ' . $query_name);
+        return new sql_par($class);
+    }
+
+    /**
+     * create an SQL statement to retrieve a user sandbox object by id from the database
+     *
+     * @param sql_db $db_con the db connection object as a function parameter for unit testing
+     * @param int $id the id of the user sandbox object
+     * @param string $class the name of the child class from where the call has been triggered
+     * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
+     */
+    function load_sql_by_id(sql_db $db_con, int $id, string $class = self::class): sql_par
+    {
+        $qp = $this->load_sql($db_con, 'id', $class);
+        $db_con->add_par_int($id);
+        $qp->sql = $db_con->select_by_field($this->id_field());
+        $qp->par = $db_con->get_par();
+
+        return $qp;
+    }
+
+    /**
+     * function that can be overwritten by the child object
+     * @return string the field name of the prime database index of the object
+     */
+    protected function id_field(): string
+    {
+        return $this->obj_name . sql_db::FLD_EXT_ID;
+    }
+
+    /**
+     * function that must be overwritten by the child object
+     * @return array with all field names of the user sandbox object excluding the prime id field
+     */
+    protected function all_fields(): array
+    {
+        return array();
+    }
+
+    /**
+     * prepare the SQL parameter to load a single user specific value
      *
      * @param sql_db $db_con the db connection object as a function parameter for unit testing
      * @param string $class the name of the child class from where the call has been triggered
      * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
      */
-    function load_sql(sql_db $db_con, string $class): sql_par
+    function load_sql_fields(
+        sql_db $db_con,
+        string $query_name,
+        string $class,
+        array $fields,
+        array $usr_fields,
+        array $usr_num_fields,
+    ): sql_par
+    {
+        $qp = new sql_par($class);
+        $qp->name .= $query_name;
+
+        $db_con->set_name($qp->name);
+        $db_con->set_usr($this->user()->id);
+        $db_con->set_fields($fields);
+        $db_con->set_usr_fields($usr_fields);
+        $db_con->set_usr_num_fields($usr_num_fields);
+
+        return $qp;
+    }
+
+    /**
+     * create the SQL to load a single user specific value
+     * TODO replace by load_sql or do it in the child objects
+     *
+     * @param sql_db $db_con the db connection object as a function parameter for unit testing
+     * @param string $class the name of the child class from where the call has been triggered
+     * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
+     */
+    function load_sql_obj_vars(sql_db $db_con, string $class): sql_par
     {
         return new sql_par($class);
     }
@@ -364,25 +465,49 @@ class user_sandbox
             // TODO: try to avoid using load_test_user
             if ($this->owner_id > 0) {
                 $usr = new user;
-                $usr->id = $this->owner_id;
-                if ($usr->load_test_user()) {
+                if ($usr->load_by_id($this->owner_id)) {
                     $this->usr = $usr;
                     $result = true;
                 }
             } else {
                 // take the ownership if it is not yet done. The ownership is probably missing due to an error in an older program version.
                 $db_con->set_type($this->obj_name);
-                if ($this->usr == null) {
-                    log_err('Cannot set owner, because not user is set');
-                } else {
-                    $db_con->set_usr($this->usr->id);
-                    if ($db_con->update($this->id, self::FLD_USER, $this->usr->id)) {
-                        $result = true;
-                    }
+                $db_con->set_usr($this->user()->id);
+                if ($db_con->update($this->id, self::FLD_USER, $this->user()->id)) {
+                    $result = true;
                 }
             }
         }
         return $result;
+    }
+
+    /**
+     * load a user sandbox object e.g. word, triple, value, formula, result or view from the database
+     * @param sql_par $qp the query parameters created by the calling function
+     * @return int the id of the object found and zero if nothing is found
+     */
+    protected function load(sql_par $qp): int
+    {
+        global $db_con;
+
+        $db_row = $db_con->get1($qp);
+        $this->row_mapper($db_row);
+        return $this->id();
+    }
+
+    /**
+     * load a named user sandbox object by database id
+     * @param int $id the id of the word, triple, formula, verb, view or view component
+     * @param string $class the name of the child class from where the call has been triggered
+     * @return int the id of the object found and zero if nothing is found
+     */
+    function load_by_id(int $id, string $class = self::class): int
+    {
+        global $db_con;
+
+        log_debug($id);
+        $qp = $this->load_sql_by_id($db_con, $id, $class);
+        return $this->load($qp);
     }
 
     /**
@@ -399,11 +524,16 @@ class user_sandbox
      * dummy function to get the missing object values from the database that is always overwritten by the child class
      * @returns bool  false if the loading has failed
      */
-    function load(): bool
+    function load_obj_vars(): bool
     {
         log_err('The dummy parent method get_similar has been called, which should never happen');
         return true;
     }
+
+
+    /*
+     * debug
+     */
 
     /**
      * @returns string best possible identification for this object mainly used for debugging
@@ -411,8 +541,8 @@ class user_sandbox
     function dsp_id(): string
     {
         $result = '';
-        if (isset($this->usr)) {
-            $result .= ' for user ' . $this->usr->id . ' (' . $this->usr->name . ')';
+        if ($this->user()->is_set()) {
+            $result .= ' for user ' . $this->user()->id() . ' (' . $this->user()->name . ')';
         }
         return $result;
     }
@@ -425,13 +555,14 @@ class user_sandbox
         return 'a ' . $this->obj_name . ' with the name ' . $obj_to_add->dsp_id() . ' already exists, so no ' . $obj_to_add->obj_name . ' with the same name can be added';
     }
 
+
     /*
-    check functions
-    */
+     *  check functions
+     */
 
     /*
     // check if the owner is set for all records of a user sandbox object
-    // e.g. if the owner of a new word_link is set correctly at creation
+    // e.g. if the owner of a new triple is set correctly at creation
     //      if not changes of another can overwrite the standard and by that influence the setup of the creator
     function chk_owner ($type, $correct) {
       zu_debug($this->obj_name.'->chk_owner for '.$type);
@@ -446,7 +577,7 @@ class user_sandbox
 
       //$db_con = New mysql;
       $db_con->set_type($this->obj_name);
-      $db_con->set_usr($this->usr->id);
+      $db_con->set_usr($this->user()->id);
 
       if ($correct === True) {
         // set the default owner for all records with a missing owner
@@ -467,60 +598,35 @@ class user_sandbox
     }
     */
 
-    /**
-     * get the term corresponding to this word or formula name
-     * so in this case, if a formula or verb with the same name already exists, get it
-     * @return term
-     */
-    function term(): term
-    {
-        $trm = new term;
-        $trm->name = $this->name;
-        $trm->usr = $this->usr;
-        $trm->load();
-        return $trm;
-    }
-
     /*
-     *  type loading functions TODO load type lists upfront
+     * type loading functions
      */
 
-    // load the share type and return the share code id
+    /**
+     * @returns string the share type code id based on the database share type id
+     */
     function share_type_code_id(): string
     {
         global $share_types;
         return $share_types->code_id($this->share_id);
     }
 
-    // load the share type and return the share code id
-    function share_type_name()
+    /**
+     * @returns string the share type name based on the database share type id
+     */
+    function share_type_name(): string
     {
-        log_debug('value->share_type_name for ' . $this->dsp_id());
-
-        global $db_con;
-        $result = '';
-
         // use the default share type if not set
         if ($this->share_id <= 0) {
             $this->share_id = cl(db_cl::SHARE_TYPE, share_type::PUBLIC);
         }
 
-        $sql = "SELECT type_name 
-              FROM share_types 
-             WHERE share_type_id = " . $this->share_id . ";";
-        //$db_con = new mysql;
-        $db_con->usr_id = $this->usr->id;
-        $db_row = $db_con->get1_old($sql);
-        if (isset($db_row)) {
-            $result = $db_row['type_name'];
-        }
-
-        log_debug('value->share_type_name for ' . $this->dsp_id() . ' got ' . $result);
-        return $result;
+        global $share_types;
+        return $share_types->name($this->share_id);
     }
 
     /**
-     * return the protection type code id
+     * @return string the protection type code id based on the database id
      */
     function protection_type_code_id(): string
     {
@@ -528,91 +634,251 @@ class user_sandbox
         return $protection_types->code_id($this->protection_id);
     }
 
-    // load the protection type and return the protection code id
-    function protection_type_name()
+    /**
+     * @return string the protection type name based on the database id
+     */
+    function protection_type_name(): string
     {
-        log_debug('value->protection_type_name for ' . $this->dsp_id());
-
-        global $db_con;
-        $result = '';
-
         // use the default share type if not set
         if ($this->protection_id <= 0) {
-            $this->protection_id = cl(db_cl::PROTECTION_TYPE, protection_type_list::DBL_NO);
+            $this->protection_id = cl(db_cl::PROTECTION_TYPE, protection_type::NO_PROTECT);
         }
 
-        $sql = "SELECT type_name
-              FROM protection_types 
-             WHERE protection_type_id = " . $this->protection_id . ";";
-        //$db_con = new mysql;
-        $db_con->usr_id = $this->usr->id;
-        $db_row = $db_con->get1_old($sql);
-        if (isset($db_row)) {
-            $result = $db_row['type_name'];
-        }
-
-        log_debug('value->protection_type_name for ' . $this->dsp_id() . ' got ' . $result);
-        return $result;
+        global $protection_types;
+        return $protection_types->name($this->protection_id);
     }
+
 
     /*
-    save functions
-    */
+     * im- and export
+     */
 
-    function changer_sql(sql_db $db_con, bool $get_name = false): string
+    /**
+     * dummy function to import a user sandbox object from a json string
+     * to be overwritten by the child object
+     *
+     * @param array $json_obj an array with the data of the json object
+     * @param bool $do_save can be set to false for unit testing
+     * @return user_message the status of the import and if needed the error messages that should be shown to the user
+     */
+    function import_obj(array $json_obj, bool $do_save = true): user_message
     {
-        $sql_name = $this->obj_name . '_changer';
+        return new user_message();
+    }
+
+    /**
+     * create an object for the export which does not include the internal references
+     * to be overwritten by the child object
+     *
+     * @param bool $do_load can be set to false for unit testing
+     * @return exp_obj a reduced export object that can be used to create a JSON message
+     */
+    function export_obj(bool $do_load = true): exp_obj
+    {
+        return (new exp_obj());
+    }
+
+
+    /*
+     * information
+     */
+
+    /**
+     * @param sql_db $db_con
+     * @return sql_par sql parameter to get the user id of the most often used link (position) beside the standard (position)
+     */
+    function median_user_sql(sql_db $db_con): sql_par
+    {
+        $qp = new sql_par($this->obj_name);
+        $qp->name .= 'median_user';
         if ($this->owner_id > 0) {
-            $sql_name .= '_ex_owner';
+            $qp->name .= '_ex_owner';
+        }
+        $db_con->set_type($this->obj_name, true);
+        $db_con->set_name($qp->name);
+        $db_con->set_usr($this->user()->id);
+        $db_con->set_fields(array(sql_db::FLD_USER_ID));
+        $qp->sql = $db_con->select_by_id_not_owner($this->id);
+
+        $qp->par = $db_con->get_par();
+
+        return $qp;
+    }
+
+    /**
+     * @returns int the user id of the most often used link (position) beside the standard (position)
+     * TODO review, because the median is not taking into account the number of standard used values
+     */
+    function median_user(): int
+    {
+        log_debug($this->dsp_id() . ' beside the owner (' . $this->owner_id . ')');
+
+        global $db_con;
+        $result = 0;
+
+        $qp = $this->median_user_sql($db_con);
+        $db_row = $db_con->get1($qp);
+        if ($db_row[self::FLD_USER] > 0) {
+            $result = $db_row[self::FLD_USER];
+        } else {
+            if ($this->owner_id > 0) {
+                $result = $this->owner_id;
+            } else {
+                if ($this->user()->id() > 0) {
+                    $result = $this->user()->id();
+                }
+            }
+        }
+        log_debug('for ' . $this->dsp_id() . ': ' . $result);
+        return $result;
+    }
+
+
+    /*
+     * save support - ownership and access
+     */
+
+    /**
+     * if the user is an admin the user can force to be the owner of this object
+     * TODO review
+     */
+    function take_ownership(): bool
+    {
+        $result = false;
+        log_debug($this->dsp_id());
+
+        if ($this->user()->is_admin()) {
+            // TODO activate $result .= $this->usr_cfg_create_all();
+            $result = $this->set_owner($this->user()->id); // TODO remove double getting of the user object
+            // TODO activate $result .= $this->usr_cfg_cleanup();
         }
 
-        $sql_avoid_code_check_prefix = "SELECT";
-        if ($this->owner_id > 0) {
-            $sql = $sql_avoid_code_check_prefix . ' user_id 
-                FROM user_' . $this->obj_name . 's 
-               WHERE ' . $this->obj_name . '_id = ' . $this->id . '
-                 AND user_id <> ' . $this->owner_id . '
-                 AND (excluded <> 1 OR excluded is NULL)';
-        } else {
-            $sql = $sql_avoid_code_check_prefix . ' user_id 
-                FROM user_' . $this->obj_name . 's 
-               WHERE ' . $this->obj_name . '_id = ' . $this->id . '
-                 AND (excluded <> 1 OR excluded is NULL)';
-        }
+        log_debug($this->dsp_id() . ' done');
+        return $result;
+    }
 
-        if ($get_name) {
-            $result = $sql_name;
-        } else {
-            $result = $sql;
+    /**
+     * change the owner of the object
+     * any calling function should make sure that taking setting the owner is allowed
+     * and that all user values
+     * TODO review sql and object field compare of user and standard
+     */
+    function set_owner(int $new_owner_id): bool
+    {
+        log_debug($this->dsp_id() . ' to ' . $new_owner_id);
+
+        global $db_con;
+        $result = true;
+
+        if ($this->id > 0 and $new_owner_id > 0) {
+            // to recreate the calling object
+            $std = clone $this;
+            $std->reset();
+            $std->id = $this->id;
+            $std->usr = $this->usr;
+            $std->load_standard();
+
+            $db_con->set_type($this->obj_name);
+            $db_con->set_usr($this->user()->id);
+            if (!$db_con->update($this->id, self::FLD_USER, $new_owner_id)) {
+                $result = false;
+            }
+
+            $this->owner_id = $new_owner_id;
+            $new_owner = new user;
+            if ($new_owner->load_by_id($new_owner_id)) {
+                $this->usr = $new_owner;
+            } else {
+                $result = false;
+            }
+
+            log_debug('for ' . $this->dsp_id() . ' to ' . $new_owner_id . ': number of db updates: ' . $result);
         }
         return $result;
     }
 
-    // if the object has been changed by someone else than the owner the user id is returned
-    // but only return the user id if the user has not also excluded it
+    // true if no other user has modified the object
+    // assuming that in this case no confirmation from the other users for an object change is needed
+    function not_changed(): bool
+    {
+        $result = true;
+        log_debug($this->id . ' by someone else than the owner ' . $this->owner_id);
+
+        $other_usr_id = $this->changer();
+        if ($other_usr_id > 0) {
+            $result = false;
+        }
+
+        log_debug($this->id . ' is ' . zu_dsp_bool($result));
+        return $result;
+    }
+
+    /**
+     * true if no one has used the object
+     * TODO if this has been used for calculation, this is also used
+     */
+    function not_used(): bool
+    {
+        $result = true;
+        log_debug($this->id);
+
+        $using_usr_id = $this->median_user();
+        if ($using_usr_id > 0) {
+            $result = false;
+        }
+
+        log_debug(zu_dsp_bool($result));
+        return $result;
+    }
+
+    function changer_sql(sql_db $db_con): sql_par
+    {
+        $qp = new sql_par($this->obj_name);
+        $qp->name .= 'changer';
+        if ($this->owner_id > 0) {
+            $qp->name .= '_ex_owner';
+        }
+        $db_con->set_type($this->obj_name, true);
+        $db_con->set_name($qp->name);
+        $db_con->set_usr($this->user()->id);
+        $db_con->set_fields(array(sql_db::FLD_USER_ID));
+        $qp->sql = $db_con->select_by_id_not_owner($this->id, $this->owner_id);
+
+        $qp->par = $db_con->get_par();
+
+        return $qp;
+    }
+
+    /**
+     * if the object has been changed by someone else than the owner the user id is returned
+     * but only return the user id if the user has not also excluded it
+     * @returns int the user id of someone who has changed the object, but is not owner
+     */
     function changer(): int
     {
-        log_debug($this->obj_name . '->changer ' . $this->dsp_id());
+        log_debug($this->dsp_id());
 
         global $db_con;
 
         $user_id = 0;
         $db_con->set_type($this->obj_name);
-        $db_con->set_usr($this->usr->id);
-        $sql = $this->changer_sql($db_con);
-        $db_row = $db_con->get1_old($sql);
-        if ($db_row != false) {
+        $db_con->set_usr($this->user()->id);
+        $qp = $this->changer_sql($db_con);
+        $db_row = $db_con->get1($qp);
+        if ($db_row) {
             $user_id = $db_row[self::FLD_USER];
         }
 
-        log_debug($this->obj_name . '->changer is ' . $user_id);
+        log_debug('is ' . $user_id);
         return $user_id;
     }
 
-    // a list of all user that have ever changed the object
+    /**
+     * a list of all user that have ever changed the object
+     */
     function usr_lst(): user_list
     {
-        log_debug($this->obj_name . '->usr_lst ' . $this->dsp_id());
+        log_debug($this->dsp_id());
 
         global $db_con;
 
@@ -634,211 +900,57 @@ class user_sandbox
         return $result;
     }
 
-
     /**
-     * dummy function to import a user sandbox object from a json string
-     * to be overwritten by the child object
-     *
-     * @param array $json_obj an array with the data of the json object
-     * @param bool $do_save can be set to false for unit testing
-     * @return string an empty string if the import has been successfully saved to the database
-     *                or the message that should be shown to the user
+     * true if no else one has used the object
+     * TODO if this should be true if no one else has been used this object e.g. for calculation
      */
-    function import_obj(array $json_obj, bool $do_save = true): string
-    {
-        return '';
-    }
-
-    /**
-     * create an object for the export which does not include the internal references
-     * to be overwritten by the child object
-     *
-     * @param bool $do_load can be set to false for unit testing
-     * @return user_sandbox_exp a reduced export object that can be used to create a JSON message
-     */
-    function export_obj(bool $do_load = true): user_sandbox_exp
-    {
-        return (new user_sandbox_exp());
-    }
-
-
-    // get the user id of the most often used link (position) beside the standard (position)
-    //
-    // TODO review, because the median is not taking into account the number of standard used values
-    function median_user()
-    {
-        log_debug($this->obj_name . '->median_user ' . $this->dsp_id() . ' beside the owner (' . $this->owner_id . ')');
-
-        global $db_con;
-        $result = 0;
-
-        $sql = 'SELECT user_id 
-              FROM user_' . $this->obj_name . 's 
-              WHERE ' . $this->obj_name . '_id = ' . $this->id . '
-                AND (excluded <> 1 OR excluded is NULL)';
-        //$db_con = new mysql;
-        $db_con->usr_id = $this->usr->id;
-        $db_row = $db_con->get1_old($sql);
-        if ($db_row[self::FLD_USER] > 0) {
-            $result = $db_row[self::FLD_USER];
-        } else {
-            if ($this->owner_id > 0) {
-                $result = $this->owner_id;
-            } else {
-                if ($this->usr->id > 0) {
-                    $result = $this->usr->id;
-                }
-            }
-        }
-        log_debug($this->obj_name . '->median_user for ' . $this->dsp_id() . ' -> ' . $result);
-        return $result;
-    }
-
-    // remove all user setting that are not needed any more based on the new standard object
-    // TODO review
-    function usr_cfg_cleanup($std)
-    {
-        $result = '';
-        log_debug($this->obj_name . '->usr_cfg_cleanup ' . $this->dsp_id());
-
-        // get a list of users that have a user cfg of this object
-        $usr_lst = $this->usr_lst();
-        foreach ($usr_lst as $usr) {
-            // remove the usr cfg if not needed any more
-            $this->del_usr_cfg_if_not_needed();
-        }
-
-        log_debug($this->obj_name . '->usr_cfg_cleanup for ' . $this->dsp_id() . ' -> ' . $result);
-        return $result;
-    }
-
-    // if the user is an admin the user can force to be the owner of this object
-    // TODO review
-    function take_ownership(): bool
-    {
-        $result = false;
-        log_debug($this->obj_name . '->take_ownership ' . $this->dsp_id());
-
-        if ($this->usr->is_admin()) {
-            // TODO activate $result .= $this->usr_cfg_create_all();
-            $result = $this->set_owner($this->usr->id); // TODO remove double getting of the user object
-            // TODO activate $result .= $this->usr_cfg_cleanup();
-        }
-
-        log_debug($this->obj_name . '->take_ownership ' . $this->dsp_id() . ' -> done');
-        return $result;
-    }
-
-    // change the owner of the object
-    // any calling function should make sure that taking setting the owner is allowed
-    // and that all user values
-    // TODO review sql and object field compare of user and standard
-    function set_owner($new_owner_id): bool
-    {
-        log_debug($this->obj_name . '->set_owner ' . $this->dsp_id() . ' to ' . $new_owner_id);
-
-        global $db_con;
-        $result = true;
-
-        if ($this->id > 0 and $new_owner_id > 0) {
-            // to recreate the calling object
-            $std = clone $this;
-            $std->reset();
-            $std->id = $this->id;
-            $std->usr = $this->usr;
-            $std->load_standard();
-
-            $db_con->set_type($this->obj_name);
-            $db_con->set_usr($this->usr->id);
-            if (!$db_con->update($this->id, self::FLD_USER, $new_owner_id)) {
-                $result = false;
-            }
-
-            $this->owner_id = $new_owner_id;
-            $new_owner = new user;
-            $new_owner->id = $new_owner_id;
-            if ($new_owner->load_test_user()) {
-                $this->usr = $new_owner;
-            } else {
-                $result = false;
-            }
-
-            log_debug($this->obj_name . '->set_owner for ' . $this->dsp_id() . ' to ' . $new_owner_id . ' -> number of db updates: ' . $result);
-        }
-        return $result;
-    }
-
-    // true if no other user has modified the object
-    // assuming that in this case no confirmation from the other users for an object change is needed
-    function not_changed(): bool
-    {
-        $result = true;
-        log_debug($this->obj_name . '->not_changed (' . $this->id . ') by someone else than the owner (' . $this->owner_id . ')');
-
-        $other_usr_id = $this->changer();
-        if ($other_usr_id > 0) {
-            $result = false;
-        }
-
-        log_debug($this->obj_name . '->not_changed -> (' . $this->id . ' is ' . zu_dsp_bool($result) . ')');
-        return $result;
-    }
-
-    // true if no one has used the object
-    // TODO if this has been used for calculation, this is also used
-    function not_used(): bool
-    {
-        $result = true;
-        log_debug($this->obj_name . '->not_used (' . $this->id . ')');
-
-        $using_usr_id = $this->median_user();
-        if ($using_usr_id > 0) {
-            $result = false;
-        }
-
-        log_debug($this->obj_name . '->not_used -> (' . zu_dsp_bool($result) . ')');
-        return $result;
-    }
-
-    // true if no else one has used the object
-    // TODO if this should be true if no one else has been used this object e.g. for calculation
     function used_by_someone_else(): bool
     {
         $result = true;
-        log_debug($this->obj_name . '->used_by_someone_else (' . $this->id . ')');
+        log_debug($this->id);
 
-        log_debug($this->obj_name . '->used_by_someone_else owner is ' . $this->owner_id . ' and the change is requested by ' . $this->usr->id);
-        if ($this->owner_id == $this->usr->id or $this->owner_id <= 0) {
+        log_debug('owner is ' . $this->owner_id . ' and the change is requested by ' . $this->user()->id);
+        if ($this->owner_id == $this->user()->id() or $this->owner_id <= 0) {
             $changer_id = $this->changer();
             // removed "OR $changer_id <= 0" because if no one has changed the object jet does not mean that it can be changed
-            log_debug($this->obj_name . '->used_by_someone_else changer is ' . $changer_id . ' and the change is requested by ' . $this->usr->id);
-            if ($changer_id == $this->usr->id or $changer_id <= 0) {
+            log_debug('changer is ' . $changer_id . ' and the change is requested by ' . $this->user()->id);
+            if ($changer_id == $this->user()->id() or $changer_id <= 0) {
                 $result = false;
             }
         }
 
-        log_debug($this->obj_name . '->used_by_someone_else -> (' . zu_dsp_bool($result) . ')');
+        log_debug(': ' . zu_dsp_bool($result));
         return $result;
     }
 
-    // true if the user is the owner and no one else has changed the object
-    // because if another user has changed the object and the original value is changed, maybe the user object also needs to be updated
+    /**
+     * @return bool true if the user is the owner and no one else has changed the object
+     *              because if another user has changed the object and the original value is changed,
+     *              maybe the user object also needs to be updated
+     */
     function can_change(): bool
     {
         $result = false;
 
         // if the user who wants to change it, is the owner, he can do it
         // or if the owner is not set, he can do it (and the owner should be set, because every object should have an owner)
-        log_debug($this->obj_name . '->can_change owner is ' . $this->owner_id . ' and the change is requested by ' . $this->usr->id);
-        if ($this->owner_id == $this->usr->id or $this->owner_id <= 0) {
+        log_debug('owner is ' . $this->owner_id . ' and the change is requested by ' . $this->user()->id);
+        if ($this->owner_id == $this->user()->id() or $this->owner_id <= 0) {
             $result = true;
         }
 
-        log_debug($this->obj_name . '->can_change -> (' . zu_dsp_bool($result) . ')');
+        log_debug($this->obj_name . zu_dsp_bool($result));
         return $result;
     }
 
-    // true if a record for a user specific configuration already exists in the database
+
+    /*
+     * save support - user sandbox
+     */
+
+    /**
+     * @return bool true if a record for a user specific configuration already exists in the database
+     */
     function has_usr_cfg(): bool
     {
         $result = false;
@@ -846,29 +958,9 @@ class user_sandbox
             $result = true;
         }
 
-        log_debug($this->obj_name . '->has_usr_cfg -> (' . zu_dsp_bool($result) . ')');
+        log_debug(zu_dsp_bool($result));
         return $result;
     }
-
-    /**
-     * check if any of the object fields including the name and the excluding flag is changed by the user
-     * changed means the user value differs from the standard value
-     *
-     * @return bool true if the user sandbox database row for this user is used
-     */
-    function is_usr_cfg_used(array $db_row, array $fld_names): bool
-    {
-        $result = false;
-        if ($db_row != null) {
-            foreach ($fld_names as $fld_name) {
-                if ($db_row[$fld_name] == Null) {
-                    $result = true;
-                }
-            }
-        }
-        return $result;
-    }
-
 
     /**
      * simply remove a user adjustment without check
@@ -878,17 +970,17 @@ class user_sandbox
      */
     function del_usr_cfg_exe($db_con): bool
     {
-        log_debug($this->obj_name . '->del_usr_cfg_exe ' . $this->dsp_id());
+        log_debug($this->dsp_id() . ' und user ' . $this->user()->name);
 
         $result = false;
         $action = 'Deletion of user ' . $this->obj_name . ' ';
-        $msg_failed = $this->id . ' failed for ' . $this->usr->name;
+        $msg_failed = $this->id . ' failed for ' . $this->user()->name;
 
-        $db_con->set_type(DB_TYPE_USER_PREFIX . $this->obj_name);
+        $db_con->set_type(sql_db::TBL_USER_PREFIX . $this->obj_name);
         try {
             $msg = $db_con->delete(
-                array($this->obj_name . '_id', self::FLD_USER),
-                array($this->id, $this->usr->id));
+                array($this->id_field(), self::FLD_USER),
+                array($this->id, $this->user()->id));
             if ($msg == '') {
                 $this->usr_cfg_id = null;
                 $result = true;
@@ -901,18 +993,20 @@ class user_sandbox
         return $result;
     }
 
-    // remove user adjustment and log it (used by user.php to undo the user changes)
+    /**
+     * remove user adjustment and log it (used by user.php to undo the user changes)
+     */
     function del_usr_cfg(): bool
     {
-        log_debug($this->obj_name . '->del_usr_cfg ' . $this->dsp_id());
+        log_debug($this->dsp_id());
 
         global $db_con;
         $result = true;
 
-        if ($this->id > 0 and $this->usr->id > 0) {
+        if ($this->id > 0 and $this->user()->id() > 0) {
             $log = $this->log_del();
-            if ($log->id > 0) {
-                $db_con->usr_id = $this->usr->id;
+            if ($log->id() > 0) {
+                $db_con->usr_id = $this->user()->id();
                 $result = $this->del_usr_cfg_exe($db_con);
             }
 
@@ -923,21 +1017,24 @@ class user_sandbox
         return $result;
     }
 
-    // dummy function to create a database record to save user specific settings that is always overwritten by the child class
-    // returns false if the creation has failed and true if it was successful or not needed
-    function add_usr_cfg(): bool
+    /**
+     * create a database record to save user specific settings for a user sandbox object
+     * TODO combine the reread and the adding in a commit transaction; same for all db change transactions
+     * @return bool false if the creation has failed and true if it was successful or not needed
+     */
+    protected function add_usr_cfg(string $class = self::class): bool
     {
         global $db_con;
         $result = true;
 
         if (!$this->has_usr_cfg()) {
             if ($this->obj_type == self::TYPE_NAMED) {
-                log_debug($this->obj_name . '->add_usr_cfg for "' . $this->dsp_id() . ' und user ' . $this->usr->name);
+                log_debug('for "' . $this->dsp_id() . ' und user ' . $this->user()->name);
             } elseif ($this->obj_type == self::TYPE_LINK) {
                 if (isset($this->from) and isset($this->to)) {
-                    log_debug($this->obj_name . '->add_usr_cfg for "' . $this->from->name . '"/"' . $this->to->name . '" by user "' . $this->usr->name . '"');
+                    log_debug('for "' . $this->from->name . '"/"' . $this->to->name . '" by user "' . $this->user()->name . '"');
                 } else {
-                    log_debug($this->obj_name . '->add_usr_cfg for "' . $this->id . '" and user "' . $this->usr->name . '"');
+                    log_debug('for "' . $this->id . '" and user "' . $this->user()->name . '"');
                 }
             } else {
                 log_err('Unknown user sandbox type ' . $this->obj_type . ' in ' . $this->obj_name, $this->obj_name . '->log_add');
@@ -945,51 +1042,146 @@ class user_sandbox
 
             // check again if there ist not yet a record
             $db_con->set_type($this->obj_name, true);
-            $db_con->set_usr($this->usr->id);
+            $qp = new sql_par($class);
+            $qp->name = $class . '_add_usr_cfg';
+            $db_con->set_name($qp->name);
+            $db_con->set_usr($this->user()->id);
             $db_con->set_where_std($this->id);
-            $sql = $db_con->select_by_id();
-            $db_row = $db_con->get1_old($sql);
+            $qp->sql = $db_con->select_by_set_id();
+            $qp->par = $db_con->get_par();
+            $db_row = $db_con->get1($qp);
             if ($db_row != null) {
-                $this->usr_cfg_id = $db_row[$db_con->get_id_field()];
+                $this->usr_cfg_id = $db_row[$this->id_field()];
             }
             if (!$this->has_usr_cfg()) {
                 // create an entry in the user sandbox
-                $db_con->set_type(DB_TYPE_USER_PREFIX . $this->obj_name);
-                $db_con->set_usr($this->usr->id);
-                $log_id = $db_con->insert(array($db_con->get_id_field(), sql_db::FLD_USER_ID), array($this->id, $this->usr->id));
+                $db_con->set_type(sql_db::TBL_USER_PREFIX . $this->obj_name);
+                $db_con->set_usr($this->user()->id);
+                $log_id = $db_con->insert(array($this->id_field(), sql_db::FLD_USER_ID), array($this->id, $this->user()->id));
                 if ($log_id <= 0) {
                     log_err('Insert of ' . sql_db::USER_PREFIX . $this->obj_name . ' failed.');
                     $result = false;
                 } else {
-                    $result = true;
+                    $this->usr_cfg_id = $log_id;
                 }
             }
         }
         return $result;
     }
 
-    // dummy function to check if the database record for the user specific settings can be removed that is always overwritten by the child class
-    // returns false if the deletion has failed and true if it was successful or not needed
-    function del_usr_cfg_if_not_needed(): bool
+    /**
+     * create an SQL statement to retrieve the user changes of the current object
+     *
+     * @param sql_db $db_con the db connection object as a function parameter for unit testing
+     * @param string $class the name of the child class from where the call has been triggered
+     * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
+     */
+    function usr_cfg_sql(sql_db $db_con, string $class = self::class): sql_par
     {
-        return true;
+        $qp = new sql_par($class);
+        $qp->name .= 'usr_cfg';
+        $db_con->set_name($qp->name);
+        $db_con->set_usr($this->user()->id);
+        $db_con->set_fields($this->all_fields());
+        $qp->sql = $db_con->select_by_id_and_user($this->id, $this->user()->id);
+        $qp->par = $db_con->get_par();
+        return $qp;
     }
+
+    /**
+     * check if the database record for the user specific settings can be removed
+     * TODO separate the query parameter creation and add a unit test
+     * @return bool false if the deletion has failed and true if it was successful or not needed
+     */
+    protected function del_usr_cfg_if_not_needed(): bool
+    {
+
+        global $db_con;
+        $result = true;
+
+        // TODO check if next line is working
+        //if ($this->has_usr_cfg) {
+
+        // check again if there ist not yet a record
+        $qp = $this->usr_cfg_sql($db_con);
+        $db_con->usr_id = $this->user()->id();
+        $usr_cfg_row = $db_con->get1($qp);
+        if ($usr_cfg_row) {
+            log_debug('check for "' . $this->dsp_id() . ' und user ' . $this->user()->name . ' with (' . $qp->sql . ')');
+            if ($usr_cfg_row[$this->id_field()] > 0) {
+                if ($this->no_usr_fld_used($this->all_fields(), $usr_cfg_row)) {
+                    $result = $this->del_usr_cfg_exe($db_con);
+                }
+            }
+        }
+        //}
+
+        // don't throw an error message if another account has removed the user sandbox row in the meantime
+        if (!$this->has_usr_cfg()) {
+            $result = true;
+        }
+
+        return $result;
+    }
+
+    /**
+     * check if the database row with the user specific data is still needed
+     *
+     * @param array $fld_lst all potential user specific fields of the object
+     * @param array $db_row the database record of the user table
+     * @return bool true if no field contain any user overwrite
+     */
+    protected function no_usr_fld_used(array $fld_lst, array $db_row): bool
+    {
+        $result = true;
+        foreach ($fld_lst as $field_name) {
+            if ($db_row[$field_name] != '') {
+                $result = false;
+            }
+        }
+        return $result;
+    }
+
+    /**
+     * remove all user setting that are not needed any more based on the new standard object
+     * TODO review
+     */
+    function usr_cfg_cleanup(user_sandbox $std): string
+    {
+        $result = '';
+        log_debug($this->dsp_id());
+
+        // get a list of users that have a user cfg of this object
+        $usr_lst = $this->usr_lst();
+        foreach ($usr_lst as $usr) {
+            // remove the usr cfg if not needed any more
+            $this->del_usr_cfg_if_not_needed($this->id_field(), $this->all_fields());
+        }
+
+        log_debug('for ' . $this->dsp_id() . ': ' . $result);
+        return $result;
+    }
+
+
+    /*
+     * save support - log changes
+     */
 
     /**
      * set the log entry parameter for a new named object
      * for all not named objects like links, this function is overwritten
      * e.g. that the user can see "added formula 'scale millions' to word 'mio'"
      */
-    function log_add(): user_log_named
+    function log_add(): change_log_named
     {
-        log_debug($this->obj_name . '->log_add ' . $this->dsp_id());
+        log_debug($this->dsp_id());
 
-        $log = new user_log_named;
+        $log = new change_log_named;
 
         $log->usr = $this->usr;
-        $log->action = 'add';
+        $log->action = change_log_action::ADD;
         // TODO add the table exceptions from sql_db
-        $log->table = $this->obj_name . 's';
+        $log->set_table($this->obj_name . 's');
         $log->row_id = 0;
         $log->add();
 
@@ -999,10 +1191,10 @@ class user_sandbox
     /**
      * set the log entry parameter for a new link object
      */
-    function log_link_add(): user_log_link
+    function log_link_add(): change_log_link
     {
         log_err('The dummy parent method get_similar has been called, which should never happen');
-        return new user_log_link();
+        return new change_log_link();
     }
 
     /**
@@ -1010,14 +1202,14 @@ class user_sandbox
      */
     private function log_upd_common($log)
     {
-        log_debug($this->obj_name . '->log_upd_common ' . $this->dsp_id());
+        log_debug($this->dsp_id());
         $log->usr = $this->usr;
-        $log->action = user_log::ACTION_UPDATE;
+        $log->action = change_log_action::UPDATE;
         if ($this->can_change()) {
             // TODO add the table exceptions from sql_db
-            $log->table = $this->obj_name . 's';
+            $log->set_table($this->obj_name . 's');
         } else {
-            $log->table = DB_TYPE_USER_PREFIX . $this->obj_name . 's';
+            $log->set_table(sql_db::TBL_USER_PREFIX . $this->obj_name . 's');
         }
 
         return $log;
@@ -1026,20 +1218,20 @@ class user_sandbox
     /**
      * create a log object for an update of an object field
      */
-    function log_upd_field(): user_log_named
+    function log_upd_field(): change_log_named
     {
-        log_debug($this->obj_name . '->log_upd_field ' . $this->dsp_id());
-        $log = new user_log_named;
+        log_debug($this->dsp_id());
+        $log = new change_log_named;
         return $this->log_upd_common($log);
     }
 
     /**
      * create a log object for an update of link
      */
-    function log_upd_link(): user_log_link
+    function log_upd_link(): change_log_link
     {
-        log_debug($this->obj_name . '->log_upd_link ' . $this->dsp_id());
-        $log = new user_log_link;
+        log_debug($this->dsp_id());
+        $log = new change_log_link;
         return $this->log_upd_common($log);
     }
 
@@ -1049,7 +1241,7 @@ class user_sandbox
      */
     function log_upd()
     {
-        log_debug($this->obj_name . '->log_upd ' . $this->dsp_id());
+        log_debug($this->dsp_id());
         if ($this->obj_type == self::TYPE_NAMED) {
             $log = $this->log_upd_field();
         } else {
@@ -1060,22 +1252,22 @@ class user_sandbox
 
     /**
      * dummy function definition that will be overwritten by the child object
-     * @return user_log_link
+     * @return change_log_link
      */
-    function log_del_link(): user_log_link
+    function log_del_link(): change_log_link
     {
         log_err('The dummy parent method get_similar has been called, which should never happen');
-        return new user_log_link();
+        return new change_log_link();
     }
 
     /**
      * dummy function definition that will be overwritten by the child object
-     * @return user_log_named
+     * @return change_log_named
      */
-    function log_del(): user_log_named
+    function log_del(): change_log_named
     {
         log_err('The dummy parent method get_similar has been called, which should never happen');
-        return new user_log_named();
+        return new change_log_named();
     }
 
     /**
@@ -1090,28 +1282,9 @@ class user_sandbox
     }
 
 
-    /**
-     * set the update parameters for the word type
-     * TODO: log the ref
+    /*
+     * save support - save fields
      */
-    function save_field_type(sql_db $db_con, user_sandbox $db_rec, user_sandbox $std_rec): string
-    {
-        $result = '';
-        if ($db_rec->type_id <> $this->type_id) {
-            $log = $this->log_upd();
-            $log->old_value = $db_rec->type_name();
-            $log->old_id = $db_rec->type_id;
-            $log->new_value = $this->type_name();
-            $log->new_id = $this->type_id;
-            $log->std_value = $std_rec->type_name();
-            $log->std_id = $std_rec->type_id;
-            $log->row_id = $this->id;
-            $log->field = 'word_type_id';
-            $result .= $this->save_field_do($db_con, $log);
-            log_debug('word->save_field_type changed type to "' . $log->new_value . '" (' . $log->new_id . ')');
-        }
-        return $result;
-    }
 
     /**
      * dummy function to save all updated word fields, which is always overwritten by the child class
@@ -1140,38 +1313,38 @@ class user_sandbox
             if ($this->can_change()) {
                 if ($new_value == $std_value) {
                     if ($this->has_usr_cfg()) {
-                        log_debug($this->obj_name . '->save_field_do remove user change');
-                        $db_con->set_type(DB_TYPE_USER_PREFIX . $this->obj_name);
-                        $db_con->set_usr($this->usr->id);
-                        if (!$db_con->update($this->id, $log->field, Null)) {
-                            $result = 'remove of ' . $log->field . ' failed';
+                        log_debug('remove user change');
+                        $db_con->set_type(sql_db::TBL_USER_PREFIX . $this->obj_name);
+                        $db_con->set_usr($this->user()->id);
+                        if (!$db_con->update($this->id, $log->field(), Null)) {
+                            $result = 'remove of ' . $log->field() . ' failed';
                         }
                     }
                     $this->del_usr_cfg_if_not_needed(); // don't care what the result is, because in most cases it is fine to keep the user sandbox row
                 } else {
                     $db_con->set_type($this->obj_name);
-                    $db_con->set_usr($this->usr->id);
-                    if (!$db_con->update($this->id, $log->field, $new_value)) {
-                        $result = 'update of ' . $log->field . ' to ' . $new_value . ' failed';
+                    $db_con->set_usr($this->user()->id);
+                    if (!$db_con->update($this->id, $log->field(), $new_value)) {
+                        $result = 'update of ' . $log->field() . ' to ' . $new_value . ' failed';
                     }
                 }
             } else {
                 if (!$this->has_usr_cfg()) {
                     if (!$this->add_usr_cfg()) {
-                        $result = 'creation of user sandbox for ' . $log->field . ' failed';
+                        $result = 'creation of user sandbox for ' . $log->field() . ' failed';
                     }
                 }
                 if ($result == '') {
-                    $db_con->set_type(DB_TYPE_USER_PREFIX . $this->obj_name);
-                    $db_con->set_usr($this->usr->id);
+                    $db_con->set_type(sql_db::TBL_USER_PREFIX . $this->obj_name);
+                    $db_con->set_usr($this->user()->id);
                     if ($new_value == $std_value) {
-                        log_debug($this->obj_name . '->save_field_do remove user change');
-                        if (!$db_con->update($this->id, $log->field, Null)) {
-                            $result = 'remove of user value for ' . $log->field . ' failed';
+                        log_debug('remove user change');
+                        if (!$db_con->update($this->id, $log->field(), Null)) {
+                            $result = 'remove of user value for ' . $log->field() . ' failed';
                         }
                     } else {
-                        if (!$db_con->update($this->id, $log->field, $new_value)) {
-                            $result = 'update of user value for ' . $log->field . ' to ' . $new_value . ' failed';
+                        if (!$db_con->update($this->id, $log->field(), $new_value)) {
+                            $result = 'update of user value for ' . $log->field() . ' to ' . $new_value . ' failed';
                         }
                     }
                     $this->del_usr_cfg_if_not_needed(); // don't care what the result is, because in most cases it is fine to keep the user sandbox row
@@ -1183,11 +1356,11 @@ class user_sandbox
 
     /**
      * @param user_sandbox $db_rec the object as saved in the database before the change
-     * @return user_log the log object predefined for excluding
+     * @return change_log the log object predefined for excluding
      */
-    function save_field_excluded_log(user_sandbox $db_rec): user_log
+    function save_field_excluded_log(user_sandbox $db_rec): change_log
     {
-        $log = new user_log();
+        $log = new change_log();
         if ($db_rec->excluded <> $this->excluded) {
             if ($this->excluded == 1) {
                 if ($this->obj_type == self::TYPE_LINK) {
@@ -1203,7 +1376,7 @@ class user_sandbox
                 }
             }
         }
-        $log->field = self::FLD_EXCLUDED;
+        $log->set_field(self::FLD_EXCLUDED);
         return $log;
     }
 
@@ -1213,7 +1386,7 @@ class user_sandbox
      */
     function save_field_excluded(sql_db $db_con, user_sandbox $db_rec, user_sandbox $std_rec): string
     {
-        log_debug($this->obj_name . '->save_field_excluded ' . $this->dsp_id());
+        log_debug($this->dsp_id());
         $result = '';
 
         if ($db_rec->excluded <> $this->excluded) {
@@ -1223,8 +1396,8 @@ class user_sandbox
             // similar to $this->save_field_do
             if ($this->can_change()) {
                 $db_con->set_type($this->obj_name);
-                $db_con->set_usr($this->usr->id);
-                if (!$db_con->update($this->id, $log->field, $new_value)) {
+                $db_con->set_usr($this->user()->id);
+                if (!$db_con->update($this->id, $log->field(), $new_value)) {
                     $result .= 'excluding of ' . $this->obj_name . ' failed';
                 }
             } else {
@@ -1234,14 +1407,14 @@ class user_sandbox
                     }
                 }
                 if ($result == '') {
-                    $db_con->set_type(DB_TYPE_USER_PREFIX . $this->obj_name);
-                    $db_con->set_usr($this->usr->id);
+                    $db_con->set_type(sql_db::TBL_USER_PREFIX . $this->obj_name);
+                    $db_con->set_usr($this->user()->id);
                     if ($new_value == $std_value) {
-                        if (!$db_con->update($this->id, $log->field, Null)) {
+                        if (!$db_con->update($this->id, $log->field(), Null)) {
                             $result .= 'include of ' . $this->obj_name . ' for user failed';
                         }
                     } else {
-                        if (!$db_con->update($this->id, $log->field, $new_value)) {
+                        if (!$db_con->update($this->id, $log->field(), $new_value)) {
                             $result .= 'excluding of ' . $this->obj_name . ' for user failed';
                         }
                     }
@@ -1259,7 +1432,7 @@ class user_sandbox
      */
     function save_field_share(sql_db $db_con, user_sandbox $db_rec, user_sandbox $std_rec): string
     {
-        log_debug($this->obj_name . '->save_field_share ' . $this->dsp_id());
+        log_debug($this->dsp_id());
         $result = '';
 
         if ($db_rec->share_id <> $this->share_id) {
@@ -1272,7 +1445,7 @@ class user_sandbox
             $log->std_value = $std_rec->share_type_name();
             $log->std_id = $std_rec->share_id;
             $log->row_id = $this->id;
-            $log->field = self::FLD_SHARE;
+            $log->set_field(self::FLD_SHARE);
 
             // save_field_do is not used because the share type can only be set on the user record
             if ($log->new_id > 0) {
@@ -1289,16 +1462,16 @@ class user_sandbox
                     }
                 }
                 if ($result == '') {
-                    $db_con->set_type(DB_TYPE_USER_PREFIX . $this->obj_name);
-                    $db_con->set_usr($this->usr->id);
-                    if (!$db_con->update($this->id, $log->field, $new_value)) {
+                    $db_con->set_type(sql_db::TBL_USER_PREFIX . $this->obj_name);
+                    $db_con->set_usr($this->user()->id);
+                    if (!$db_con->update($this->id, $log->field(), $new_value)) {
                         $result = 'setting of share type failed';
                     }
                 }
             }
         }
 
-        log_debug($this->obj_name . '->save_field_share ' . $this->dsp_id());
+        log_debug($this->dsp_id());
         return $result;
     }
 
@@ -1309,7 +1482,7 @@ class user_sandbox
     function save_field_protection(sql_db $db_con, user_sandbox $db_rec, user_sandbox $std_rec): string
     {
         $result = '';
-        log_debug($this->obj_name . '->save_field_protection ' . $this->dsp_id());
+        log_debug($this->dsp_id());
 
         if ($db_rec->protection_id <> $this->protection_id) {
             $log = $this->log_upd_field();
@@ -1320,13 +1493,18 @@ class user_sandbox
             $log->std_value = $std_rec->protection_type_name();
             $log->std_id = $std_rec->protection_id;
             $log->row_id = $this->id;
-            $log->field = self::FLD_PROTECT;
+            $log->set_field(self::FLD_PROTECT);
             $result .= $this->save_field_do($db_con, $log);
         }
 
-        log_debug($this->obj_name . '->save_field_protection ' . $this->dsp_id());
+        log_debug($this->dsp_id());
         return $result;
     }
+
+
+    /*
+     * save support - check id
+     */
 
     /**
      * dummy function definition that will be overwritten by the child objects
@@ -1347,7 +1525,7 @@ class user_sandbox
      */
     function get_obj_with_same_id_fields(): user_sandbox
     {
-        log_debug($this->obj_name . '->save_id_if_updated check if target already exists ' . $this->dsp_id());
+        log_debug('check if target already exists ' . $this->dsp_id());
         $db_chk = clone $this;
         $db_chk->id = 0; // to force the load by the id fields
         $db_chk->load_standard(); // TODO should not ADDITIONAL the user specific load be called
@@ -1374,13 +1552,13 @@ class user_sandbox
      */
     function save_id_if_updated(sql_db $db_con, user_sandbox $db_rec, user_sandbox $std_rec): string
     {
-        log_debug($this->obj_name . '->save_id_if_updated ' . $this->dsp_id());
+        log_debug($this->dsp_id());
         $result = '';
 
         if ($this->is_id_updated($db_rec)) {
             $db_chk = $this->get_obj_with_same_id_fields();
             if ($db_chk->id <> 0) {
-                log_debug($this->obj_name . '->save_id_if_updated target already exists');
+                log_debug('target already exists');
                 if ($this->rename_can_switch) {
                     // ... if yes request to delete or exclude the record with the id parameters before the change
                     $to_del = clone $db_rec;
@@ -1399,21 +1577,21 @@ class user_sandbox
                         $db_rec->excluded = '1';
                         $result .= $this->save_field_excluded($db_con, $db_rec, $std_rec);
                         if ($result == '') {
-                            log_debug($this->obj_name . '->save_id_if_updated found a ' . $this->obj_name . ' target ' . $db_chk->dsp_id() . ', so del ' . $db_rec->dsp_id() . ' and add ' . $this->dsp_id());
+                            log_debug('found a ' . $this->obj_name . ' target ' . $db_chk->dsp_id() . ', so del ' . $db_rec->dsp_id() . ' and add ' . $this->dsp_id());
                         } else {
                             //$result = 'Failed to exclude the unused ' . $this->obj_name;
-                            $result .= 'A ' . $this->obj_name . ' with the name "' . $this->name . '" already exists. Please use another name or merge with this ' . $this->obj_name . '.';
+                            $result .= 'A ' . $this->obj_name . ' with the name "' . $this->name() . '" already exists. Please use another name or merge with this ' . $this->obj_name . '.';
                         }
                     }
                 } else {
                     $result .= $this->msg_id_already_used();
                 }
             } else {
-                log_debug($this->obj_name . '->save_id_if_updated target does not yet exist');
+                log_debug('target does not yet exist');
                 // TODO check if e.g. for word links and formula links "and $this->not_used()" needs to be added
                 if ($this->can_change()) {
                     // in this case change is allowed and done
-                    log_debug($this->obj_name . '->save_id_if_updated change the existing ' . $this->obj_name . ' ' . $this->dsp_id() . ' (db ' . $db_rec->dsp_id() . ', standard ' . $std_rec->dsp_id() . ')');
+                    log_debug('change the existing ' . $this->obj_name . ' ' . $this->dsp_id() . ' (db ' . $db_rec->dsp_id() . ', standard ' . $std_rec->dsp_id() . ')');
                     // TODO check if next line is needed
                     //$this->load_objects();
                     if ($this->obj_type == self::TYPE_LINK) {
@@ -1436,7 +1614,7 @@ class user_sandbox
                     if ($result = '') {
                         // ... and create a new display component link
                         $this->id = 0;
-                        $this->owner_id = $this->usr->id;
+                        $this->owner_id = $this->user()->id();
                         $result .= $this->add()->get_last_message();
                     }
                 }
@@ -1458,9 +1636,13 @@ class user_sandbox
      */
     function save_id_fields(sql_db $db_con, user_sandbox $db_rec, user_sandbox $std_rec): string
     {
-        log_warning($this->obj_name . '->save_id_fields ' . $this->dsp_id());
+        log_warning($this->dsp_id());
         return '';
     }
+
+    /*
+     * save support - check similar
+     */
 
     /**
      * dummy function that is supposed to be overwritten by the child classes for e.g. named or link objects
@@ -1476,7 +1658,7 @@ class user_sandbox
 
     /**
      * check that the given object is by the unique keys the same as the actual object
-     * handles the specials case that for each formula a corresponding word is created (which needs to be check if this is really needed)
+     * handles the specials case that for each formula a corresponding word is created (which needs to be checked if this is really needed)
      * so if a formula word "millions" is not the same as the standard word "millions" because the formula word "millions" is representing a formula which should not be combined
      * in short: if two objects are the same by this definition, they are supposed to be merged
      */
@@ -1485,28 +1667,31 @@ class user_sandbox
         $result = false;
 
         /*
-        if ($this->obj_name == DB_TYPE_WORD and $obj_to_check->obj_name == DB_TYPE_FORMULA) {
+        if ($this->obj_name == sql_db::TBL_WORD and $obj_to_check->obj_name == sql_db::TBL_FORMULA) {
             // special case if word should be created representing the formula it is a kind of same at least the creation of the word should be alloed
             if ($this->name == $obj_to_check->name) {
                 $result = true;
             }
-        } elseif ($this->obj_name == DB_TYPE_WORD and $obj_to_check->obj_name == DB_TYPE_WORD) {
+        } elseif ($this->obj_name == sql_db::TBL_WORD and $obj_to_check->obj_name == sql_db::TBL_WORD) {
 
         */
-        if ($this->obj_name == DB_TYPE_WORD and $obj_to_check->obj_name == DB_TYPE_WORD) {
+        if ($this->obj_name == sql_db::TBL_WORD and $obj_to_check->obj_name == sql_db::TBL_WORD) {
             // special case a word should not be combined with a word that is representing a formulas
             if ($this->name == $obj_to_check->name) {
                 if (isset($this->type_id) and isset($obj_to_check->type_id)) {
                     if ($this->type_id == $obj_to_check->type_id) {
                         $result = true;
                     } else {
-                        if ($this->type_id == DB_TYPE_FORMULA and $obj_to_check->type_id == cl(db_cl::WORD_TYPE, phrase_type::FORMULA_LINK)) {
+                        if ($this->type_id == sql_db::TBL_FORMULA
+                            and $obj_to_check->type_id == cl(db_cl::PHRASE_TYPE, phrase_type::FORMULA_LINK)) {
                             // if one is a formula and the other is a formula link word, the two objects are representing the same formula object (but the calling function should use the formula to update)
                             $result = true;
-                        } elseif ($obj_to_check->type_id == DB_TYPE_FORMULA and $this->type_id == cl(db_cl::WORD_TYPE, phrase_type::FORMULA_LINK)) {
+                        } elseif ($obj_to_check->type_id == sql_db::TBL_FORMULA
+                            and $this->type_id == cl(db_cl::PHRASE_TYPE, phrase_type::FORMULA_LINK)) {
                             // like above, but the other way round
                             $result = true;
-                        } elseif ($this->type_id == cl(db_cl::WORD_TYPE, phrase_type::FORMULA_LINK) or $obj_to_check->type_id == cl(db_cl::WORD_TYPE, phrase_type::FORMULA_LINK)) {
+                        } elseif ($this->type_id == cl(db_cl::PHRASE_TYPE, phrase_type::FORMULA_LINK)
+                            or $obj_to_check->type_id == cl(db_cl::PHRASE_TYPE, phrase_type::FORMULA_LINK)) {
                             // if one of the two words is a formula link and not both, the user should ge no suggestion to combine them
                             $result = false;
                         } else {
@@ -1540,7 +1725,7 @@ class user_sandbox
                 $result = $this->is_same_std($obj_to_check);
             } else {
                 // create a synthetic unique index over words, phrase, verbs and formulas
-                if ($this->obj_name == DB_TYPE_WORD or $this->obj_name == DB_TYPE_PHRASE or $this->obj_name == DB_TYPE_FORMULA or $this->obj_name == DB_TYPE_VERB) {
+                if ($this->obj_name == sql_db::TBL_WORD or $this->obj_name == sql_db::TBL_PHRASE or $this->obj_name == sql_db::TBL_FORMULA or $this->obj_name == sql_db::TBL_VERB) {
                     if ($this->name == $obj_to_check->name) {
                         $result = true;
                     }
@@ -1561,13 +1746,19 @@ class user_sandbox
      *      but a word with the same name already exists, a term with the word "millions" is returned
      *      in this case the calling function should suggest the user to name the formula "scale millions"
      *      to prevent confusion when writing a formula where all words, phrases, verbs and formulas should be unique
-     * @returns string a filled object that has the same name or links the same objects
+     * @returns user_sandbox|null a filled object that has the same name or links the same objects
+     *                            or null if nothing similar has been found
      */
-    function get_similar(): user_sandbox
+    function get_similar(): ?user_sandbox
     {
         log_err('The dummy parent method get_similar has been called, which should never happen');
         return new user_sandbox($this->usr);
     }
+
+
+    /*
+     * add
+     */
 
     /**
      * dummy function that is supposed to be overwritten by the child classes for e.g. named or link objects
@@ -1586,42 +1777,42 @@ class user_sandbox
     }
 
     /*
+     * save
+     *
+     * a word rename creates a new word and a word deletion request
+     * a word is deleted after all users have confirmed
+     * words with an active deletion request are listed at the end
+     * a word can have a formula linked
+     * values and formulas can be linked to a word, a triple or a word group
+     * verbs needs a confirmation for creation (but the name can be reserved)
+     * all other parameters beside the word/verb name can be user specific
+     *
+     * time words are separated from the word groups to reduce the number of word groups
+     * for daily data or shorter a normal date or time field is used
+     * a time word can also describe a period
+     */
 
-     a word rename creates a new word and a word deletion request
-     a word is deleted after all users have confirmed
-     words with an active deletion request are listed at the end
-     a word can have a formula linked
-     values and formulas can be linked to a word, a triple or a word group
-     verbs needs a confirmation for creation (but the name can be reserved)
-     all other parameters beside the word/verb name can be user specific
-
-     time words are separated from the word groups to reduce the number of word groups
-     for daily data or shorter a normal date or time field is used
-     a time word can also describe a period
-
-    */
-
-    // add or update a user sandbox object (word, value, formula or ...) in the database
-    // returns either the id of the updated or created object or a message with the reason why it has failed that can be shown to the user
     /*
+     * add or update a user sandbox object (word, value, formula or ...) in the database
+     * returns either the id of the updated or created object or a message with the reason why it has failed that can be shown to the user
+     *
      * the save used cases are
      *
-     * 1. a source is supposed to be saved with without id and         a name  and no source                with the same name already exists -> add the source
-     * 2. a source is supposed to be saved with without id and         a name, but  a source                with the same name already exists -> ask the user to confirm the changes or use another name (at the moment simply update)
-     * 3. a word   is supposed to be saved with without id and         a name  and no word, verb or formula with the same name already exists -> add the word
-     * 4. a word   is supposed to be saved with without id and         a name, but  a word                  with the same name already exists -> ask the user to confirm the changes or use another name (at the moment simply update)
-     * 5. a word   is supposed to be saved with without id and         a name, but  a verb or formula       with the same name already exists -> ask the user to use another name (or rename the formula)
-     * 6. a source is supposed to be saved with with    id and a changed name -> the source is supposed to be renamed -> check if the new name is already used -> (6a.) if yes,            ask to merge, change the name or cancel the update -> (6b.) if the new name does not exist, ask the user to confirm the changes
-     * 7. a word   is supposed to be saved with with    id and a changed name -> the word   is supposed to be renamed -> check if the new name is already used -> (7a.) if yes for a word, ask to merge, change the name or cancel the update -> (7b.) if the new name does not exist, ask the user to confirm the changes
+     * 1. a source is supposed to be saved without id and         a name  and no source                with the same name already exists -> add the source
+     * 2. a source is supposed to be saved without id and         a name, but  a source                with the same name already exists -> ask the user to confirm the changes or use another name (at the moment simply update)
+     * 3. a word   is supposed to be saved without id and         a name  and no word, verb or formula with the same name already exists -> add the word
+     * 4. a word   is supposed to be saved without id and         a name, but  a word                  with the same name already exists -> ask the user to confirm the changes or use another name (at the moment simply update)
+     * 5. a word   is supposed to be saved without id and         a name, but  a verb or formula       with the same name already exists -> ask the user to use another name (or rename the formula)
+     * 6. a source is supposed to be saved with    id and a changed name -> the source is supposed to be renamed -> check if the new name is already used -> (6a.) if yes,            ask to merge, change the name or cancel the update -> (6b.) if the new name does not exist, ask the user to confirm the changes
+     * 7. a word   is supposed to be saved with    id and a changed name -> the word   is supposed to be renamed -> check if the new name is already used -> (7a.) if yes for a word, ask to merge, change the name or cancel the update -> (7b.) if the new name does not exist, ask the user to confirm the changes
      *                                                                                                                                                         -> (7c.) if yes for a verb, ask to        change the name or cancel the update
-     *
      * TODO add wizards to handle the update chains
      *
      */
 
     function save(): string
     {
-        log_debug($this->obj_name . '->save ' . $this->dsp_id());
+        log_debug($this->dsp_id());
 
         global $db_con;
 
@@ -1637,14 +1828,14 @@ class user_sandbox
 
             // configure the global database connection object for the select, insert, update and delete queries
             $db_con->set_type($this->obj_name);
-            $db_con->set_usr($this->usr->id);
+            $db_con->set_usr($this->user()->id);
 
             // create an object to check possible duplicates
             $similar = null;
 
             // if a new object is supposed to be added check upfront for a similar object to prevent adding duplicates
             if ($this->id == 0) {
-                log_debug($this->obj_name . '->save check possible duplicates before adding ' . $this->dsp_id());
+                log_debug('check possible duplicates before adding ' . $this->dsp_id());
                 $similar = $this->get_similar();
                 if ($similar != null) {
                     // check that the get_similar function has really found a similar object and report potential program errors
@@ -1653,8 +1844,15 @@ class user_sandbox
                     }
                     if ($similar->id <> 0) {
                         // if similar is found set the id to trigger the updating instead of adding
-                        $similar->load(); // e.g. to get the type_id
-                        $this->id = $similar->id;
+                        $similar->load_by_id($similar->id, $similar::class); // e.g. to get the type_id
+                        // prevent that the id of a formula is used for the word with the type formula link
+                        if (get_class($this) == get_class($similar)) {
+                            $this->id = $similar->id;
+                        } else {
+                            if (get_class($this) != word::class or get_class($similar) != formula::class) {
+                                log_err('Unexpected similar prevention class ' . get_class($this));
+                            }
+                        }
                     } else {
                         $similar = null;
                     }
@@ -1663,12 +1861,12 @@ class user_sandbox
 
             // create a new object if nothing similar has been found
             if ($this->id == 0) {
-                log_debug($this->obj_name . '->save add');
+                log_debug('add');
                 $result = $this->add()->get_last_message();
             } else {
                 // if the similar object is not the same as $this object, suggest renaming $this object
                 if ($similar != null) {
-                    log_debug($this->obj_name . '->save got similar and suggest renaming or merge');
+                    log_debug('got similar and suggest renaming or merge');
                     // e.g. if a source already exists update the source
                     // but if a word with the same name of a formula already exists suggest a new formula name
                     if (!$this->is_same($similar)) {
@@ -1678,25 +1876,24 @@ class user_sandbox
 
                 // update the existing object
                 if ($result == '') {
-                    log_debug($this->obj_name . '->save update');
+                    log_debug('update');
 
                     // read the database values to be able to check if something has been changed;
                     // done first, because it needs to be done for user and general object values
                     $db_rec = clone $this;
                     $db_rec->reset();
-                    $db_rec->id = $this->id;
                     $db_rec->usr = $this->usr;
-                    if (!$db_rec->load()) {
+                    if (!$db_rec->load_by_id($this->id, $db_rec::class)) {
                         $result .= 'Reloading of user ' . $this->obj_name . ' failed';
                     } else {
-                        log_debug($this->obj_name . '->save reloaded from db');
+                        log_debug('reloaded from db');
                         if ($this->obj_type == self::TYPE_LINK) {
                             if (!$db_rec->load_objects()) {
                                 $result .= 'Reloading of the object for ' . $this->obj_name . ' failed';
                             }
                             // configure the global database connection object again to overwrite any changes from load_objects
                             $db_con->set_type($this->obj_name);
-                            $db_con->set_usr($this->usr->id);
+                            $db_con->set_usr($this->user()->id);
                         }
                     }
 
@@ -1713,7 +1910,7 @@ class user_sandbox
 
                     // for a correct user setting detection (function can_change) set the owner even if the object has not been loaded before the save
                     if ($result == '') {
-                        log_debug($this->obj_name . '->save standard loaded');
+                        log_debug('standard loaded');
 
                         if ($this->owner_id <= 0) {
                             $this->owner_id = $std_rec->owner_id;
@@ -1741,13 +1938,9 @@ class user_sandbox
         return $result;
     }
 
-    /**
-     * dummy function to remove depending on objects, which needs to be overwritten by the child classes
+    /*
+     * delete
      */
-    function del_links(): user_message
-    {
-        return new user_message();
-    }
 
     /**
      * delete the complete object (the calling function del must have checked that no one uses this object)
@@ -1755,7 +1948,7 @@ class user_sandbox
      */
     private function del_exe(): string
     {
-        log_debug($this->obj_name . '->del_exe ' . $this->dsp_id());
+        log_debug($this->dsp_id());
 
         global $db_con;
         $msg = '';
@@ -1767,47 +1960,47 @@ class user_sandbox
         } else {
             $log = $this->log_del();
         }
-        if ($log->id > 0) {
-            $db_con->usr_id = $this->usr->id;
+        if ($log->id() > 0) {
+            $db_con->usr_id = $this->user()->id();
 
             // for words first delete all links
-            if ($this->obj_name == DB_TYPE_WORD) {
+            if ($this->obj_name == sql_db::TBL_WORD) {
                 $msg = $this->del_links();
                 $result->add($msg);
             }
 
             // for triples first delete all links
-            if ($this->obj_name == DB_TYPE_TRIPLE) {
+            if ($this->obj_name == sql_db::TBL_TRIPLE) {
                 $msg = $this->del_links();
                 $result->add($msg);
             }
 
             // for formulas first delete all links
-            if ($this->obj_name == DB_TYPE_FORMULA) {
+            if ($this->obj_name == sql_db::TBL_FORMULA) {
                 $msg = $this->del_links();
                 $result->add($msg);
 
                 // and the corresponding formula elements
                 if ($result->is_ok()) {
-                    $db_con->set_type(DB_TYPE_FORMULA_ELEMENT);
-                    $db_con->set_usr($this->usr->id);
-                    $msg = $db_con->delete(DB_TYPE_FORMULA . DB_FIELD_EXT_ID, $this->id);
+                    $db_con->set_type(sql_db::TBL_FORMULA_ELEMENT);
+                    $db_con->set_usr($this->user()->id);
+                    $msg = $db_con->delete(sql_db::TBL_FORMULA . sql_db::FLD_EXT_ID, $this->id);
                     $result->add_message($msg);
                 }
 
                 // and the corresponding formula values
                 if ($result->is_ok()) {
-                    $db_con->set_type(DB_TYPE_FORMULA_VALUE);
-                    $db_con->set_usr($this->usr->id);
-                    $msg = $db_con->delete(DB_TYPE_FORMULA . DB_FIELD_EXT_ID, $this->id);
+                    $db_con->set_type(sql_db::TBL_FORMULA_VALUE);
+                    $db_con->set_usr($this->user()->id);
+                    $msg = $db_con->delete(sql_db::TBL_FORMULA . sql_db::FLD_EXT_ID, $this->id);
                     $result->add_message($msg);
                 }
 
                 // and the corresponding word if possible
                 if ($result->is_ok()) {
                     $wrd = new word($this->usr);
-                    $wrd->name = $this->name;
-                    $wrd->type_id = cl(db_cl::WORD_TYPE, phrase_type::FORMULA_LINK);
+                    $wrd->load_by_name($this->name());
+                    $wrd->type_id = cl(db_cl::PHRASE_TYPE, phrase_type::FORMULA_LINK);
                     $msg = $wrd->del();
                     $result->add($msg);
                 }
@@ -1815,33 +2008,33 @@ class user_sandbox
             }
 
             // for view components first delete all links
-            if ($this->obj_name == DB_TYPE_VIEW_COMPONENT) {
+            if ($this->obj_name == sql_db::TBL_VIEW_COMPONENT) {
                 $msg = $this->del_links();
                 $result->add($msg);
             }
 
             // for views first delete all links
-            if ($this->obj_name == DB_TYPE_VIEW) {
+            if ($this->obj_name == sql_db::TBL_VIEW) {
                 $msg = $this->del_links();
                 $result->add($msg);
             }
 
             // delete first all user configuration that have also been excluded
             if ($result->is_ok()) {
-                $db_con->set_type(DB_TYPE_USER_PREFIX . $this->obj_name);
-                $db_con->set_usr($this->usr->id);
+                $db_con->set_type(sql_db::TBL_USER_PREFIX . $this->obj_name);
+                $db_con->set_usr($this->user()->id);
                 $msg = $db_con->delete(
-                    array($this->obj_name . DB_FIELD_EXT_ID, 'excluded'),
+                    array($this->obj_name . sql_db::FLD_EXT_ID, 'excluded'),
                     array($this->id, '1'));
                 $result->add_message($msg);
             }
             if ($result->is_ok()) {
                 // finally, delete the object
                 $db_con->set_type($this->obj_name);
-                $db_con->set_usr($this->usr->id);
-                $msg = $db_con->delete($this->obj_name . '_id', $this->id);
+                $db_con->set_usr($this->user()->id);
+                $msg = $db_con->delete($this->id_field(), $this->id);
                 $result->add_message($msg);
-                log_debug($this->obj_name . '->del_exe of ' . $this->dsp_id() . ' done');
+                log_debug('of ' . $this->dsp_id() . ' done');
             } else {
                 log_err('Delete failed for ' . $this->obj_name, $this->obj_name . '->del_exe', 'Delete failed, because removing the user settings for ' . $this->obj_name . ' ' . $this->dsp_id() . ' returns ' . $msg, (new Exception)->getTraceAsString(), $this->usr);
             }
@@ -1863,7 +2056,7 @@ class user_sandbox
      */
     function del(): user_message
     {
-        log_debug($this->obj_name . '->del ' . $this->dsp_id());
+        log_debug($this->dsp_id());
 
         global $db_con;
         $result = new user_message();
@@ -1871,10 +2064,23 @@ class user_sandbox
 
         // refresh the object with the database to include all updates utils now (TODO start of lock for commit here)
         // TODO it seems that the owner is not updated
-        if (!$this->load()) {
+        $reloaded = false;
+        if ($this->obj_name == sql_db::TBL_WORD
+            or $this->obj_name == sql_db::TBL_TRIPLE
+            or $this->obj_name == sql_db::TBL_SOURCE
+            or $this->obj_name == sql_db::TBL_VIEW) {
+            $reloaded_id = $this->load_by_id($this->id());
+            if ($reloaded_id != 0) {
+                $reloaded = true;
+            }
+        } else {
+            // at the moment for links
+            $reloaded = $this->load_obj_vars();
+        }
+        if (!$reloaded) {
             log_warning('Reload of for deletion has lead to unexpected', $this->obj_name . '->del', 'Reload of ' . $this->obj_name . ' ' . $this->dsp_id() . ' for deletion or exclude has unexpectedly lead to ' . $msg . '.', (new Exception)->getTraceAsString(), $this->usr);
         } else {
-            log_debug($this->obj_name . '->del reloaded ' . $this->dsp_id());
+            log_debug('reloaded ' . $this->dsp_id());
             // check if the object is still valid
             if ($this->id <= 0) {
                 log_warning('Delete failed', $this->obj_name . '->del', 'Delete failed, because it seems that the ' . $this->obj_name . ' ' . $this->dsp_id() . ' has been deleted in the meantime.', (new Exception)->getTraceAsString(), $this->usr);
@@ -1884,14 +2090,14 @@ class user_sandbox
                     $msg .= $this->del_exe();
                 } else {
                     // if the owner deletes the object find a new owner or delete the object completely
-                    if ($this->owner_id == $this->usr->id) {
-                        log_debug($this->obj_name . '->del owner has requested the deletion');
+                    if ($this->owner_id == $this->user()->id) {
+                        log_debug('owner has requested the deletion');
                         // get median user
                         $new_owner_id = $this->median_user();
                         if ($new_owner_id == 0) {
                             log_err('Delete failed', $this->obj_name . '->del', 'Delete failed, because no median user found for ' . $this->obj_name . ' ' . $this->dsp_id() . ' but change is nevertheless not allowed.', (new Exception)->getTraceAsString(), $this->usr);
                         } else {
-                            log_debug($this->obj_name . '->del set owner for ' . $this->dsp_id() . ' to user id "' . $new_owner_id . '"');
+                            log_debug('set owner for ' . $this->dsp_id() . ' to user id "' . $new_owner_id . '"');
 
                             // TODO change the original object, so that it uses the configuration of the new owner
 
@@ -1915,20 +2121,19 @@ class user_sandbox
                     // check again after the owner change if the object simply can be deleted, because it has never been used
                     // TODO check if "if ($this->can_change() AND $this->not_used()) {" would be correct
                     if (!$this->used_by_someone_else()) {
-                        log_debug($this->obj_name . '->del can delete ' . $this->dsp_id() . ' after owner change');
+                        log_debug('can delete ' . $this->dsp_id() . ' after owner change');
                         $msg .= $this->del_exe();
                     } else {
-                        log_debug($this->obj_name . '->del exclude ' . $this->dsp_id());
+                        log_debug('exclude ' . $this->dsp_id());
                         $this->excluded = 1;
 
                         // simple version TODO combine with save function
 
                         $db_rec = clone $this;
                         $db_rec->reset();
-                        $db_rec->id = $this->id;
                         $db_rec->usr = $this->usr;
-                        if ($db_rec->load()) {
-                            log_debug($this->obj_name . '->save reloaded ' . $db_rec->dsp_id() . ' from database');
+                        if ($db_rec->load_by_id($this->id, $db_rec::class)) {
+                            log_debug('reloaded ' . $db_rec->dsp_id() . ' from database');
                             if ($this->obj_type == self::TYPE_LINK) {
                                 if (!$db_rec->load_objects()) {
                                     $msg .= 'Reloading of linked objects ' . $this->obj_name . ' ' . $this->dsp_id() . ' failed.';
@@ -1945,19 +2150,28 @@ class user_sandbox
                             }
                         }
                         if ($msg == '') {
-                            log_debug($this->obj_name . '->save loaded standard ' . $std_rec->dsp_id());
+                            log_debug('loaded standard ' . $std_rec->dsp_id());
                             $msg .= $this->save_field_excluded($db_con, $db_rec, $std_rec);
                         }
                     }
                 }
             }
             // TODO end of db commit and unlock the records
-            log_debug($this->obj_name . '->del done');
+            log_debug('done');
         }
 
         $result->add_message($msg);
         return $result;
     }
+
+    /**
+     * dummy function to remove depending on objects, which needs to be overwritten by the child classes
+     */
+    function del_links(): user_message
+    {
+        return new user_message();
+    }
+
 
     /*
      * helper functions
@@ -1987,6 +2201,63 @@ class user_sandbox
         } else {
             return false;
         }
+    }
+
+    /*
+     * type field
+     *
+     * functions that are not used in this object, but in many child objects
+     * and that is predefined in the main parent object to avoid code redundancy
+     *
+     * could and should be moved to a user_sandbox_type_extension object
+     * as soon as php allows something like 'extends user_sandbox_named and user_sandbox_type_extension'
+     */
+
+    /**
+     * set the update parameters for the word, triple, formula, view or component type
+     * TODO: log the ref
+     * TODO: save the reference also in the log
+     * @param sql_db $db_con the database connection that can be either the real database connection or a simulation used for testing
+     * @param user_sandbox $db_rec the database record before the saving
+     * @param user_sandbox $std_rec the database record defined as standard because it is used by most users
+     * @return string if not empty the message that should be shown to the user
+     */
+    function save_field_type(
+        sql_db $db_con,
+        user_sandbox $db_rec,
+        user_sandbox $std_rec
+    ): string
+    {
+        $result = '';
+        if ($db_rec->type_id <> $this->type_id) {
+            $log = $this->log_upd();
+            $log->old_value = $db_rec->type_name();
+            $log->old_id = $db_rec->type_id;
+            $log->new_value = $this->type_name();
+            $log->new_id = $this->type_id;
+            $log->std_value = $std_rec->type_name();
+            $log->std_id = $std_rec->type_id;
+            $log->row_id = $this->id;
+            // special case just to shorten the field name
+            if ($this->obj_name == sql_db::TBL_FORMULA_LINK) {
+                $log->set_field(formula_link::FLD_TYPE);
+            } else {
+                $log->set_field($this->obj_name . sql_db::FLD_EXT_TYPE_ID);
+            }
+            $result .= $this->save_field_do($db_con, $log);
+            log_debug('changed type to "' . $log->new_value . '" (from ' . $log->new_id . ')');
+        }
+        return $result;
+    }
+
+    /**
+     * dummy function that should be overwritten by the child object
+     * @return string the name of the object type
+     */
+    public function type_name(): string
+    {
+        $msg = 'ERROR: the type name function should have been overwritten by the child object';
+        return log_err($msg);
     }
 
 }
