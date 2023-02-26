@@ -230,7 +230,7 @@ class view_cmp extends user_sandbox_named_with_type
      * @param string $name mainly for test creation the name of the view component
      * @param string $type_code_id the code id of the predefined view component type
      */
-    public function set(int $id = 0, string $name = '', string $type_code_id = ''): void
+    function set(int $id = 0, string $name = '', string $type_code_id = ''): void
     {
         parent::set($id, $name);
 
@@ -258,7 +258,7 @@ class view_cmp extends user_sandbox_named_with_type
     /**
      * @return string the name of the view type
      */
-    public function type_name(): string
+    function type_name(): string
     {
         global $view_component_types;
         return $view_component_types->name($this->type_id);
@@ -555,15 +555,15 @@ class view_cmp extends user_sandbox_named_with_type
      *  */
     /**
      * import a view component from a JSON object
-     * @param array $json_obj an array with the data of the json object
+     * @param array $in_ex_json an array with the data of the json object
      * @param bool $do_save can be set to false for unit testing
      * @return user_message the status of the import and if needed the error messages that should be shown to the user
      */
-    function import_obj(array $json_obj, bool $do_save = true): user_message
+    function import_obj(array $in_ex_json, bool $do_save = true): user_message
     {
         $result = new user_message();
 
-        foreach ($json_obj as $key => $value) {
+        foreach ($in_ex_json as $key => $value) {
 
             if ($key == exp_obj::FLD_NAME) {
                 $this->name = $value;

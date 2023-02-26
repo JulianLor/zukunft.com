@@ -34,6 +34,7 @@ namespace api;
 
 use html\phrase_dsp;
 use html\term_dsp;
+use html\word_dsp;
 
 class user_sandbox_named_api extends user_sandbox_api
 {
@@ -44,7 +45,6 @@ class user_sandbox_named_api extends user_sandbox_api
 
     // the mouse over tooltip for the named object e.g. word, triple, formula, verb, view or component
     public ?string $description = null;
-
 
 
     /*
@@ -68,30 +68,16 @@ class user_sandbox_named_api extends user_sandbox_api
      * set and get
      */
 
-    public function set_name(string $name): void
+    function set_name(string $name): void
     {
         $this->name = $name;
     }
 
-    public function name(): string
+    function name(): string
     {
         return $this->name;
     }
 
-
-    /*
-     * cast
-     */
-
-    function phrase(): phrase_api|phrase_dsp
-    {
-        return new phrase_api($this->id, $this->name);
-    }
-
-    function term(): term_api|term_dsp
-    {
-        return new term_api($this->id, $this->name);
-    }
 
     /*
      * logging

@@ -242,15 +242,6 @@ const TP_TAXES = "Income taxes is part of cash flow statement";
 const TF_SECTOR = "sectorweight";
 
 // some numbers used to test the program
-const TV_TEST_SALES_2016 = 1234;
-const TV_TEST_SALES_2017 = 2345;
-const TV_ABB_SALES_2013 = 45548;
-const TV_ABB_SALES_2014 = 46000;
-const TV_ABB_PRICE_20200515 = 17.08;
-const TV_NESN_SALES_2016 = 89469;
-const TV_ABB_SALES_AUTO_2013 = 9915;
-const TV_DAN_SALES_USA_2016 = '11%';
-
 const TV_TEST_SALES_INCREASE_2017_FORMATTED = '90.03 %';
 const TV_NESN_SALES_2016_FORMATTED = '89\'469';
 
@@ -519,17 +510,55 @@ class test_base
      * @param object $usr_obj the object which frontend API functions should be tested
      * @return bool true if the reloaded backend object has no relevant differences
      */
-    function assert_api_exp(object $usr_obj): bool
+    function assert_api_obj(object $usr_obj): bool
     {
         $original_json = json_decode(json_encode($usr_obj->export_obj(false)), true);
         $recreated_json = '';
         $api_obj = $usr_obj->api_obj();
         if ($api_obj->id() == $usr_obj->id()) {
             $db_obj = $api_obj->db_obj($usr_obj->user(), get_class($api_obj));
+            $db_obj->load_by_id($usr_obj->id(), get_class($usr_obj));
             $recreated_json = json_decode(json_encode($db_obj->export_obj(false)), true);
         }
         $result = json_is_similar($original_json, $recreated_json);
+        // TODO remove, for faster debugging only
+        $json_in_txt = json_encode($original_json);
+        $json_ex_txt = json_encode($recreated_json);
         return $this->assert($this->name . 'API check', $result, true);
+    }
+
+    /**
+     * check if the frontend API json can be created
+     * and if the export based recreation of the backend object result to the similar object
+     *
+     * @param object $usr_obj the object which frontend API functions should be tested
+     * @return bool true if the reloaded backend object has no relevant differences
+     */
+    function assert_api_json(object $usr_obj): bool
+    {
+        $original_json = json_decode(json_encode($usr_obj->export_obj(false)), true);
+        $api_obj = $usr_obj->api_obj();
+        $api_json = json_decode(json_encode($api_obj), true);
+        $db_obj = $api_obj->db_obj($usr_obj->user(), get_class($api_obj));
+        $db_obj->set_by_api_json($api_json);
+        $recreated_json = json_decode(json_encode($db_obj->export_obj(false)), true);
+        $result = json_is_similar($original_json, $recreated_json);
+        // TODO remove, for faster debugging only
+        $json_in_txt = json_encode($original_json);
+        $json_ex_txt = json_encode($recreated_json);
+        return $this->assert($this->name . 'API check', $result, true);
+    }
+
+    /**
+     * check if the
+     *
+     * @param object $usr_obj the api object used a a base for the message
+     * @return bool true if the generated message matches in relevant parts the expected message
+     */
+    function assert_api_json_msg(object $api_obj): bool
+    {
+        $json_api_msg = json_encode($api_obj);
+        return true;
     }
 
     /**
@@ -605,6 +634,7 @@ class test_base
         $file_text = file_get_contents(PATH_TEST_FILES . $json_file_name);
         $json_in = json_decode($file_text, true);
         $usr_obj->import_obj($json_in, false);
+        $this->set_id_for_unit_tests($usr_obj);
         $json_ex = json_decode(json_encode($usr_obj->export_obj(false)), true);
         $result = json_is_similar($json_in, $json_ex);
         // TODO remove, for faster debugging only
@@ -621,7 +651,7 @@ class test_base
      * @param string $filename the filename of the expected html page
      * @return bool true if the html has no relevant differences
      */
-    public function assert_html(string $test_name, string $body, string $filename): bool
+    function assert_html(string $test_name, string $body, string $filename): bool
     {
         $lib = new library();
 
@@ -647,7 +677,7 @@ class test_base
             $db_type = get_class($usr_obj);
         }
 
-        // check the PostgreSQL query syntax
+        // check the Postgres query syntax
         $db_con->db_type = sql_db::POSTGRES;
         $qp = $usr_obj->load_sql_obj_vars($db_con, $db_type);
         $result = $this->assert_qp($qp, $db_con->db_type);
@@ -671,7 +701,7 @@ class test_base
      */
     function assert_load_sql_id(sql_db $db_con, object $usr_obj): bool
     {
-        // check the PostgreSQL query syntax
+        // check the Postgres query syntax
         $db_con->db_type = sql_db::POSTGRES;
         $qp = $usr_obj->load_sql_by_id($db_con, 1, $usr_obj::class);
         $result = $this->assert_qp($qp, $db_con->db_type);
@@ -695,7 +725,7 @@ class test_base
      */
     function assert_load_sql_ids(sql_db $db_con, object $usr_obj): bool
     {
-        // check the PostgreSQL query syntax
+        // check the Postgres query syntax
         $db_con->db_type = sql_db::POSTGRES;
         $qp = $usr_obj->load_sql_by_ids($db_con, array(1, 2));
         $result = $this->assert_qp($qp, $db_con->db_type);
@@ -719,7 +749,7 @@ class test_base
      */
     function assert_load_sql_trm_ids(sql_db $db_con, object $usr_obj): bool
     {
-        // check the PostgreSQL query syntax
+        // check the Postgres query syntax
         $db_con->db_type = sql_db::POSTGRES;
         $qp = $usr_obj->load_sql_by_ids($db_con, new trm_ids(array()));
         $result = $this->assert_qp($qp, $db_con->db_type);
@@ -743,7 +773,7 @@ class test_base
      */
     function assert_load_sql_name(sql_db $db_con, object $usr_obj): bool
     {
-        // check the PostgreSQL query syntax
+        // check the Postgres query syntax
         $db_con->db_type = sql_db::POSTGRES;
         $qp = $usr_obj->load_sql_by_name($db_con, 'System test', $usr_obj::class);
         $result = $this->assert_qp($qp, $db_con->db_type);
@@ -767,7 +797,7 @@ class test_base
      */
     function assert_load_sql_code_id(sql_db $db_con, object $usr_obj): bool
     {
-        // check the PostgreSQL query syntax
+        // check the Postgres query syntax
         $db_con->db_type = sql_db::POSTGRES;
         $qp = $usr_obj->load_sql_by_code_id($db_con, 'System test', $usr_obj::class);
         $result = $this->assert_qp($qp, $db_con->db_type);
@@ -791,7 +821,7 @@ class test_base
      */
     function assert_load_sql_link(sql_db $db_con, object $usr_obj): bool
     {
-        // check the PostgreSQL query syntax
+        // check the Postgres query syntax
         $db_con->db_type = sql_db::POSTGRES;
         $qp = $usr_obj->load_sql_by_link($db_con, 1, 0, 3, $usr_obj::class);
         $result = $this->assert_qp($qp, $db_con->db_type);
@@ -819,7 +849,7 @@ class test_base
             $db_type = get_class($usr_obj);
         }
 
-        // check the PostgreSQL query syntax
+        // check the Postgres query syntax
         $db_con->db_type = sql_db::POSTGRES;
         $qp = $usr_obj->load_sql_all($db_con, $db_type);
         $result = $this->assert_qp($qp, $db_con->db_type);
@@ -843,7 +873,7 @@ class test_base
      */
     function assert_load_sql_like(sql_db $db_con, object $usr_obj,): bool
     {
-        // check the PostgreSQL query syntax
+        // check the Postgres query syntax
         $db_con->db_type = sql_db::POSTGRES;
         $qp = $usr_obj->load_sql_like($db_con, '');
         $result = $this->assert_qp($qp, $db_con->db_type);
@@ -869,7 +899,7 @@ class test_base
      */
     function assert_load_list_sql(sql_db $db_con, object $lst_obj, object $select_obj, bool $by_source = false): bool
     {
-        // check the PostgreSQL query syntax
+        // check the Postgres query syntax
         $db_con->db_type = sql_db::POSTGRES;
         $qp = $lst_obj->load_sql($db_con, $select_obj, $by_source);
         $result = $this->assert_qp($qp, $db_con->db_type);
@@ -893,7 +923,7 @@ class test_base
      */
     function assert_load_list_sql_type(sql_db $db_con, object $lst_obj, string $type_code_id): bool
     {
-        // check the PostgreSQL query syntax
+        // check the Postgres query syntax
         $db_con->db_type = sql_db::POSTGRES;
         $qp = $lst_obj->load_sql_by_type($db_con, $type_code_id, $lst_obj::class);
         $result = $this->assert_qp($qp, $db_con->db_type);
@@ -916,7 +946,7 @@ class test_base
      */
     function assert_load_standard_sql(sql_db $db_con, user_sandbox $usr_obj): bool
     {
-        // check the PostgreSQL query syntax
+        // check the Postgres query syntax
         $db_con->db_type = sql_db::POSTGRES;
         $qp = $usr_obj->load_standard_sql($db_con, get_class($usr_obj));
         $result = $this->assert_qp($qp, $db_con->db_type);
@@ -961,7 +991,7 @@ class test_base
      */
     function assert_not_changed_sql(sql_db $db_con, user_sandbox $usr_obj): bool
     {
-        // check the PostgreSQL query syntax
+        // check the Postgres query syntax
         $usr_obj->owner_id = 0;
         $db_con->db_type = sql_db::POSTGRES;
         $qp = $usr_obj->not_changed_sql($db_con);
@@ -1002,7 +1032,7 @@ class test_base
      */
     function assert_user_config_sql(sql_db $db_con, user_sandbox $usr_obj): bool
     {
-        // check the PostgreSQL query syntax
+        // check the Postgres query syntax
         $db_con->db_type = sql_db::POSTGRES;
         $qp = $usr_obj->usr_cfg_sql($db_con);
         $result = $this->assert_qp($qp, $db_con->db_type);
@@ -1021,7 +1051,7 @@ class test_base
      * test the SQL statement creation for a value
      *
      * @param sql_par $qp the query parameters that should be tested
-     * @param string $dialect if not PostgreSQL the name of the SQL dialect
+     * @param string $dialect if not Postgres the name of the SQL dialect
      * @return bool true if the test is fine
      */
     function assert_qp(sql_par $qp, string $dialect = ''): bool
@@ -1044,7 +1074,7 @@ class test_base
             $expected_sql
         );
 
-        // check if the prepared sql name is unique always based on the  PostgreSQL query parameter creation
+        // check if the prepared sql name is unique always based on the  Postgres query parameter creation
         if ($dialect == sql_db::POSTGRES) {
             $result = $this->assert_sql_name_unique($qp->name);
         }
@@ -1369,6 +1399,77 @@ class test_base
         return $this->seq_nbr;
     }
 
+    /**
+     * fill the object with dummy ids to enable correct and fast unit tests without db connect
+     * @param object $usr_obj
+     * @return void
+     */
+    private function set_id_for_unit_tests(object $usr_obj): void
+    {
+        // set the id for simple db objects without related objects
+        if ($usr_obj::class == word::class
+            or $usr_obj::class == triple::class
+            or $usr_obj::class == source::class
+            or $usr_obj::class == ref::class) {
+            if ($usr_obj->id() == 0) {
+                $usr_obj->set_id($this->next_seq_nbr());
+            }
+        } elseif ($usr_obj::class == value::class) {
+            $this->set_val_id_for_unit_tests($usr_obj);
+        } elseif ($usr_obj::class == formula::class) {
+            $this->set_frm_id_for_unit_tests($usr_obj);
+        } elseif ($usr_obj::class == phrase_list::class) {
+            foreach ($usr_obj->lst() as $phr) {
+                if ($phr->id() == 0) {
+                    $phr->set_id($this->next_seq_nbr());
+                }
+            }
+        } elseif ($usr_obj::class == value_list::class) {
+            foreach ($usr_obj->lst() as $val) {
+                $this->set_val_id_for_unit_tests($val);
+            }
+        } else {
+            log_err('set id for unit tests not yet coded for ' . $usr_obj::class . ' object');
+        }
+    }
+
+    /**
+     * only for unit testing: set the id of a value model object
+     * @param value $val the value object that
+     * @return void nothing because the value object a modified
+     */
+    private function set_val_id_for_unit_tests(value $val): void
+    {
+        if ($val->id() == 0) {
+            $val->set_id($this->next_seq_nbr());
+        }
+        if ($val->grp->id() == 0) {
+            $val->grp->set_id($this->next_seq_nbr());
+        }
+        foreach ($val->phr_lst()->lst() as $phr) {
+            if ($phr->id() == 0) {
+                $phr->obj->set_id($this->next_seq_nbr());
+                if ($phr->obj::class == word::class) {
+                    $phr->set_id($phr->obj->id());
+                } else {
+                    $phr->set_id($phr->obj->id() * -1);
+                }
+            }
+        }
+    }
+
+    /**
+     * only for unit testing: set the id of a formula model object
+     * @param formula $frm the formula object that
+     * @return void nothing because the formula object a modified
+     */
+    private function set_frm_id_for_unit_tests(formula $frm): void
+    {
+        if ($frm->id() == 0) {
+            $frm->set_id($this->next_seq_nbr());
+        }
+    }
+
     function api_call(string $method, string $url, array $data): string
     {
         $curl = curl_init();
@@ -1415,6 +1516,7 @@ class test_base
         $html = new html_base();
         return $html->header_test('test') . $body . $html->footer();
     }
+
 }
 
 

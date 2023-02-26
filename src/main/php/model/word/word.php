@@ -44,6 +44,7 @@ use api\word_api;
 use cfg\phrase_type;
 use cfg\protection_type;
 use cfg\share_type;
+use controller\controller;
 use export\exp_obj;
 use export\user_sandbox_exp_named;
 use export\word_exp;
@@ -168,9 +169,10 @@ class word extends user_sandbox_named_with_type
     /**
      * map the database fields to the object fields
      *
-     * TODO check if "if (is_null($db_wrd[user_sandbox::FLD_EXCLUDED]) or $db_wrd[user_sandbox::FLD_EXCLUDED] == 0) {" should be added
+     * this is the pure mapping function which also maps the field 'exclude'
+     * the 'exclude check' needs to be done in the calling function
      *
-     * @param array $db_row with the data directly from the database
+     * @param array|null $db_row with the data directly from the database
      * @param bool $load_std true if only the standard user sandbox object ist loaded
      * @param bool $allow_usr_protect false for using the standard protection settings for the default object used for all users
      * @param string $id_fld the name of the id field as defined in this child and given to the parent
@@ -204,7 +206,7 @@ class word extends user_sandbox_named_with_type
      * @param string $name mainly for test creation the name of the word
      * @param string $type_code_id the code id of the predefined phrase type
      */
-    public function set(int $id = 0, string $name = '', string $type_code_id = ''): void
+    function set(int $id = 0, string $name = '', string $type_code_id = ''): void
     {
         parent::set($id, $name);
 
@@ -252,7 +254,7 @@ class word extends user_sandbox_named_with_type
      * get the name of the word type
      * @return string the name of the word type
      */
-    public function type_name(): string
+    function type_name(): string
     {
         global $phrase_types;
         return $phrase_types->name($this->type_id);
@@ -279,7 +281,7 @@ class word extends user_sandbox_named_with_type
     function api_obj(): word_api
     {
         $api_obj = new word_api();
-        if (!$this->excluded) {
+        if (!$this->is_excluded()) {
             parent::fill_api_obj($api_obj);
         }
         return $api_obj;
@@ -292,7 +294,7 @@ class word extends user_sandbox_named_with_type
     {
         $dsp_obj = new word_dsp();
 
-        if (!$this->excluded) {
+        if (!$this->is_excluded()) {
             parent::fill_dsp_obj($dsp_obj);
 
             $dsp_obj->set_plural($this->plural);
@@ -300,6 +302,80 @@ class word extends user_sandbox_named_with_type
         }
 
         return $dsp_obj;
+    }
+
+    /**
+     * map a word api json to this model word object
+     * similar to the import_obj function but using the database id instead of names as the unique key
+     * @param array $api_json the api array with the word values that should be mapped
+     */
+    function set_by_api_json(array $api_json): user_message
+    {
+        global $phrase_types;
+
+        $msg = new user_message();
+
+        // make sure that there are no unexpected leftovers
+        $usr = $this->user();
+        $this->reset();
+        $this->set_user($usr);
+
+        foreach ($api_json as $key => $value) {
+
+            if ($key == controller::API_FLD_ID) {
+                $this->set_id($value);
+            }
+            if ($key == controller::API_FLD_NAME) {
+                $this->set_name($value);
+            }
+            if ($key == controller::API_FLD_DESCRIPTION) {
+                if ($value <> '') {
+                    $this->description = $value;
+                }
+            }
+            if ($key == controller::API_FLD_TYPE) {
+                $this->type_id = $phrase_types->id($value);
+            }
+
+            /* TODO
+            if ($key == self::FLD_PLURAL) {
+                if ($value <> '') {
+                    $this->plural = $value;
+                }
+            }
+            if ($key == share_type::JSON_FLD) {
+                $this->share_id = $share_types->id($value);
+            }
+            if ($key == protection_type::JSON_FLD) {
+                $this->protection_id = $protection_types->id($value);
+            }
+            if ($key == exp_obj::FLD_VIEW) {
+                $wrd_view = new view($this->user());
+                if ($do_save) {
+                    $wrd_view->load_by_name($value, view::class);
+                    if ($wrd_view->id == 0) {
+                        $result->add_message('Cannot find view "' . $value . '" when importing ' . $this->dsp_id());
+                    } else {
+                        $this->view_id = $wrd_view->id;
+                    }
+                } else {
+                    $wrd_view->set_name($value);
+                }
+                $this->view = $wrd_view;
+            }
+
+            if ($key == controller::API_FLD_PHRASES) {
+                $phr_lst = new phrase_list($this->user());
+                $msg->add($phr_lst->db_obj($value));
+                if ($msg->is_ok()) {
+                    $this->grp->phr_lst = $phr_lst;
+                }
+            }
+            */
+
+        }
+
+        return $msg;
     }
 
 
@@ -584,11 +660,11 @@ class word extends user_sandbox_named_with_type
     /**
      * import a word from a json data word object
      *
-     * @param array $json_obj an array with the data of the json object
+     * @param array $in_ex_json an array with the data of the json object
      * @param bool $do_save can be set to false for unit testing
      * @return user_message the status of the import and if needed the error messages that should be shown to the user
      */
-    function import_obj(array $json_obj, bool $do_save = true): user_message
+    function import_obj(array $in_ex_json, bool $do_save = true): user_message
     {
         global $phrase_types;
         global $share_types;
@@ -601,7 +677,7 @@ class word extends user_sandbox_named_with_type
         $usr = $this->user();
         $this->reset();
         $this->set_user($usr);
-        foreach ($json_obj as $key => $value) {
+        foreach ($in_ex_json as $key => $value) {
             if ($key == exp_obj::FLD_NAME) {
                 $this->name = $value;
             }
@@ -659,7 +735,7 @@ class word extends user_sandbox_named_with_type
             if ($this->id <= 0 and $do_save) {
                 $result->add_message('Word ' . $this->dsp_id() . ' cannot be saved');
             } else {
-                foreach ($json_obj as $key => $value) {
+                foreach ($in_ex_json as $key => $value) {
                     if ($result->is_ok()) {
                         if ($key == self::FLD_REFS) {
                             foreach ($value as $ref_data) {
@@ -734,6 +810,8 @@ class word extends user_sandbox_named_with_type
     /**
      * set the word object vars based on an api json array
      * similar to import_obj but using the database id instead of the names
+     * the other side of the api_obj function
+     *
      * @param array $api_json the api array
      * @return user_message false if a value could not be set
      */
@@ -772,7 +850,7 @@ class word extends user_sandbox_named_with_type
      */
     function name_dsp(): string
     {
-        if ($this->excluded) {
+        if ($this->is_excluded()) {
             return '';
         } else {
             return $this->name;
@@ -1028,8 +1106,10 @@ class word extends user_sandbox_named_with_type
 
     function dsp_formula(string $back = ''): string
     {
+        global $phrase_types;
+
         $result = '';
-        if ($this->type_id == cl(db_cl::PHRASE_TYPE, phrase_type::FORMULA_LINK)) {
+        if ($this->type_id == $phrase_types->id(phrase_type::FORMULA_LINK)) {
             $result .= dsp_form_hidden("name", $this->name);
             $result .= '  to change the name of "' . $this->name . '" rename the ';
             $frm = $this->formula();
@@ -1043,8 +1123,9 @@ class word extends user_sandbox_named_with_type
 
     function dsp_type_selector(string $back = ''): string
     {
+        global $phrase_types;
         $result = '';
-        if ($this->type_id == cl(db_cl::PHRASE_TYPE, phrase_type::FORMULA_LINK)) {
+        if ($this->type_id == $phrase_types->id(phrase_type::FORMULA_LINK)) {
             $result .= ' type: ' . $this->type_name();
         } else {
             $result .= $this->type_selector('word_edit', "col-sm-4");
@@ -1124,8 +1205,9 @@ class word extends user_sandbox_named_with_type
      */
     function btn_add(string $back = ''): string
     {
+        global $verbs;
         global $phrase_types;
-        $vrb_is = cl(db_cl::VERB, verb::IS_A);
+        $vrb_is = $verbs->id(verb::IS_A);
         $wrd_type = $phrase_types->default_id(); // maybe base it on the other linked words
         $wrd_add_title = "add a new " . $this->name();
         $wrd_add_call = "/http/word_add.php?verb=" . $vrb_is . "&word=" . $this->id . "&type=" . $wrd_type . "&back=" . $back . "";
@@ -1262,9 +1344,10 @@ class word extends user_sandbox_named_with_type
      */
     function parents(): phrase_list
     {
+        global $verbs;
         log_debug('for ' . $this->dsp_id() . ' and user ' . $this->user()->id());
         $phr_lst = $this->lst();
-        $parent_phr_lst = $phr_lst->foaf_parents(cl(db_cl::VERB, verb::IS_A));
+        $parent_phr_lst = $phr_lst->foaf_parents($verbs->id(verb::IS_A));
         log_debug('are ' . $parent_phr_lst->dsp_name() . ' for ' . $this->dsp_id());
         return $parent_phr_lst;
     }
@@ -1327,9 +1410,10 @@ class word extends user_sandbox_named_with_type
      */
     function children(): phrase_list
     {
+        global $verbs;
         log_debug('for ' . $this->dsp_id() . ' and user ' . $this->user()->id());
         $phr_lst = $this->lst();
-        $child_phr_lst = $phr_lst->foaf_all_children(cl(db_cl::VERB, verb::IS_A));
+        $child_phr_lst = $phr_lst->foaf_all_children($verbs->id(verb::IS_A));
         log_debug('are ' . $child_phr_lst->name() . ' for ' . $this->dsp_id());
         return $child_phr_lst;
     }
@@ -1352,8 +1436,9 @@ class word extends user_sandbox_named_with_type
      */
     function parts(): phrase_list
     {
+        global $verbs;
         $phr_lst = $this->lst();
-        return $phr_lst->foaf_children(cl(db_cl::VERB, verb::IS_PART_OF));
+        return $phr_lst->foaf_children($verbs->id(verb::IS_PART_OF));
     }
 
     /**
@@ -1362,8 +1447,9 @@ class word extends user_sandbox_named_with_type
      */
     function direct_parts(): phrase_list
     {
+        global $verbs;
         $phr_lst = $this->lst();
-        return $phr_lst->foaf_children(cl(db_cl::VERB, verb::IS_PART_OF), 1);
+        return $phr_lst->foaf_children($verbs->id(verb::IS_PART_OF), 1);
     }
 
     /**
@@ -1400,17 +1486,19 @@ class word extends user_sandbox_named_with_type
     }
 
     /**
-     * return the follow word id based on the predefined verb following
+     * @return word the follow word id based on the predefined verb following
+     * TODO create unit tests
      */
     function next(): word
     {
-        log_debug($this->dsp_id() . ' and user ' . $this->user()->name);
+        log_debug($this->dsp_id());
 
         global $db_con;
+        global $verbs;
+
         $result = new word($this->user());
 
-        $link_id = cl(db_cl::VERB, verb::FOLLOW);
-        //$db_con = new mysql;
+        $link_id = $verbs->id(verb::FOLLOW);
         $db_con->usr_id = $this->user()->id();
         $db_con->set_type(sql_db::TBL_TRIPLE);
         $key_result = $db_con->get_value_2key('from_phrase_id', 'to_phrase_id', $this->id, verb::FLD_ID, $link_id);
@@ -1425,16 +1513,18 @@ class word extends user_sandbox_named_with_type
 
     /**
      * return the follow word id based on the predefined verb following
+     * TODO create unit tests
      */
     function prior(): word
     {
-        log_debug($this->dsp_id() . ',u' . $this->user()->id());
+        log_debug($this->dsp_id());
 
         global $db_con;
+        global $verbs;
+
         $result = new word($this->user());
 
-        $link_id = cl(db_cl::VERB, verb::FOLLOW);
-        //$db_con = new mysql;
+        $link_id = $verbs->id(verb::FOLLOW);
         $db_con->usr_id = $this->user()->id();
         $db_con->set_type(sql_db::TBL_TRIPLE);
         $key_result = $db_con->get_value_2key('to_phrase_id', 'from_phrase_id', $this->id, verb::FLD_ID, $link_id);
@@ -1471,9 +1561,10 @@ class word extends user_sandbox_named_with_type
      */
     function is_part(): phrase_list
     {
+        global $verbs;
         log_debug($this->dsp_id() . ', user ' . $this->user()->id());
         $phr_lst = $this->lst();
-        $is_phr_lst = $phr_lst->foaf_parents(cl(db_cl::VERB, verb::IS_PART_OF));
+        $is_phr_lst = $phr_lst->foaf_parents($verbs->id(verb::IS_PART_OF));
 
         log_debug($this->dsp_id() . ' is a ' . $is_phr_lst->dsp_name());
         return $is_phr_lst;
@@ -1537,7 +1628,7 @@ class word extends user_sandbox_named_with_type
      * maybe move this to a new object user_log_display
      * because this is very similar to a value linked function
      */
-    public function dsp_hist(int $page = 1, int $size = 20, string $call = '', string $back = ''): string
+    function dsp_hist(int $page = 1, int $size = 20, string $call = '', string $back = ''): string
     {
         log_debug("word_dsp->dsp_hist for id " . $this->id . " page " . $size . ", size " . $size . ", call " . $call . ", back " . $back . ".");
         $result = ''; // reset the html code var

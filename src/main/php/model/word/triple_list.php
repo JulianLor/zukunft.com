@@ -243,7 +243,7 @@ class triple_list
                     $trp->row_mapper($db_row);
                     // the simple object row mapper allows mapping excluded objects to remove the exclusion
                     // but an object list should not have excluded objects
-                    if (!$trp->excluded) {
+                    if (!$trp->is_excluded()) {
                         $this->lst[] = $trp;
                         $result = true;
                         // fill verb
@@ -602,21 +602,27 @@ class triple_list
 
     /**
      * add one triple to the triple list, but only if it is not yet part of the list
+     * @return bool true if the triple has been added to the list
+     *              and false if the triple already exists
      */
-    function add($lnk_to_add)
+    function add($lnk_to_add): bool
     {
-        log_debug('triple_list->add ' . $lnk_to_add->dsp_id());
-        if (!in_array($lnk_to_add->id, $this->ids)) {
-            if ($lnk_to_add->id > 0) {
+        log_debug($lnk_to_add->dsp_id());
+        $result = false;
+
+        if (!in_array($lnk_to_add->id(), $this->ids)) {
+            if ($lnk_to_add->id() > 0) {
                 $this->lst[] = $lnk_to_add;
-                $this->ids[] = $lnk_to_add->id;
+                $this->ids[] = $lnk_to_add->id();
+                $result = true;
             }
         }
+        return $result;
     }
 
     /*
-    display functions
-    */
+     * display functions
+     */
 
     // description of the triple list for debugging
     function dsp_id(): string
@@ -657,6 +663,8 @@ class triple_list
     // returns the html code to select a word that can be edited
     function display(string $back = ''): string
     {
+        global $verbs;
+
         $result = '';
 
         // check the all minimal input parameters
@@ -736,13 +744,13 @@ class triple_list
 
                     // use the last word as a sample for the new word type
                     $last_linked_word_id = 0;
-                    if ($lnk->verb->id()  == cl(db_cl::VERB, verb::FOLLOW)) {
+                    if ($lnk->verb->id() == $verbs->id(verb::FOLLOW)) {
                         $last_linked_word_id = $lnk->to->id;
                     }
 
                     // in case of the verb "following" continue the series after the last element
                     $start_id = 0;
-                    if ($lnk->verb->id()  == cl(db_cl::VERB, verb::FOLLOW)) {
+                    if ($lnk->verb->id() == $verbs->id(verb::FOLLOW)) {
                         $start_id = $last_linked_word_id;
                         // and link with the same direction (looks like not needed!)
                         /* if ($directional_link_type_id > 0) {
@@ -773,6 +781,24 @@ class triple_list
                         $result .= '<br>';
                     }
                 }
+            }
+        }
+        return $result;
+    }
+
+    /*
+     *  information functions
+     */
+
+    /**
+     * @return bool true if the list has no entry
+     */
+    function is_empty(): bool
+    {
+        $result = true;
+        if ($this->lst != null) {
+            if ($this->count() > 0) {
+                $result = false;
             }
         }
         return $result;

@@ -57,7 +57,7 @@ function run_phrase_list_test(testing $t)
     $id_lst = $wrd_lst->ids();
     $id_lst[] = $triple_sample_id * -1;
     $phr_lst = new phrase_list($usr);
-    $phr_lst->load_by_ids(new phr_ids($id_lst));
+    $phr_lst->load_names_by_ids(new phr_ids($id_lst));
     $target = '"' . TW_ABB . '","' . TW_VESTAS . '","' . phrase_api::TN_ZH_COMPANY . '"';
     $result = $phr_lst->dsp_name();
     $t->dsp('phrase->load via id', $target, $result);
@@ -73,7 +73,7 @@ function run_phrase_list_test(testing $t)
     $wrd_lst = new word_list($usr);
     $wrd_lst->load_by_names(array(TW_ABB));
     $phr_lst = $wrd_lst->phrase_lst();
-    $lst_parents = $phr_lst->foaf_parents(cl(db_cl::VERB, verb::IS_A));
+    $lst_parents = $phr_lst->foaf_parents($verbs->id(verb::IS_A));
     $result = dsp_array($lst_parents->names());
     $target = TEST_WORD; // order adjusted based on the number of usage
     $t->dsp('phrase_list->foaf_parents for ' . $phr_lst->dsp_name() . ' up', $target, $result);

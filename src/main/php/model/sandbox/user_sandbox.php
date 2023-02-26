@@ -109,7 +109,7 @@ class user_sandbox extends db_object
     public ?int $owner_id = null;      // the user id of the person who created the object, which is the default object
     public ?int $share_id = null;      // id for public, personal, group or private
     public ?int $protection_id = null; // id for no, user, admin or full protection
-    public ?bool $excluded = null;     // the user sandbox for object is implemented, but can be switched off for the complete instance
+    public bool $excluded = false;     // the user sandbox for object is implemented, but can be switched off for the complete instance
     // but for calculation, use and display an excluded should not be used
     // when loading the word and saving the excluded field is handled as a normal user sandbox field,
     // but for calculation, use and display an excluded should not be used
@@ -159,7 +159,7 @@ class user_sandbox extends db_object
         $this->id = null;
         $this->usr_cfg_id = null;
         $this->owner_id = null;
-        $this->excluded = null;
+        $this->excluded = false;
     }
 
 
@@ -179,11 +179,53 @@ class user_sandbox extends db_object
     }
 
     /**
+     * set the excluded field from a database value
+     * with postgres and MySQL this is pretty strait forward so more to prevent future issues
+     *
+     * @param bool $db_val the value from the database row array
+     * @return void
+     */
+    function set_excluded(?bool $db_val): void
+    {
+        if ($db_val == null) {
+            $this->excluded = false;
+        } else {
+            $this->excluded = $db_val;
+        }
+    }
+
+    /**
+     * set excluded to 'true' to switch off the usage of this user sandbox object
+     * @return void
+     */
+    function exclude(): void
+    {
+        $this->excluded = true;
+    }
+
+    /**
+     * set excluded to 'false' to switch on the usage of this user sandbox object
+     * @return void
+     */
+    function include(): void
+    {
+        $this->excluded = false;
+    }
+
+    /**
      * @return user the person who wants to see a word, verb, triple, formula or view
      */
     function user(): user
     {
         return $this->usr;
+    }
+
+    /**
+     * @return bool true if the user does not want to use this object at all
+     */
+    function is_excluded(): bool
+    {
+        return $this->excluded;
     }
 
 
@@ -240,7 +282,7 @@ class user_sandbox extends db_object
         $dsp_obj->usr_cfg_id = $this->usr_cfg_id;
         $dsp_obj->usr = $this->usr;
         $dsp_obj->owner_id = $this->owner_id;
-        $dsp_obj->excluded = $this->excluded;
+        $dsp_obj->excluded = $this->is_excluded();
     }
 
     /*
@@ -280,7 +322,7 @@ class user_sandbox extends db_object
             if ($db_row[$id_fld] > 0) {
                 $this->id = $db_row[$id_fld];
                 $this->owner_id = $db_row[self::FLD_USER];
-                $this->excluded = $db_row[self::FLD_EXCLUDED];
+                $this->set_excluded($db_row[self::FLD_EXCLUDED]);
                 if (!$load_std) {
                     $this->usr_cfg_id = $db_row[sql_db::TBL_USER_PREFIX . $id_fld];
                 }
@@ -301,7 +343,7 @@ class user_sandbox extends db_object
      * @param array $db_row with the data loaded from the database
      * @return void
      */
-    public function row_mapper_usr(array $db_row): void
+    function row_mapper_usr(array $db_row): void
     {
         $this->share_id = $db_row[self::FLD_SHARE];
         $this->protection_id = $db_row[self::FLD_PROTECT];
@@ -312,7 +354,7 @@ class user_sandbox extends db_object
      *
      * @return void
      */
-    public function row_mapper_std(): void
+    function row_mapper_std(): void
     {
         $this->share_id = cl(db_cl::SHARE_TYPE, share_type::PUBLIC);
         $this->protection_id = cl(db_cl::PROTECTION_TYPE, protection_type::NO_PROTECT);
@@ -657,11 +699,11 @@ class user_sandbox extends db_object
      * dummy function to import a user sandbox object from a json string
      * to be overwritten by the child object
      *
-     * @param array $json_obj an array with the data of the json object
+     * @param array $in_ex_json an array with the data of the json object
      * @param bool $do_save can be set to false for unit testing
      * @return user_message the status of the import and if needed the error messages that should be shown to the user
      */
-    function import_obj(array $json_obj, bool $do_save = true): user_message
+    function import_obj(array $in_ex_json, bool $do_save = true): user_message
     {
         return new user_message();
     }
@@ -1361,8 +1403,8 @@ class user_sandbox extends db_object
     function save_field_excluded_log(user_sandbox $db_rec): change_log
     {
         $log = new change_log();
-        if ($db_rec->excluded <> $this->excluded) {
-            if ($this->excluded == 1) {
+        if ($db_rec->is_excluded() <> $this->is_excluded()) {
+            if ($this->is_excluded()) {
                 if ($this->obj_type == self::TYPE_LINK) {
                     $log = $this->log_del_link();
                 } else {
@@ -1389,10 +1431,10 @@ class user_sandbox extends db_object
         log_debug($this->dsp_id());
         $result = '';
 
-        if ($db_rec->excluded <> $this->excluded) {
+        if ($db_rec->is_excluded() <> $this->is_excluded()) {
             $log = $this->save_field_excluded_log($db_rec);
-            $new_value = $this->excluded;
-            $std_value = $std_rec->excluded;
+            $new_value = $this->is_excluded();
+            $std_value = $std_rec->is_excluded();
             // similar to $this->save_field_do
             if ($this->can_change()) {
                 $db_con->set_type($this->obj_name);
@@ -1573,8 +1615,8 @@ class user_sandbox extends db_object
                         $this->owner_id = $db_chk->owner_id;
                         // TODO check which links needs to be updated, because this is a kind of combine objects
                         // force the include again
-                        $this->excluded = null;
-                        $db_rec->excluded = '1';
+                        $this->include();
+                        $db_rec->exclude();
                         $result .= $this->save_field_excluded($db_con, $db_rec, $std_rec);
                         if ($result == '') {
                             log_debug('found a ' . $this->obj_name . ' target ' . $db_chk->dsp_id() . ', so del ' . $db_rec->dsp_id() . ' and add ' . $this->dsp_id());
@@ -1664,6 +1706,8 @@ class user_sandbox extends db_object
      */
     function is_same($obj_to_check): bool
     {
+        global $phrase_types;
+
         $result = false;
 
         /*
@@ -1683,15 +1727,15 @@ class user_sandbox extends db_object
                         $result = true;
                     } else {
                         if ($this->type_id == sql_db::TBL_FORMULA
-                            and $obj_to_check->type_id == cl(db_cl::PHRASE_TYPE, phrase_type::FORMULA_LINK)) {
+                            and $obj_to_check->type_id == $phrase_types->id(phrase_type::FORMULA_LINK)) {
                             // if one is a formula and the other is a formula link word, the two objects are representing the same formula object (but the calling function should use the formula to update)
                             $result = true;
                         } elseif ($obj_to_check->type_id == sql_db::TBL_FORMULA
-                            and $this->type_id == cl(db_cl::PHRASE_TYPE, phrase_type::FORMULA_LINK)) {
+                            and $this->type_id == $phrase_types->id(phrase_type::FORMULA_LINK)) {
                             // like above, but the other way round
                             $result = true;
-                        } elseif ($this->type_id == cl(db_cl::PHRASE_TYPE, phrase_type::FORMULA_LINK)
-                            or $obj_to_check->type_id == cl(db_cl::PHRASE_TYPE, phrase_type::FORMULA_LINK)) {
+                        } elseif ($this->type_id == $phrase_types->id(phrase_type::FORMULA_LINK)
+                            or $obj_to_check->type_id == $phrase_types->id(phrase_type::FORMULA_LINK)) {
                             // if one of the two words is a formula link and not both, the user should ge no suggestion to combine them
                             $result = false;
                         } else {
@@ -1951,6 +1995,8 @@ class user_sandbox extends db_object
         log_debug($this->dsp_id());
 
         global $db_con;
+        global $phrase_types;
+
         $msg = '';
         $result = new user_message();
 
@@ -2000,7 +2046,7 @@ class user_sandbox extends db_object
                 if ($result->is_ok()) {
                     $wrd = new word($this->usr);
                     $wrd->load_by_name($this->name());
-                    $wrd->type_id = cl(db_cl::PHRASE_TYPE, phrase_type::FORMULA_LINK);
+                    $wrd->type_id = $phrase_types->id(phrase_type::FORMULA_LINK);
                     $msg = $wrd->del();
                     $result->add($msg);
                 }
@@ -2125,7 +2171,7 @@ class user_sandbox extends db_object
                         $msg .= $this->del_exe();
                     } else {
                         log_debug('exclude ' . $this->dsp_id());
-                        $this->excluded = 1;
+                        $this->exclude();
 
                         // simple version TODO combine with save function
 
@@ -2254,7 +2300,7 @@ class user_sandbox extends db_object
      * dummy function that should be overwritten by the child object
      * @return string the name of the object type
      */
-    public function type_name(): string
+    function type_name(): string
     {
         $msg = 'ERROR: the type name function should have been overwritten by the child object';
         return log_err($msg);

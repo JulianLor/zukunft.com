@@ -222,7 +222,7 @@ class test_api extends test_new_obj
      * @param testing $t
      * @return void
      */
-    public function run_openapi_test(testing $t): void
+    function run_openapi_test(testing $t): void
     {
 
         // init
@@ -553,11 +553,16 @@ class test_api extends test_new_obj
         if ($class == formula::class) {
             $actual = json_decode($this->api_call("GET", $url, $data), true);
         }
+        // TODO simulate other users
         $actual = json_decode($this->api_call("GET", $url, $data), true);
         if ($actual == null) {
             log_err('GET api call for ' . $class . ' returned an empty result');
         }
-        return $this->assert_api_compare($class, $actual, $expected, '', false, $ignore_id);
+        $filename = '';
+        if ($class == value::class) {
+            $filename = "value_non_std";
+        }
+        return $this->assert_api_compare($class, $actual, $expected, $filename, false, $ignore_id);
     }
 
     /**
@@ -759,7 +764,7 @@ class test_api extends test_new_obj
      * @param bool $ignore_id true if the ids should be ignored e.g. because test records have been created
      * @return array a json array without volatile fields
      */
-    public function json_remove_volatile(array $json, bool $ignore_id = false): array
+    function json_remove_volatile(array $json, bool $ignore_id = false): array
     {
         return $this->json_remove_volatile_level($json, $ignore_id);
     }

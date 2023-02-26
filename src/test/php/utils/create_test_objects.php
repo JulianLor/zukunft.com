@@ -61,14 +61,14 @@ class test_new_obj extends test_base
      * dummy objects for unit tests
      */
 
-    public function dummy_user(): user
+    function dummy_user(): user
     {
         $usr = new user();
         $usr->set(2, user::SYSTEM_TEST_NAME, user::SYSTEM_TEST_EMAIL);
         return $usr;
     }
 
-    public function dummy_word(): word
+    function dummy_word(): word
     {
         global $usr;
         $wrd = new word($usr);
@@ -76,12 +76,12 @@ class test_new_obj extends test_base
         return $wrd;
     }
 
-    public function dummy_verb(): verb
+    function dummy_verb(): verb
     {
         return new verb(1, verb_api::TN_READ, verb_api::TC_READ);
     }
 
-    public function dummy_triple(): triple
+    function dummy_triple(): triple
     {
         global $usr;
         $trp = new triple($usr);
@@ -89,13 +89,13 @@ class test_new_obj extends test_base
         return $trp;
     }
 
-    public function dummy_value(): value
+    function dummy_value(): value
     {
         global $usr;
         return new value($usr, 1, value_api::TV_READ);
     }
 
-    public function dummy_formula(): formula
+    function dummy_formula(): formula
     {
         global $usr;
         $frm = new formula($usr);
@@ -104,7 +104,7 @@ class test_new_obj extends test_base
         return $frm;
     }
 
-    public function dummy_formula_list(): formula_list
+    function dummy_formula_list(): formula_list
     {
         global $usr;
         $lst = new formula_list($usr);
@@ -112,7 +112,7 @@ class test_new_obj extends test_base
         return $lst;
     }
 
-    public function dummy_source(): source
+    function dummy_source(): source
     {
         global $usr;
         $src = new source($usr);
@@ -122,7 +122,7 @@ class test_new_obj extends test_base
         return $src;
     }
 
-    public function dummy_reference(): ref
+    function dummy_reference(): ref
     {
         global $usr;
         $ref = new ref($usr);
@@ -132,7 +132,7 @@ class test_new_obj extends test_base
         return $ref;
     }
 
-    public function dummy_view(): view
+    function dummy_view(): view
     {
         global $usr;
         $dsp = new view($usr);
@@ -140,7 +140,7 @@ class test_new_obj extends test_base
         return $dsp;
     }
 
-    public function dummy_component(): view_cmp
+    function dummy_component(): view_cmp
     {
         global $usr;
         $dsp = new view_cmp($usr);
@@ -151,7 +151,7 @@ class test_new_obj extends test_base
     /**
      * @return change_log_named a change log entry of a named user sandbox object with some dummy values
      */
-    public function dummy_log_named(): change_log_named
+    function dummy_log_named(): change_log_named
     {
         global $usr_sys;
 
@@ -169,8 +169,9 @@ class test_new_obj extends test_base
     /**
      * @return system_log a system error entry
      */
-    public function dummy_sys_log(): system_log
+    function dummy_sys_log(): system_log
     {
+        global $sys_log_stati;
         $sys = new system_log();
         $sys->set_id(1);
         $sys->log_time = new DateTime(system_log_api::TV_TIME);
@@ -179,15 +180,16 @@ class test_new_obj extends test_base
         $sys->log_trace = system_log_api::TV_LOG_TRACE;
         $sys->function_name = system_log_api::TV_FUNC_NAME;
         $sys->solver_name = system_log_api::TV_SOLVE_ID;
-        $sys->status_name = cl(db_cl::LOG_STATUS, sys_log_status::NEW);
+        $sys->status_name = $sys_log_stati->id(sys_log_status::OPEN);
         return $sys;
     }
 
     /**
      * @return system_log a system error entry
      */
-    public function dummy_sys_log2(): system_log
+    function dummy_sys_log2(): system_log
     {
+        global $sys_log_stati;
         $sys = new system_log();
         $sys->set_id(2);
         $sys->log_time = new DateTime(system_log_api::TV_TIME);
@@ -196,14 +198,14 @@ class test_new_obj extends test_base
         $sys->log_trace = system_log_api::T2_LOG_TRACE;
         $sys->function_name = system_log_api::T2_FUNC_NAME;
         $sys->solver_name = system_log_api::TV_SOLVE_ID;
-        $sys->status_name = cl(db_cl::LOG_STATUS, sys_log_status::CLOSED);
+        $sys->status_name = $sys_log_stati->id(sys_log_status::CLOSED);
         return $sys;
     }
 
     /**
      * @return batch_job a batch job entry with some dummy values
      */
-    public function dummy_job(): batch_job
+    function dummy_job(): batch_job
     {
         $sys_usr = $this->system_user();
         $job = new batch_job($sys_usr);
@@ -220,7 +222,7 @@ class test_new_obj extends test_base
      * TODO add at least one sample for rename and delete
      * TODO add at least one sample for verb, triple, value, formula, source, ref, view and component
      */
-    public function dummy_change_log_list_named(): change_log_list
+    function dummy_change_log_list_named(): change_log_list
     {
         $log_lst = new change_log_list();
         $log_lst->add($this->dummy_log_named());
@@ -230,7 +232,7 @@ class test_new_obj extends test_base
     /**
      * @return system_log_list a list of system error entries with some dummy values
      */
-    public function dummy_system_log_list(): system_log_list
+    function dummy_system_log_list(): system_log_list
     {
         $sys_lst = new system_log_list();
         $sys_lst->add($this->dummy_sys_log());
@@ -241,7 +243,7 @@ class test_new_obj extends test_base
     /**
      * @return batch_job_list a list of batch job entries with some dummy values
      */
-    public function dummy_job_list(): batch_job_list
+    function dummy_job_list(): batch_job_list
     {
         $sys_usr = $this->system_user();
         $job_lst = new batch_job_list($sys_usr);
@@ -252,7 +254,7 @@ class test_new_obj extends test_base
     /**
      * @return user the system user for the database updates
      */
-    public function system_user(): user
+    function system_user(): user
     {
         $sys_usr = new user;
         $sys_usr->set_id(SYSTEM_USER_ID);
@@ -536,6 +538,7 @@ class test_new_obj extends test_base
     function new_formula(string $frm_name, ?int $id = null, ?string $frm_type_code_id = null, ?user $test_usr = null): formula
     {
         global $usr;
+        global $formula_types;
 
         if ($id == null) {
             $id = $this->next_seq_nbr();
@@ -549,7 +552,7 @@ class test_new_obj extends test_base
         $frm->set_name($frm_name);
 
         if ($frm_type_code_id != null) {
-            $frm->type_id = cl(db_cl::FORMULA_TYPE, $frm_type_code_id);
+            $frm->type_id = $formula_types->id($frm_type_code_id);
         }
         return $frm;
     }
@@ -571,7 +574,7 @@ class test_new_obj extends test_base
         if ($frm->id() == 0) {
             $frm->set_name($frm_name);
             $frm->usr_text = $frm_text;
-            $frm->set_ref_text();
+            $frm->generate_ref_text();
             $frm->save();
         }
         return $frm;

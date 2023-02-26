@@ -420,7 +420,8 @@ class formula_value extends db_object
      * load the record from the database
      * in a separate function, because this can be called twice from the load function
      *
-     * @param string $sql_where the ready to use SQL where statement
+     * @param sql_par $qp the ready to use SQL where statement with the name and the parameters
+     * @return bool true if one database record has been loaded
      */
     private function load_rec(sql_par $qp): bool
     {
@@ -458,13 +459,13 @@ class formula_value extends db_object
                 if ($this->phr_lst != null) {
                     if (!$this->phr_lst->is_empty()) {
                         $phr_lst = clone $this->phr_lst;
-                        $phr_lst->ex_time();
+                        //$phr_lst->ex_time();
                         log_debug('get group by ' . $phr_lst->dsp_name());
                         // ... or based on the phrase ids
                     }
                 } elseif (!empty($this->phr_ids())) {
                     $phr_lst = new phrase_list($this->user());
-                    $phr_lst->load_by_ids(new phr_ids($this->phr_ids()));
+                    $phr_lst->load_names_by_ids(new phr_ids($this->phr_ids()));
                     // ... or to get the most interesting result for this word
                 } elseif ($this->phr != null and isset($this->frm)) {
                     if ($this->phr->id() > 0 and $this->frm->id() > 0 and isset($this->frm->name_wrd)) {
@@ -494,19 +495,6 @@ class formula_value extends db_object
             $qp = new sql_par(self::class);
             $qp->name = 'fv_by_';
 
-            // assume the source time if the source list is set, but not the source time
-            if ($this->src_time_id <= 0 and is_null($this->src_time_phr) and !empty($this->src_phr_lst)) {
-                $work_phr_lst = clone $this->src_phr_lst;
-                $src_time_phr_lst = $work_phr_lst->time_lst();
-                if (!$src_time_phr_lst->is_empty()) {
-                    $src_time_phr = $src_time_phr_lst->lst()[0];
-                    $this->src_time_id = $src_time_phr->id();
-                    log_debug('source time ' . $this->src_time_id . ' found for ' . $src_time_phr_lst->name());
-                }
-            } elseif ($this->src_time_id <= 0 and !is_null($this->src_time_phr)) {
-                $this->src_time_id = $this->src_time_phr->id();
-            }
-
             // create the source phrase list if just the word is given
             if ($this->phr_lst == null and $this->phr != null) {
                 if ($this->phr->id() > 0 or $this->phr->name() != '') {
@@ -520,57 +508,37 @@ class formula_value extends db_object
             if ($this->src_phr_grp_id <= 0 and $this->src_phr_lst != null) {
 
                 if (!$this->src_phr_lst->is_empty()) {
-                    $work_phr_lst = clone $this->src_phr_lst;
-                    $work_phr_lst->ex_time();
-                    $this->src_phr_lst = $work_phr_lst;
-                    $phr_grp = $work_phr_lst->get_grp();
+                    $phr_grp = $this->src_phr_lst->get_grp();
                     if (isset($phr_grp)) {
                         if ($phr_grp->id() > 0) {
                             $this->src_phr_grp_id = $phr_grp->id();
                         }
                     }
-                    log_debug('source group ' . $this->src_phr_grp_id . ' found for ' . $work_phr_lst->dsp_name());
+                    log_debug('source group ' . $this->src_phr_grp_id . ' found for ' . $this->src_phr_lst->dsp_name());
                 }
-            }
-
-            // assume the result time if the result phrase list is set, but not the result time
-            if ($this->time_id <= 0 and is_null($this->time_phr) and !empty($this->phr_lst)) {
-                $work_phr_lst = clone $this->phr_lst;
-                $time_phr_lst = $work_phr_lst->time_lst();
-                if (!$time_phr_lst->is_empty()) {
-                    $time_wrd = $time_phr_lst->lst()[0];
-                    $this->time_id = $time_wrd->id();
-                    log_debug('time ' . $this->time_id . ' found for ' . $time_phr_lst->name());
-                }
-            } elseif ($this->time_id <= 0 and !is_null($this->time_phr)) {
-                $this->time_id = $this->time_phr->id();
             }
 
             $sql_order = '';
             // include the source words in the search if requested
-            if ($this->src_time_id > 0) {
-                $qp->name .= 'src_id';
-                $db_con->add_par(sql_db::PAR_INT, $this->src_time_id);
-                $sql_src_time = " source_time_id = " . $db_con->par_name() . " ";
-            } else {
-                $qp->name .= 'no_src_id';
-                $sql_src_time = " (source_time_id = 0 OR source_time_id IS NULL) ";
-            }
             if ($this->src_phr_grp_id > 0 and $this->user()->id() > 0) {
                 $qp->name .= '_usr_src_phr_grp';
                 $db_con->add_par(sql_db::PAR_INT, $this->src_phr_grp_id);
                 $db_con->add_par(sql_db::PAR_INT, $this->user()->id);
-                $sql_src_wrd = " AND source_phrase_group_id = " . $db_con->par_name() . "
-                           AND (user_id = " . $db_con->par_name() . " OR user_id = 0 OR user_id IS NULL) AND ";
+                if ($sql_where != '') {
+                    $sql_where .= ' AND ';
+                }
+                $sql_where .= " source_phrase_group_id = " . $db_con->par_name() . "
+                           AND (user_id = " . $db_con->par_name() . " OR user_id = 0 OR user_id IS NULL) ";
                 $sql_order = " ORDER BY user_id DESC";
             } else {
                 $qp->name .= '_src_phr_grp';
                 if ($this->src_phr_grp_id > 0) {
                     $db_con->add_par(sql_db::PAR_INT, $this->src_phr_grp_id);
-                    $sql_src_wrd = " AND source_phrase_group_id = " . $db_con->par_name() . " AND ";
+                    if ($sql_where != '') {
+                        $sql_where .= ' AND ';
+                    }
+                    $sql_where .= " source_phrase_group_id = " . $db_con->par_name() . " AND ";
                     $sql_order = " ORDER BY user_id";
-                } else {
-                    $sql_src_wrd = "";
                 }
             }
             // and include the result words in the search, because one source word list can result to two result word
@@ -581,14 +549,20 @@ class formula_value extends db_object
                 $qp->name .= '_usr_phr_grp';
                 $db_con->add_par(sql_db::PAR_INT, $this->phr_grp_id);
                 $db_con->add_par(sql_db::PAR_INT, $this->user()->id);
-                $sql_wrd = " AND phrase_group_id = " . $db_con->par_name() . "
+                if ($sql_where != '') {
+                    $sql_where .= ' AND ';
+                }
+                $sql_where .= " phrase_group_id = " . $db_con->par_name() . "
                           AND (user_id = " . $db_con->par_name() . " OR user_id = 0 OR user_id IS NULL)";
                 $sql_order = " ORDER BY user_id DESC";
             } else {
                 if ($this->phr_grp_id > 0) {
                     $qp->name .= '_phr_grp';
                     $db_con->add_par(sql_db::PAR_INT, $this->phr_grp_id);
-                    $sql_wrd = " AND phrase_group_id = " . $db_con->par_name() . " ";
+                    if ($sql_where != '') {
+                        $sql_where .= ' AND ';
+                    }
+                    $sql_where .= " phrase_group_id = " . $db_con->par_name() . " ";
                     $sql_order = "ORDER BY user_id";
                 }
             }
@@ -596,23 +570,15 @@ class formula_value extends db_object
             if ($this->frm->id() > 0) {
                 $qp->name .= '_frm_id';
                 $db_con->add_par(sql_db::PAR_INT, $this->frm->id());
-                $sql_frm = " AND formula_id = " . $db_con->par_name() . " ";
-            } else {
-                $sql_frm = " ";
+                if ($sql_where != '') {
+                    $sql_where .= ' AND ';
+                }
+                $sql_where .= " formula_id = " . $db_con->par_name() . " ";
             }
-            //zu_debug('formula_value->load for '.$wrd->name.' and '.$this->id());
-            if ($sql_src_wrd <> '' and $sql_wrd <> '') {
-                $sql_where = $sql_src_time
-                    . $sql_src_wrd
-                    . $sql_wrd
-                    . $sql_frm
-                    . $sql_order;
-            } elseif ($sql_wrd <> '') {
+            if ($sql_order <> '') {
                 // if only the target value list is set, get the "best" result
                 // TODO define what is the best result
-                $sql_where = $sql_wrd
-                    . $sql_frm
-                    . $sql_order;
+                $sql_where .= $sql_order;
             }
         }
 
@@ -955,24 +921,6 @@ class formula_value extends db_object
         if (isset($this->src_phr_lst)) {
             // TODO check if the phrases are already loaded
             // $this->src_phr_lst->load();
-            // remember the time if needed (but don't assume the time, because a value can be saved without timestamp)
-            // separate the time word if not done already to reduce the number of word groups created and increase the request speed
-            $time_phr_lst = $this->src_phr_lst->time_lst();
-            if (count($time_phr_lst->lst()) > 1) {
-                log_warning('More than one time word is not yet supported ' . $time_phr_lst->name() . ' (' . $this->id() . ') is empty.', 'formula_value->save_prepare_phr_lst_src');
-            }
-            if (count($time_phr_lst->lst()) == 1) {
-                $time_wrd = $time_phr_lst->lst()[0];
-                if (isset($this->src_time_phr)) {
-                    if ($this->src_time_phr->id() <> $time_wrd->id()) {
-                        log_warning('The word list suggested "' . $time_wrd->name . '", but the time is already set to  "' . $this->src_time_phr->name() . '" (' . $this->id() . ').', 'formula_value->save_prepare_phr_lst_src');
-                    }
-                } else {
-                    $this->src_time_phr = $time_wrd;
-                }
-            }
-            // exclude all time words before the word group creation
-            $this->src_phr_lst->ex_time();
             // get the word group id (and create the group if needed)
             // TODO include triples
             if (count($this->src_phr_lst->id_lst()) > 0) {
@@ -989,24 +937,6 @@ class formula_value extends db_object
     private function save_prepare_phr_lst(): void
     {
         if (isset($this->phr_lst)) {
-            // remember the time if needed (but don't assume the time, because a value can be saved without timestamp)
-            // separate the time word if not done already to reduce the number of word groups created and increase the request speed
-            $time_phr_lst = $this->phr_lst->time_lst();
-            if (count($time_phr_lst->lst()) > 1) {
-                log_warning('More than one time word is not yet supported ' . $time_phr_lst->name() . ' (' . $this->id() . ') is empty.', 'formula_value->save_prepare_phr_lst');
-            }
-            if (count($time_phr_lst->lst()) == 1) {
-                $time_wrd = $time_phr_lst->lst()[0];
-                if (isset($this->time_phr)) {
-                    if ($this->time_phr->id() <> $time_wrd->id()) {
-                        log_warning('The word list suggested "' . $time_wrd->name . '", but the time is already set to  "' . $this->time_phr->name() . '" (' . $this->id() . ').', 'formula_value->save_prepare_phr_lst');
-                    }
-                } else {
-                    $this->time_phr = $time_wrd;
-                }
-            }
-            // exclude all time words before the word group creation
-            $this->phr_lst->ex_time();
             // get the word group id (and create the group if needed)
             // TODO include triples
             $grp = new phrase_group($this->user());
@@ -1016,32 +946,13 @@ class formula_value extends db_object
         }
     }
 
-    // update the source time word id based on the source time word object ($this->src_time_phr)
-    private function save_prepare_time_wrd_src()
-    {
-        if (isset($this->src_time_phr)) {
-            $this->src_time_id = $this->src_time_phr->id();
-        }
-    }
-
-    // update the time word id based on the time word object ($this->time_phr)
-    private function save_prepare_time_wrd()
-    {
-        if (isset($this->time_phr)) {
-            $this->time_id = $this->time_phr->id();
-        }
-    }
-
     // update the word ids based on the word objects (usually done before saving the formula result to the database)
     private function save_prepare_wrds()
     {
-        log_debug("formula_value->save_prepare_wrds.");
+        log_debug();
         $this->save_prepare_phr_lst_src();
         $this->save_prepare_phr_lst();
-        log_debug("formula_value->save_prepare_wrds source done.");
-        $this->save_prepare_time_wrd_src();
-        $this->save_prepare_time_wrd();
-        log_debug("formula_value->save_prepare_wrds done.");
+        log_debug("done.");
     }
 
     /**

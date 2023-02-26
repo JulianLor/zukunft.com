@@ -39,6 +39,7 @@ class word_list_unit_tests
     {
 
         global $usr;
+        global $phrase_types;
 
         // init
         $db_con = new sql_db();
@@ -124,23 +125,23 @@ class word_list_unit_tests
         $wrd_time = new word($usr);
         $wrd_time->set_id(4);
         $wrd_time->set_name('time_word');
-        $wrd_time->type_id = cl(db_cl::PHRASE_TYPE, phrase_type::TIME);
+        $wrd_time->type_id = $phrase_types->id(phrase_type::TIME);
         $wrd_time2 = new word($usr);
         $wrd_time2->set_id(5);
         $wrd_time2->set_name('time_word2');
-        $wrd_time2->type_id = cl(db_cl::PHRASE_TYPE, phrase_type::TIME);
+        $wrd_time2->type_id = $phrase_types->id(phrase_type::TIME);
         $wrd_scale = new word($usr);
         $wrd_scale->set_id(6);
         $wrd_scale->set_name('scale_word');
-        $wrd_scale->type_id = cl(db_cl::PHRASE_TYPE, phrase_type::SCALING);
+        $wrd_scale->type_id = $phrase_types->id(phrase_type::SCALING);
         $wrd_percent = new word($usr);
         $wrd_percent->set_id(7);
         $wrd_percent->set_name('percent_word');
-        $wrd_percent->type_id = cl(db_cl::PHRASE_TYPE, phrase_type::PERCENT);
+        $wrd_percent->type_id = $phrase_types->id(phrase_type::PERCENT);
         $wrd_measure = new word($usr);
         $wrd_measure->set_id(8);
         $wrd_measure->set_name('measure_word');
-        $wrd_measure->type_id = cl(db_cl::PHRASE_TYPE, phrase_type::MEASURE);
+        $wrd_measure->type_id = $phrase_types->id(phrase_type::MEASURE);
 
         // merge two lists
         $wrd_lst = new word_list($usr);
@@ -269,19 +270,22 @@ class word_list_unit_tests
      * @param sql_db $db_con the test database connection
      * @param word_list $lst the empty word list object
      * @param array $ids filled with a list of word ids to be used for the query creation
-     * @return void
+     * @return bool true if all tests are fine
      */
-    private function assert_sql_by_ids(testing $t, sql_db $db_con, word_list $lst, array $ids): void
+    private function assert_sql_by_ids(testing $t, sql_db $db_con, word_list $lst, array $ids): bool
     {
-        // check the PostgreSQL query syntax
+        // check the Postgres query syntax
         $db_con->db_type = sql_db::POSTGRES;
         $qp = $lst->load_sql_by_ids($db_con, $ids);
-        $t->assert_qp($qp, sql_db::POSTGRES);
+        $result = $t->assert_qp($qp, sql_db::POSTGRES);
 
-        // check the MySQL query syntax
+        // ... and check the MySQL query syntax
+        if ($result) {
         $db_con->db_type = sql_db::MYSQL;
         $qp = $lst->load_sql_by_ids($db_con, $ids);
         $t->assert_qp($qp, sql_db::MYSQL);
+        }
+        return $result;
     }
 
     /**
@@ -295,7 +299,7 @@ class word_list_unit_tests
      */
     private function assert_sql_by_names(testing $t, sql_db $db_con, word_list $lst, array $words): void
     {
-        // check the PostgreSQL query syntax
+        // check the Postgres query syntax
         $db_con->db_type = sql_db::POSTGRES;
         $qp = $lst->load_sql_by_names($db_con, $words);
         $t->assert_qp($qp, sql_db::POSTGRES);
@@ -317,7 +321,7 @@ class word_list_unit_tests
      */
     private function assert_sql_by_group_id(testing $t, sql_db $db_con, word_list $lst, int $grp_id): void
     {
-        // check the PostgreSQL query syntax
+        // check the Postgres query syntax
         $db_con->db_type = sql_db::POSTGRES;
         $qp = $lst->load_sql_by_grp_id($db_con, $grp_id);
         $t->assert_qp($qp, sql_db::POSTGRES);
@@ -339,7 +343,7 @@ class word_list_unit_tests
      */
     private function assert_sql_by_type_id(testing $t, sql_db $db_con, word_list $lst, int $type_id): void
     {
-        // check the PostgreSQL query syntax
+        // check the Postgres query syntax
         $db_con->db_type = sql_db::POSTGRES;
         $qp = $lst->load_sql_by_type($db_con, $type_id);
         $t->assert_qp($qp, sql_db::POSTGRES);
@@ -361,7 +365,7 @@ class word_list_unit_tests
      */
     private function assert_sql_by_pattern(testing $t, sql_db $db_con, word_list $lst, string $pattern): void
     {
-        // check the PostgreSQL query syntax
+        // check the Postgres query syntax
         $db_con->db_type = sql_db::POSTGRES;
         $qp = $lst->load_sql_pattern($db_con, $pattern);
         $t->assert_qp($qp, sql_db::POSTGRES);
@@ -384,7 +388,7 @@ class word_list_unit_tests
      */
     private function assert_sql_by_linked_words(testing $t, sql_db $db_con, word_list $lst, int $verb_id, string $direction): void
     {
-        // check the PostgreSQL query syntax
+        // check the Postgres query syntax
         $db_con->db_type = sql_db::POSTGRES;
         $qp = $lst->load_sql_linked_words($db_con, $verb_id, $direction);
         $t->assert_qp($qp, sql_db::POSTGRES);

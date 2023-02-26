@@ -109,7 +109,9 @@ class formula extends user_sandbox_named_with_type
 
     // database fields additional to the user sandbox fields
     public ?string $ref_text = '';         // the formula expression with the names replaced by database references
+    private bool $ref_text_dirty;          // true if the human-readable text has been updated and not yet converted
     public ?string $usr_text = '';         // the formula expression in the user format
+    private bool $usr_text_dirty;          // true if the reference text has been updated and not yet converted
     public ?string $description = '';      // describes to the user what this formula is doing
     public ?bool $need_all_val = false;    // calculate and save the result only if all used values are not null
     public ?DateTime $last_update = null;  // the time of the last update of fields that may influence the calculated results
@@ -120,6 +122,7 @@ class formula extends user_sandbox_named_with_type
     //                                        because values can only be assigned to phrases, also for the formula name a triple must exist
     public bool $needs_fv_upd = false;     // true if the formula results needs to be updated
     public ?string $ref_text_r = '';       // the part of the formula expression that is right of the equation sign (used as a work-in-progress field for calculation)
+
 
     /*
      * construct and map
@@ -132,6 +135,7 @@ class formula extends user_sandbox_named_with_type
     function __construct(user $usr)
     {
         parent::__construct($usr);
+        $this->reset();
 
         $this->obj_name = sql_db::TBL_FORMULA;
         $this->rename_can_switch = UI_CAN_CHANGE_FORMULA_NAME;
@@ -148,7 +152,9 @@ class formula extends user_sandbox_named_with_type
         $this->name = '';
 
         $this->ref_text = '';
+        $this->ref_text_dirty = false;
         $this->usr_text = '';
+        $this->usr_text_dirty = false;
         $this->type_id = null;
         $this->need_all_val = false;
         $this->last_update = null;
@@ -204,7 +210,7 @@ class formula extends user_sandbox_named_with_type
      * @param string $name mainly for test creation the name of the formula
      * @param string $type_code_id the code id of the predefined formula type
      */
-    public function set(int $id = 0, string $name = '', string $type_code_id = ''): void
+    function set(int $id = 0, string $name = '', string $type_code_id = ''): void
     {
         parent::set($id, $name);
 
@@ -221,7 +227,8 @@ class formula extends user_sandbox_named_with_type
      */
     function set_type(string $type_code_id): void
     {
-        $this->type_id = cl(db_cl::FORMULA_TYPE, $type_code_id);
+        global $formula_types;
+        $this->type_id = $formula_types->id($type_code_id);
     }
 
     /**
@@ -243,10 +250,25 @@ class formula extends user_sandbox_named_with_type
         return 0;
     }
 
-    public function name(): string
+    function name(): string
     {
         return $this->name;
     }
+
+    /**
+     * update the expression by setting the human-readable format and try to update the database reference format
+     * @param string $usr_txt the formula expression in the human-readable format
+     * @param term_list|null $trm_lst a list of preloaded terms that should be used for the transformation
+     * @return void
+     */
+    function set_user_text(string $usr_txt, ?term_list $trm_lst = null): void
+    {
+        $this->usr_text = $usr_txt;
+        $this->usr_text_dirty = false;
+        $this->ref_text_dirty = true;
+        $this->generate_ref_text($trm_lst);
+    }
+
 
 
     /*
@@ -257,7 +279,7 @@ class formula extends user_sandbox_named_with_type
      * get the name of the formula type
      * @return string the name of the formula type
      */
-    public function type_name(): string
+    function type_name(): string
     {
         global $formula_types;
         return $formula_types->name($this->type_id);
@@ -571,13 +593,15 @@ class formula extends user_sandbox_named_with_type
      */
     function add_wrd(): bool
     {
+        global $phrase_types;
+
         log_err('The formula word for ' . $this->dsp_id() . ' needs to be recreated to fix an internal error');
         $result = false;
 
         // if the formula word is missing, try a word creating as a kind of auto recovery
         $name_wrd = new word($this->user());
         $name_wrd->name = $this->name();
-        $name_wrd->type_id = cl(db_cl::PHRASE_TYPE, phrase_type::FORMULA_LINK);
+        $name_wrd->type_id = $phrase_types->id(phrase_type::FORMULA_LINK);
         $name_wrd->add();
         if ($name_wrd->id > 0) {
             //zu_info('Word with the formula name "'.$this->name().'" has been missing for id '.$this->id.'.','formula->calc');
@@ -594,13 +618,15 @@ class formula extends user_sandbox_named_with_type
      */
     function create_wrd(): bool
     {
+        global $phrase_types;
+
         log_debug('->create_wrd create formula linked word ' . $this->dsp_id());
         $result = false;
 
         // if the formula word is missing, try a word creating as a kind of auto recovery
         $name_wrd = new word($this->user());
         $name_wrd->set_name($this->name());
-        $name_wrd->type_id = cl(db_cl::PHRASE_TYPE, phrase_type::FORMULA_LINK);
+        $name_wrd->type_id = $phrase_types->id(phrase_type::FORMULA_LINK);
         $name_wrd->save();
         if ($name_wrd->id > 0) {
             //zu_info('Word with the formula name "'.$this->name().'" has been missing for id '.$this->id.'.','formula->calc');
@@ -741,7 +767,7 @@ class formula extends user_sandbox_named_with_type
 
             if (count($phr_ids->lst) > 0) {
                 $phr_lst = new phrase_list($this->user());
-                $phr_lst->load_by_ids($phr_ids);
+                $phr_lst->load_names_by_ids($phr_ids);
                 log_debug("number of words " . dsp_count($phr_lst->lst()));
             }
         } else {
@@ -789,7 +815,7 @@ class formula extends user_sandbox_named_with_type
                     $phr_ids = array_merge($direct_phr_lst->id_lst(), $indirect_phr_lst->id_lst());
                     $phr_ids = array_unique($phr_ids);
 
-                    $phr_lst->load_by_ids((new phr_ids($phr_ids)));
+                    $phr_lst->load_by_ids_old((new phr_ids($phr_ids)));
                     log_debug('number of words and triples ' . dsp_count($phr_lst->lst()));
                 } else {
                     log_debug( 'no words are assigned to ' . $this->dsp_id());
@@ -843,6 +869,23 @@ class formula extends user_sandbox_named_with_type
         return $db_con->delete($this->fld_id(), $this->id);
     }
 
+    /**
+     * @return formula_value with the value from this formula
+     */
+    private function create_result(phrase_list $phr_lst): formula_value
+    {
+        $rst = new formula_value($this->user());
+        $rst->frm = $this;
+        $rst->ref_text = $this->ref_text_r;
+        $rst->num_text = $this->ref_text_r;
+        $rst->src_phr_lst = clone $phr_lst;
+        $rst->phr_lst = clone $phr_lst;
+        if ($rst->last_val_update < $this->last_update) {
+            $rst->last_val_update = $this->last_update;
+        }
+        return $rst;
+    }
+
 
     /**
      * fill the formula in the reference format with numbers
@@ -860,39 +903,11 @@ class formula extends user_sandbox_named_with_type
             $this->ref_text_r = expression::CHAR_CALC . $exp->r_part();
         }
 
-        // guess the time if needed and exclude the time for consistent word groups
-        $wrd_lst = $phr_lst->wrd_lst_all();
-        $time_wrd = $wrd_lst->assume_time();
-        if (isset($time_wrd)) {
-            if (get_class($time_wrd) == phrase::class) {
-                $time_phr = $time_wrd;
-            } else {
-                $time_phr = $time_wrd->phrase();
-            }
-        }
-        $phr_lst_ex = clone $phr_lst;
-        $phr_lst_ex->ex_time();
-        log_debug('the phrases excluded time are ' . $phr_lst_ex->dsp_id());
-
         // create the formula value list
         $fv_lst = new formula_value_list($this->user());
 
         // create a master formula value object to only need to fill it with the numbers in the code below
-        $fv_init = new formula_value($this->user()); // maybe move the constructor of formula_value_list?
-        $fv_init->frm = $this;
-        $fv_init->ref_text = $this->ref_text_r;
-        $fv_init->num_text = $this->ref_text_r;
-        $fv_init->src_phr_lst = clone $phr_lst_ex;
-        $fv_init->phr_lst = clone $phr_lst_ex;
-        if (isset($time_phr)) {
-            $fv_init->src_time_phr = clone $time_phr;
-        }
-        if (isset($time_phr)) {
-            $fv_init->time_phr = clone $time_phr;
-        }
-        if ($fv_init->last_val_update < $this->last_update) {
-            $fv_init->last_val_update = $this->last_update;
-        }
+        $fv_init = $this->create_result($phr_lst); // maybe move the constructor of formula_value_list?
 
         // load the formula element groups; similar parts is used in the explain method in formula_value
         // e.g. for "Sales differentiator Sector / Total Sales" the element groups are
@@ -910,10 +925,7 @@ class formula extends user_sandbox_named_with_type
 
             // get the figures based on the context e.g. the formula element "Share Price" for the context "ABB" can be 23.11
             // a figure is either the user edited value or a calculated formula result
-            $elm_grp->phr_lst = clone $phr_lst_ex;
-            if (isset($time_phr)) {
-                $elm_grp->time_phr = clone $time_phr;
-            }
+            $elm_grp->phr_lst = clone $phr_lst;
             $elm_grp->build_symbol();
             $fig_lst = $elm_grp->figures();
             log_debug('figures ');
@@ -1026,7 +1038,7 @@ class formula extends user_sandbox_named_with_type
                     }
                 } else {
                     // if not figure found remember to switch off the result if needed
-                    log_debug('no figures found for ' . $elm_grp->dsp_id() . ' and ' . $phr_lst_ex->dsp_id());
+                    log_debug('no figures found for ' . $elm_grp->dsp_id() . ' and ' . $phr_lst->dsp_id());
                     $all_elm_grp_filled = false;
                 }
             }
@@ -1034,11 +1046,11 @@ class formula extends user_sandbox_named_with_type
 
         // if some values are not filled and all are needed, switch off the incomplete formula results
         if ($this->need_all_val) {
-            log_debug('for ' . $phr_lst_ex->dsp_id() . ' all value are needed');
+            log_debug('for ' . $phr_lst->dsp_id() . ' all value are needed');
             if ($all_elm_grp_filled) {
-                log_debug('for ' . $phr_lst_ex->dsp_id() . ' all value are filled');
+                log_debug('for ' . $phr_lst->dsp_id() . ' all value are filled');
             } else {
-                log_debug('some needed values missing for ' . $phr_lst_ex->dsp_id());
+                log_debug('some needed values missing for ' . $phr_lst->dsp_id());
                 foreach ($fv_lst->lst as $fv) {
                     log_debug('some needed values missing for ' . $fv->dsp_id() . ' so switch off');
                     $fv->val_missing = True;
@@ -1076,8 +1088,8 @@ class formula extends user_sandbox_named_with_type
                             log_debug('always calculate ' . $this->dsp_id());
                             $can_calc = true;
                         }
-                        if ($can_calc == true and $time_wrd != null) {
-                            log_debug('calculate ' . $fv->num_text . ' for ' . $phr_lst_ex->dsp_id());
+                        if ($can_calc == true) {
+                            log_debug('calculate ' . $fv->num_text . ' for ' . $phr_lst->dsp_id());
                             $calc = new math;
                             $fv->value = $calc->parse($fv->num_text);
                             $fv->is_updated = true;
@@ -1258,7 +1270,7 @@ class formula extends user_sandbox_named_with_type
      * @param figure_list $fig_lst the value and results that should be used for the calculation
      * @return figure_list the received figure list with the additions forlua results
      */
-    public function calc_with(figure_list $fig_lst): figure_list
+    function calc_with(figure_list $fig_lst): figure_list
     {
         return $fig_lst;
     }
@@ -1293,11 +1305,11 @@ class formula extends user_sandbox_named_with_type
     /**
      * import a formula from a JSON object
      *
-     * @param array $json_obj an array with the data of the json object
+     * @param array $in_ex_json an array with the data of the json object
      * @param bool $do_save can be set to false for unit testing
      * @return user_message the status of the import and if needed the error messages that should be shown to the user
      */
-    function import_obj(array $json_obj, bool $do_save = true): user_message
+    function import_obj(array $in_ex_json, bool $do_save = true): user_message
     {
         global $formula_types;
         global $share_types;
@@ -1310,7 +1322,7 @@ class formula extends user_sandbox_named_with_type
         $usr = $this->user();
         $this->reset();
         $this->set_user($usr);
-        foreach ($json_obj as $key => $value) {
+        foreach ($in_ex_json as $key => $value) {
             if ($key == exp_obj::FLD_NAME) {
                 $this->set_name($value);
             }
@@ -1348,7 +1360,7 @@ class formula extends user_sandbox_named_with_type
         // assign the formula to the words and triple
         if ($result->is_ok()) {
             log_debug('saved ' . $this->dsp_id());
-            foreach ($json_obj as $key => $value) {
+            foreach ($in_ex_json as $key => $value) {
                 if ($result->is_ok()) {
                     if ($key == self::FLD_ASSIGN) {
                         if (is_array($value)) {
@@ -1724,15 +1736,18 @@ class formula extends user_sandbox_named_with_type
 
     /**
      * update the database reference text based on the user text
+     * TODO check in not the left AND the right part needs to be transformed as expression
      *
+     * @param term_list|null $trm_lst a list of preloaded terms that should be used for the transformation
      * @return string which is empty if the update of the reference text was successful and otherwise the error message that should be shown to the user
      */
-    function set_ref_text(): string
+    function generate_ref_text(?term_list $trm_lst = null): string
     {
         $result = '';
         $exp = new expression($this->user());
         $exp->set_user_text($this->usr_text);
-        $this->ref_text = $exp->ref_text();
+        $this->ref_text = $exp->ref_text($trm_lst);
+        $this->ref_text_dirty = false;
         $result .= $exp->err_text;
         return $result;
     }
@@ -2141,6 +2156,8 @@ class formula extends user_sandbox_named_with_type
     private
     function is_term_the_same(term $trm): bool
     {
+        global $phrase_types;
+
         $result = false;
         if ($trm->type() == formula::class) {
             //$result = $trm;
@@ -2149,7 +2166,7 @@ class formula extends user_sandbox_named_with_type
             if ($trm->obj == null) {
                 log_warning('The object of the term has been expected to be loaded');
             } else {
-                if ($trm->obj->type_id == cl(db_cl::PHRASE_TYPE, phrase_type::FORMULA_LINK)) {
+                if ($trm->obj->type_id == $phrase_types->id(phrase_type::FORMULA_LINK)) {
                     //$result = $trm;
                     $result = true;
                 }
@@ -2192,8 +2209,8 @@ class formula extends user_sandbox_named_with_type
                         $this->id = $db_chk->id;
                         $this->owner_id = $db_chk->owner_id;
                         // force including again
-                        $this->excluded = null;
-                        $db_rec->excluded = '1';
+                        $this->include();
+                        $db_rec->exclude();
                         $this->save_field_excluded($db_con, $db_rec, $std_rec);
                         log_debug('->save_id_if_updated found a display component link with target ids "' . $db_chk->dsp_id() . '", so del "' . $db_rec->dsp_id() . '" and add ' . $this->dsp_id());
                     } else {
@@ -2294,6 +2311,7 @@ class formula extends user_sandbox_named_with_type
         log_debug('->save >' . $this->usr_text . '< (id ' . $this->id . ') as ' . $this->dsp_id() . ' for user ' . $this->user()->name);
 
         global $db_con;
+        global $phrase_types;
 
         // check the preserved names
         $result = $this->check_preserved();
@@ -2312,7 +2330,7 @@ class formula extends user_sandbox_named_with_type
                 if ($trm->id_obj() > 0) {
                     if ($trm->type() <> formula::class) {
                         if ($trm->type() == word::class) {
-                            if ($trm->obj->type_id == cl(db_cl::PHRASE_TYPE, phrase_type::FORMULA_LINK)) {
+                            if ($trm->obj->type_id == $phrase_types->id(phrase_type::FORMULA_LINK)) {
                                 log_debug('adding formula name ' . $this->dsp_id() . ' has just a matching formula word');
                             } else {
                                 $result .= $trm->id_used_msg();
@@ -2330,7 +2348,7 @@ class formula extends user_sandbox_named_with_type
             // create a new formula or update an existing
             if ($this->id <= 0) {
                 // convert the formula text to db format (any error messages should have been returned from the calling user script)
-                $result .= $this->set_ref_text();
+                $result .= $this->generate_ref_text();
                 if ($result == '') {
                     $result .= $this->add()->get_last_message();
                 }
@@ -2352,7 +2370,7 @@ class formula extends user_sandbox_named_with_type
                 }
 
                 // ... and convert the formula text to db format (any error messages should have been returned from the calling user script)
-                $result .= $this->set_ref_text();
+                $result .= $this->generate_ref_text();
                 if ($result == '') {
 
                     // check if the id parameters are supposed to be changed

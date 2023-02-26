@@ -218,7 +218,7 @@ class word_api extends user_sandbox_named_with_type_api
      * get and set
      */
 
-    public function set_description(string $description): void
+    function set_description(string $description): void
     {
         $this->description = $description;
     }
@@ -235,7 +235,7 @@ class word_api extends user_sandbox_named_with_type_api
         }
     }
 
-    public function set_plural(?string $plural): void
+    function set_plural(?string $plural): void
     {
         $this->plural = $plural;
     }
@@ -245,7 +245,7 @@ class word_api extends user_sandbox_named_with_type_api
         return $this->plural;
     }
 
-    public function set_parent(?phrase_api $parent): void
+    function set_parent(?phrase_api $parent): void
     {
         $this->parent = $parent;
     }
@@ -321,9 +321,10 @@ class word_api extends user_sandbox_named_with_type_api
      */
     function is_type(string $type): bool
     {
+        global $phrase_types;
         $result = false;
-        if ($this->type() != Null) {
-            if ($this->type()->code_id == $type) {
+        if ($this->type_id() != Null) {
+            if ($this->type_id() == $phrase_types->id($type)) {
                 $result = true;
             }
         }

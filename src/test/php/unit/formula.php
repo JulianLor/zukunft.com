@@ -31,6 +31,7 @@
 */
 
 use api\formula_api;
+use api\value_api;
 use api\word_api;
 use cfg\formula_type;
 
@@ -40,6 +41,7 @@ class formula_unit_tests
     {
 
         global $usr;
+        global $formula_types;
 
         // init
         $db_con = new sql_db();
@@ -75,7 +77,7 @@ class formula_unit_tests
         $t->assert_load_standard_sql($db_con, $frm);
 
 
-        // check the PostgreSQL query syntax
+        // check the Postgres query syntax
         $db_con->db_type = sql_db::POSTGRES;
         $qp = $frm->load_user_sql($db_con);
         $t->assert_qp($qp, sql_db::POSTGRES);
@@ -90,7 +92,7 @@ class formula_unit_tests
 
         // casting API
         $frm = new formula($usr);
-        $frm->set(1,  formula_api::TN_READ, formula_type::CALC);
+        $frm->set(1, formula_api::TN_READ, formula_type::CALC);
         $t->assert_api($frm);
 
 
@@ -101,13 +103,15 @@ class formula_unit_tests
         $t->subheader('Expression tests');
 
         // get the id of the phrases that should be added to the result based on the formula reference text
-        $exp = new expression($usr);
-        $exp->set_ref_text('{w205}={w203}*1000000');
-        $result = $exp->fv_phr_lst();
         $target = new phrase_list($usr);
+        $trm_lst = new term_list($usr);
         $wrd = new word($usr);
         $wrd->set_id(205);
         $target->add($wrd->phrase());
+        $trm_lst->add($wrd->term());
+        $exp = new expression($usr);
+        $exp->set_ref_text('{w205}={w203}*1000000');
+        $result = $exp->fv_phr_lst($trm_lst);
         $t->assert('Expression->fv_phr_lst for ' . formula_api::TF_READ_SCALE_MIO, $result->dsp_id(), $target->dsp_id());
 
         // get the special formulas used in a formula to calculate the result
@@ -115,7 +119,7 @@ class formula_unit_tests
         /*
         $frm_next = new formula($usr);
         $frm_next->name = "next";
-        $frm_next->type_id = cl(db_cl::FORMULA_TYPE, formula_type::NEXT);
+        $frm_next->type_id = $formula_types->id(formula_type::NEXT);
         $frm_next->id = 1;
         $frm_has_next = new formula($usr);
         $frm_has_next->usr_text = '=next';
@@ -123,23 +127,31 @@ class formula_unit_tests
         */
 
         // test the calculation of one value
-        $phr_lst = $t->phrase_list_for_tests(array(word_api::TN_CH, word_api::TN_INHABITANTS, word_api::TN_2020, word_api::TN_MIO));
+        //$phr_lst = $t->phrase_list_for_tests(array(word_api::TN_CH, word_api::TN_INHABITANTS, word_api::TN_2020, word_api::TN_MIO));
+        $trm_lst = $t->term_list_for_tests(array(
+            word_api::TN_PCT,
+            formula_api::TN_READ_THIS,
+            formula_api::TN_READ_PRIOR
+        ));
+        $phr_lst = $t->phrase_list_for_tests(array(
+            word_api::TN_PCT,
+            formula_api::TN_READ_THIS,
+            formula_api::TN_READ_PRIOR,
+            word_api::TN_CH,
+            word_api::TN_INHABITANTS,
+            word_api::TN_2020,
+            word_api::TN_MIO
+        ));
 
         $frm = $t->new_formula(formula_api::TN_ADD, 1);
-        $frm->usr_text = formula_api::TF_INCREASE;
-        $frm->set_ref_text();
+        $frm->set_user_text(formula_api::TF_INCREASE, $trm_lst);
         $fv_lst = $frm->to_num($phr_lst);
-        if ($fv_lst->lst != null) {
-            $fv = $fv_lst->lst[0];
-            $result = $fv->num_text;
-        } else {
-            $fv = null;
-            $result = 'result list is empty';
-        }
-        $target = '=(8.505251-8.438822)/8.438822';
-        // TODO fix it
-        //$t->dsp('formula->to_num "' . $frm->name() . '" for a tern list ' . $phr_lst->dsp_id(), $target, $result);
-
+        $fv = $fv_lst->lst[0];
+        $result = $fv->num_text;
+        $target = '=(' . value_api::TV_CH_INHABITANTS_2020_IN_MIO . '-' .
+            value_api::TV_CH_INHABITANTS_2019_IN_MIO . ')/' .
+            value_api::TV_CH_INHABITANTS_2019_IN_MIO;
+        //$t->assert('get numbers for formula ' . $frm->dsp_id() . ' based on term list ' . $trm_lst->dsp_id(), $result, $target);
 
     }
 

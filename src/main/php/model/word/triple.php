@@ -37,6 +37,7 @@ global $phrase_types;
 use api\triple_api;
 use cfg\protection_type;
 use cfg\share_type;
+use controller\controller;
 use export\exp_obj;
 use export\triple_exp;
 use html\triple_dsp;
@@ -158,10 +159,7 @@ class triple extends user_sandbox_link_named_with_type implements JsonSerializab
      */
     function reset(): void
     {
-        $this->usr_cfg_id = null;
-        $this->owner_id = null;
-        $this->values = null;
-        $this->excluded = null;
+        parent::reset();
         $this->set_name('');
         $this->name_given = null;
         $this->name_generated = '';
@@ -223,7 +221,7 @@ class triple extends user_sandbox_link_named_with_type implements JsonSerializab
      * @param int $id mainly for test creation the database id of the word
      * @param string $name mainly for test creation the name of the word
      */
-    public function set(
+    function set(
         int    $id = 0,
         string $name = '',
         string $from = '',
@@ -243,7 +241,7 @@ class triple extends user_sandbox_link_named_with_type implements JsonSerializab
      * @param string $name
      * @return void
      */
-    public function set_name(string $name): void
+    function set_name(string $name): void
     {
         $this->name = $name;
     }
@@ -253,7 +251,7 @@ class triple extends user_sandbox_link_named_with_type implements JsonSerializab
      * @param string|null $name_given
      * @return void
      */
-    public function set_name_given(?string $name_given): void
+    function set_name_given(?string $name_given): void
     {
         $this->name_given = $name_given;
     }
@@ -279,7 +277,7 @@ class triple extends user_sandbox_link_named_with_type implements JsonSerializab
      * set the used name, update the generated name if needed
      * @return void
      */
-    public function set_names(): void
+    function set_names(): void
     {
         // update the generated name if needed
         if ($this->generate_name() != '' and $this->generate_name() != ' ()') {
@@ -326,7 +324,7 @@ class triple extends user_sandbox_link_named_with_type implements JsonSerializab
     /**
      * @return string|null the name manually set by the user or null if the generated name should be used
      */
-    public function name_given(): ?string
+    function name_given(): ?string
     {
         return $this->name_given;
     }
@@ -334,7 +332,7 @@ class triple extends user_sandbox_link_named_with_type implements JsonSerializab
     /**
      * TODO check where the function or the db value should be used
      */
-    public function name_generated(): ?string
+    function name_generated(): ?string
     {
         return $this->name_generated;
     }
@@ -356,7 +354,7 @@ class triple extends user_sandbox_link_named_with_type implements JsonSerializab
      * get the name of the triple type
      * @return string the name of the triple type
      */
-    public function type_name(): string
+    function type_name(): string
     {
         global $phrase_types;
         return $phrase_types->name($this->type_id);
@@ -373,9 +371,9 @@ class triple extends user_sandbox_link_named_with_type implements JsonSerializab
     function api_obj(): object
     {
         $api_obj = new triple_api();
-        if (!$this->excluded) {
+        if (!$this->is_excluded()) {
             $this->fill_api_obj($api_obj);
-            $api_obj->name = $this->name;
+            $api_obj->name = $this->name();
             $api_obj->description = $this->description;
             if ($this->from->obj != null) {
                 $api_obj->set_from($this->from->obj->phrase()->api_obj());
@@ -403,6 +401,85 @@ class triple extends user_sandbox_link_named_with_type implements JsonSerializab
         $dsp_obj->set_type_id($this->type_id);
 
         return $dsp_obj;
+    }
+
+
+    /*
+     * set and get
+     */
+
+    /**
+     * map a triple api json to this model triple object
+     * similar to the import_obj function but using the database id instead of names as the unique key
+     * @param array $api_json the api array with the triple values that should be mapped
+     */
+    function set_by_api_json(array $api_json): user_message
+    {
+        global $phrase_types;
+
+        $msg = new user_message();
+
+        // make sure that there are no unexpected leftovers
+        $usr = $this->user();
+        $this->reset();
+        $this->set_user($usr);
+
+        foreach ($api_json as $key => $value) {
+
+            if ($key == controller::API_FLD_ID) {
+                $this->set_id($value);
+            }
+            if ($key == controller::API_FLD_NAME) {
+                $this->set_name($value);
+            }
+            if ($key == controller::API_FLD_DESCRIPTION) {
+                if ($value <> '') {
+                    $this->description = $value;
+                }
+            }
+            if ($key == controller::API_FLD_TYPE) {
+                $this->type_id = $phrase_types->id($value);
+            }
+
+            /* TODO
+            if ($key == self::FLD_PLURAL) {
+                if ($value <> '') {
+                    $this->plural = $value;
+                }
+            }
+            if ($key == share_type::JSON_FLD) {
+                $this->share_id = $share_types->id($value);
+            }
+            if ($key == protection_type::JSON_FLD) {
+                $this->protection_id = $protection_types->id($value);
+            }
+            if ($key == exp_obj::FLD_VIEW) {
+                $wrd_view = new view($this->user());
+                if ($do_save) {
+                    $wrd_view->load_by_name($value, view::class);
+                    if ($wrd_view->id == 0) {
+                        $result->add_message('Cannot find view "' . $value . '" when importing ' . $this->dsp_id());
+                    } else {
+                        $this->view_id = $wrd_view->id;
+                    }
+                } else {
+                    $wrd_view->set_name($value);
+                }
+                $this->view = $wrd_view;
+            }
+
+            if ($key == controller::API_FLD_PHRASES) {
+                $phr_lst = new phrase_list($this->user());
+                $msg->add($phr_lst->db_obj($value));
+                if ($msg->is_ok()) {
+                    $this->grp->phr_lst = $phr_lst;
+                }
+            }
+            */
+
+        }
+
+        return $msg;
     }
 
 
@@ -891,7 +968,7 @@ class triple extends user_sandbox_link_named_with_type implements JsonSerializab
     /**
      * an array of the value vars including the private vars
      */
-    public function jsonSerialize(): array
+    function jsonSerialize(): array
     {
         $vars = get_object_vars($this);
         if ($this->from->obj != null) {
@@ -944,11 +1021,11 @@ class triple extends user_sandbox_link_named_with_type implements JsonSerializab
     /**
      * import a triple from a json object
      *
-     * @param array $json_obj an array with the data of the json object
+     * @param array $in_ex_json an array with the data of the json object
      * @param bool $do_save can be set to false for unit testing
      * @return user_message the status of the import and if needed the error messages that should be shown to the user
      */
-    function import_obj(array $json_obj, bool $do_save = true): user_message
+    function import_obj(array $in_ex_json, bool $do_save = true): user_message
     {
         global $phrase_types;
         global $share_types;
@@ -957,7 +1034,7 @@ class triple extends user_sandbox_link_named_with_type implements JsonSerializab
         log_debug();
         $result = new user_message();
 
-        foreach ($json_obj as $key => $value) {
+        foreach ($in_ex_json as $key => $value) {
             if ($key == exp_obj::FLD_NAME) {
                 $this->set_name($value);
             }
@@ -969,14 +1046,14 @@ class triple extends user_sandbox_link_named_with_type implements JsonSerializab
             }
             if ($key == self::FLD_EX_FROM) {
                 if ($value == "") {
-                    $result->add_message('from name should not be empty at ' . dsp_array($json_obj));
+                    $result->add_message('from name should not be empty at ' . dsp_array($in_ex_json));
                 } else {
                     $this->from = $this->import_phrase($value, $do_save);
                 }
             }
             if ($key == self::FLD_EX_TO) {
                 if ($value == "") {
-                    $result->add_message('to name should not be empty at ' . dsp_array($json_obj));
+                    $result->add_message('to name should not be empty at ' . dsp_array($in_ex_json));
                 } else {
                     $this->to = $this->import_phrase($value, $do_save);
                 }
@@ -1021,7 +1098,7 @@ class triple extends user_sandbox_link_named_with_type implements JsonSerializab
             if ($this->id <= 0 and $do_save) {
                 $result->add_message('Triple ' . $this->dsp_id() . ' cannot be saved');
             } else {
-                foreach ($json_obj as $key => $value) {
+                foreach ($in_ex_json as $key => $value) {
                     if ($result->is_ok()) {
                         if ($key == self::FLD_REFS) {
                             foreach ($value as $ref_data) {
@@ -1106,7 +1183,7 @@ class triple extends user_sandbox_link_named_with_type implements JsonSerializab
     {
         $result = '';
 
-        if ($this->excluded <> 1) {
+        if (!$this->is_excluded()) {
             if ($this->name <> '') {
                 // use the object
                 $result = $this->name;
@@ -1127,7 +1204,8 @@ class triple extends user_sandbox_link_named_with_type implements JsonSerializab
      */
     function generate_name(): string
     {
-        if ($this->verb->id() == cl(db_cl::VERB, verb::IS_A) and $this->from->name() != '' and $this->to->name() != '') {
+        global $verbs;
+        if ($this->verb->id() == $verbs->id(verb::IS_A) and $this->from->name() != '' and $this->to->name() != '') {
             // use the user defined description
             return $this->from->name() . ' (' . $this->to->name() . ')';
         } elseif ($this->from->name() != '' and $this->verb->name() != '' and $this->to->name() != '') {
@@ -1638,7 +1716,10 @@ class triple extends user_sandbox_link_named_with_type implements JsonSerializab
     /**
      * check if the id parameters are supposed to be changed
      */
-    function save_id_if_updated(sql_db $db_con, user_sandbox $db_rec, user_sandbox $std_rec): string
+    function save_id_if_updated(
+        sql_db $db_con,
+        triple|user_sandbox $db_rec,
+        triple|user_sandbox $std_rec): string
     {
         $result = '';
 
@@ -1664,8 +1745,8 @@ class triple extends user_sandbox_link_named_with_type implements JsonSerializab
                     $this->id = $db_chk->id;
                     $this->owner_id = $db_chk->owner_id;
                     // force including again
-                    $this->excluded = null;
-                    $db_rec->excluded = '1';
+                    $this->include();
+                    $db_rec->exclude();
                     if ($this->save_field_excluded($db_con, $db_rec, $std_rec)) {
                         log_debug('triple->save_id_if_updated found a triple with target ids "' . $db_chk->dsp_id() . '", so del "' . $db_rec->dsp_id() . '" and add ' . $this->dsp_id());
                     }

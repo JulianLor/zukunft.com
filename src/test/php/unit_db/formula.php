@@ -41,6 +41,7 @@ class formula_unit_db_tests
 
         global $db_con;
         global $usr;
+        global $formula_types;
 
         // init
         $t->name = 'formula read db->';
@@ -72,7 +73,7 @@ class formula_unit_db_tests
         $t->assert('load_types', $result, true);
 
         // ... and check if at least the most critical is loaded
-        $result = cl(db_cl::FORMULA_TYPE, formula_type::CALC);
+        $result = $formula_types->id(formula_type::CALC);
         $target = 1;
         $t->assert('check ' . formula_type::CALC, $result, 1);
 
@@ -83,7 +84,7 @@ class formula_unit_db_tests
         $t->subheader('Frontend API tests');
 
         $frm = $t->load_formula(formula_api::TN_INCREASE);
-        $t->assert_api_exp($frm);
+        $t->assert_api_obj($frm);
     }
 
 }

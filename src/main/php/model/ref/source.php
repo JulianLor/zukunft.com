@@ -150,7 +150,7 @@ class source extends user_sandbox_named_with_type
      * @param string $name mainly for test creation the name of the source
      * @param string $type_code_id the code id of the predefined source type
      */
-    public function set(int $id = 0, string $name = '', string $type_code_id = ''): void
+    function set(int $id = 0, string $name = '', string $type_code_id = ''): void
     {
         parent::set($id, $name);
 
@@ -181,7 +181,7 @@ class source extends user_sandbox_named_with_type
     function api_obj(): source_api
     {
         $api_obj = new source_api();
-        if (!$this->excluded) {
+        if (!$this->is_excluded()) {
             parent::fill_api_obj($api_obj);
             $api_obj->url = $this->url;
         }
@@ -194,7 +194,7 @@ class source extends user_sandbox_named_with_type
     function dsp_obj(): source_dsp
     {
         $dsp_obj = new source_dsp();
-        if (!$this->excluded) {
+        if (!$this->is_excluded()) {
             parent::fill_dsp_obj($dsp_obj);
             $dsp_obj->url = $this->url;
         }
@@ -335,7 +335,7 @@ class source extends user_sandbox_named_with_type
     /**
      * @return string the source type name from the array preloaded from the database
      */
-    public function type_name(): string
+    function type_name(): string
     {
         global $source_types;
 
@@ -354,18 +354,18 @@ class source extends user_sandbox_named_with_type
     /**
      * import a source from an object
      *
-     * @param array $json_obj an array with the data of the json object
+     * @param array $in_ex_json an array with the data of the json object
      * @param bool $do_save can be set to false for unit testing
      * @return user_message the status of the import and if needed the error messages that should be shown to the user
      */
-    function import_obj(array $json_obj, bool $do_save = true): user_message
+    function import_obj(array $in_ex_json, bool $do_save = true): user_message
     {
         global $source_types;
 
         log_debug();
         $result = new user_message();
 
-        foreach ($json_obj as $key => $value) {
+        foreach ($in_ex_json as $key => $value) {
 
             if ($key == exp_obj::FLD_NAME) {
                 $this->name = $value;
@@ -459,7 +459,7 @@ class source extends user_sandbox_named_with_type
     /**
      * @return bool true if no one has used this source
      */
-    public function not_used(): bool
+    function not_used(): bool
     {
         log_debug($this->id);
 

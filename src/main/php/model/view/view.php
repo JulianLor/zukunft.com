@@ -193,7 +193,7 @@ class view extends user_sandbox_named_with_type
      * @param string $name mainly for test creation the name of the view
      * @param string $type_code_id the code id of the predefined view type
      */
-    public function set(int $id = 0, string $name = '', string $type_code_id = ''): void
+    function set(int $id = 0, string $name = '', string $type_code_id = ''): void
     {
         parent::set($id, $name);
 
@@ -216,7 +216,7 @@ class view extends user_sandbox_named_with_type
     /**
      * @return string a unique name for the view that is also used in the code
      */
-    public function code_id(): string
+    function code_id(): string
     {
         if ($this->code_id == null) {
             return '';
@@ -228,7 +228,7 @@ class view extends user_sandbox_named_with_type
     /**
      * @return string the description of the view
      */
-    public function comment(): string
+    function comment(): string
     {
         if ($this->description == null) {
             return '';
@@ -245,7 +245,7 @@ class view extends user_sandbox_named_with_type
     /**
      * @return string the name of the view type
      */
-    public function type_name(): string
+    function type_name(): string
     {
         global $view_types;
         return $view_types->name($this->type_id);
@@ -732,11 +732,11 @@ class view extends user_sandbox_named_with_type
      * import a view from a JSON object
      * the code_id is not expected to be included in the im- and export because the internal views are not expected to be included in the ex- and import
      *
-     * @param array $json_obj an array with the data of the json object
+     * @param array $in_ex_json an array with the data of the json object
      * @param bool $do_save can be set to false for unit testing
      * @return user_message the status of the import and if needed the error messages that should be shown to the user
      */
-    function import_obj(array $json_obj, bool $do_save = true): user_message
+    function import_obj(array $in_ex_json, bool $do_save = true): user_message
     {
         log_debug();
         $result = new user_message;
@@ -747,7 +747,7 @@ class view extends user_sandbox_named_with_type
         $this->set_user($usr);
 
         // first save the parameters of the view itself
-        foreach ($json_obj as $key => $value) {
+        foreach ($in_ex_json as $key => $value) {
 
             if ($key == exp_obj::FLD_NAME) {
                 $this->name = $value;
@@ -791,7 +791,7 @@ class view extends user_sandbox_named_with_type
         }
 
         // after saving (or remembering) add the view components
-        foreach ($json_obj as $key => $value) {
+        foreach ($in_ex_json as $key => $value) {
             if ($key == self::FLD_COMPONENT) {
                 $json_lst = $value;
                 $cmp_pos = 1;
@@ -806,7 +806,7 @@ class view extends user_sandbox_named_with_type
         }
 
         if (!$result->is_ok()) {
-            $result->add_message(' when importing ' . dsp_array($json_obj));
+            $result->add_message(' when importing ' . dsp_array($in_ex_json));
         }
 
         return $result;

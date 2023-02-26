@@ -51,6 +51,7 @@
 
 use api\phrase_api;
 use cfg\phrase_type;
+use controller\controller;
 use html\html_selector;
 use html\phrase_dsp;
 use html\triple_dsp;
@@ -163,7 +164,7 @@ class phrase extends db_object
                 $wrd->set_name($db_row[phrase::FLD_NAME . $fld_ext]);
                 $wrd->description = $db_row[sql_db::FLD_DESCRIPTION . $fld_ext];
                 $wrd->type_id = $db_row[word::FLD_TYPE . $fld_ext];
-                $wrd->excluded = $db_row[user_sandbox::FLD_EXCLUDED . $fld_ext];
+                $wrd->set_excluded($db_row[user_sandbox::FLD_EXCLUDED . $fld_ext]);
                 $wrd->share_id = $db_row[user_sandbox::FLD_SHARE . $fld_ext];
                 $wrd->protection_id = $db_row[user_sandbox::FLD_PROTECT . $fld_ext];
                 //$wrd->owner_id = $db_row[user_sandbox::FLD_USER . $fld_ext];
@@ -177,7 +178,7 @@ class phrase extends db_object
                 $trp->set_name($db_row[phrase::FLD_NAME . $fld_ext]);
                 $trp->description = $db_row[sql_db::FLD_DESCRIPTION . $fld_ext];
                 $trp->type_id = $db_row[triple::FLD_TYPE . $fld_ext];
-                $trp->excluded = $db_row[user_sandbox::FLD_EXCLUDED . $fld_ext];
+                $trp->set_excluded($db_row[user_sandbox::FLD_EXCLUDED . $fld_ext]);
                 $trp->share_id = $db_row[user_sandbox::FLD_SHARE . $fld_ext];
                 $trp->protection_id = $db_row[user_sandbox::FLD_PROTECT . $fld_ext];
                 // not yet loaded with initial load
@@ -260,12 +261,26 @@ class phrase extends db_object
     }
 
     /**
-     * @return int the id of the phrase witch is (corresponding to id_obj())
+     * @return int|null the id of the phrase witch is (corresponding to id_obj())
      * e.g 1 for a word, -1 for a triple
      */
     function id(): ?int
     {
         return $this->id;
+    }
+
+    /**
+     * @return int the id of the containing object
+     * e.g if the phrase id is  1 and the object is a word   with id 1 simply 1 is returned
+     * but if the phrase id is -1 and the object is a triple with id 1   also 1 is returned
+     */
+    function id_obj(): int
+    {
+        if ($this->obj == null) {
+            return 0;
+        } else {
+            return $this->obj->id();
+        }
     }
 
     /**
@@ -314,6 +329,42 @@ class phrase extends db_object
             return $this->get_word()->dsp_obj()->phrase_dsp();
         } else {
             return $this->get_triple()->dsp_obj()->phrase_dsp();
+        }
+    }
+
+    function term(): term
+    {
+        $trm = new term($this->user());
+        if ($this->obj != null) {
+            $trm->obj = $this->obj;
+            $trm->set_id_from_obj($this->id_obj(), $this->obj::class);
+        }
+        return $trm;
+    }
+
+    /**
+     * map a phrase api json to this model phrase object
+     * @param array $api_json the api array with the phrase values that should be mapped
+     */
+    function set_by_api_json(array $api_json): user_message
+    {
+        $msg = new user_message();
+
+        if ($api_json[controller::API_FLD_ID] > 0) {
+            $wrd = new word($this->user());
+            $msg->add($wrd->set_by_api_json($api_json));
+            if ($msg->is_ok()) {
+                $this->obj = $wrd;
+            }
+            return $msg;
+        } else {
+            $trp = new triple($this->user());
+            $api_json[controller::API_FLD_ID] = $api_json[controller::API_FLD_ID] * -1;
+            $msg->add($trp->set_by_api_json($api_json));
+            if ($msg->is_ok()) {
+                $this->obj = $trp;
+            }
+            return $msg;
         }
     }
 
@@ -437,7 +488,7 @@ class phrase extends db_object
         return $result;
     }
 
-    public function load_obj(): bool
+    function load_obj(): bool
     {
         $result = 0;
         if ($this->is_triple()) {
@@ -568,6 +619,35 @@ class phrase extends db_object
         return $result;
     }
 
+    /**
+     * if there is just one formula linked to the phrase, get it
+     * TODO separate the query parameter creation and add a unit test
+     * TODO allow also to retrieve a list of formulas
+     * TODO get the user specific list of formulas
+     */
+    function formula(): formula
+    {
+        global $db_con;
+
+        $db_con->set_type(sql_db::TBL_FORMULA_LINK);
+        $qp = new sql_par(self::class);
+        $qp->name = 'phrase_formula_by_id';
+        $db_con->set_name($qp->name);
+        $db_con->set_link_fields(formula::FLD_ID, phrase::FLD_ID);
+        $db_con->set_where_link_no_fld(null, null, $this->id);
+        $qp->sql = $db_con->select_by_set_id();
+        $qp->par = $db_con->get_par();
+        $db_row = $db_con->get1($qp);
+        $frm = new formula($this->user());
+        if ($db_row !== false) {
+            if ($db_row[formula::FLD_ID] > 0) {
+                $frm->load_by_id($db_row[formula::FLD_ID], formula::class);
+            }
+        }
+
+        return $frm;
+    }
+
     /*
      * classification
      */
@@ -633,19 +713,21 @@ class phrase extends db_object
     function get_word(): word
     {
         $wrd = new word($this->usr);
-        if (get_class($this->obj) == word::class) {
-            $wrd->set_id($this->obj->id());
-            $wrd->usr_cfg_id = $this->obj->usr_cfg_id;
-            $wrd->owner_id = $this->obj->owner_id;
-            $wrd->share_id = $this->obj->share_id;
-            $wrd->protection_id = $this->obj->protection_id;
-            $wrd->excluded = $this->obj->excluded;
-            $wrd->set_name($this->obj->name());
-            $wrd->description = $this->obj->description;
-            $wrd->plural = $this->obj->plural;
-            $wrd->type_id = $this->obj->type_id;
-            $wrd->view_id = $this->obj->view_id;
-            $wrd->values = $this->obj->values;
+        if ($this->obj != null) {
+            if (get_class($this->obj) == word::class) {
+                $wrd->set_id($this->obj->id());
+                $wrd->usr_cfg_id = $this->obj->usr_cfg_id;
+                $wrd->owner_id = $this->obj->owner_id;
+                $wrd->share_id = $this->obj->share_id;
+                $wrd->protection_id = $this->obj->protection_id;
+                $wrd->set_excluded($this->obj->is_excluded());
+                $wrd->set_name($this->obj->name());
+                $wrd->description = $this->obj->description;
+                $wrd->plural = $this->obj->plural;
+                $wrd->type_id = $this->obj->type_id;
+                $wrd->view_id = $this->obj->view_id;
+                $wrd->values = $this->obj->values;
+            }
         }
         return $wrd;
     }
@@ -663,21 +745,22 @@ class phrase extends db_object
 
     protected function get_triple(): triple
     {
-        $lnk = new triple($this->usr);
+        $trp = new triple($this->usr);
         if (get_class($this->obj) == triple::class) {
-            $lnk->set_id($this->obj->id());
-            $lnk->fob = $this->obj->fob;
-            $lnk->tob = $this->obj->tob;
-            $lnk->usr_cfg_id = $this->obj->usr_cfg_id;
-            $lnk->owner_id = $this->obj->owner_id;
-            $lnk->share_id = $this->obj->share_id;
-            $lnk->protection_id = $this->obj->protection_id;
-            $lnk->excluded = $this->obj->excluded;
-            $lnk->description = $this->obj->description;
-            $lnk->type_id = $this->obj->type_id;
-            $lnk->values = $this->obj->values;
+            $trp->set_id($this->obj->id());
+            $trp->set_name($this->obj->name());
+            $trp->fob = $this->obj->fob;
+            $trp->tob = $this->obj->tob;
+            $trp->usr_cfg_id = $this->obj->usr_cfg_id;
+            $trp->owner_id = $this->obj->owner_id;
+            $trp->share_id = $this->obj->share_id;
+            $trp->protection_id = $this->obj->protection_id;
+            $trp->set_excluded($this->obj->is_excluded());
+            $trp->description = $this->obj->description;
+            $trp->type_id = $this->obj->type_id;
+            $trp->values = $this->obj->values;
         }
-        return $lnk;
+        return $trp;
     }
 
     protected function get_triple_dsp(): triple
@@ -739,6 +822,8 @@ class phrase extends db_object
      */
     function import_obj(string $json_value, bool $do_save = true): user_message
     {
+        global $phrase_types;
+
         $result = new user_message();
         if ($do_save) {
             $this->load_by_name($json_value);
@@ -747,7 +832,7 @@ class phrase extends db_object
                 $wrd->load_by_name($json_value, word::class);
                 if ($wrd->id() == 0) {
                     $wrd->set_name($json_value);
-                    $wrd->type_id = cl(db_cl::PHRASE_TYPE, phrase_type::TIME);
+                    $wrd->type_id = $phrase_types->id(phrase_type::TIME);
                     $result->add_message($wrd->save());
                 }
                 if ($wrd->id() == 0) {
@@ -965,6 +1050,7 @@ class phrase extends db_object
     {
         log_debug();
         global $db_con;
+        global $verbs;
 
         $sql_type_from = '';
         $sql_type_where = '';
@@ -999,7 +1085,7 @@ class phrase extends db_object
                                      LEFT JOIN user_triples u ON u.triple_id = l.triple_id 
                                                                 AND u.user_id = ' . $this->user()->id() . '
                                          WHERE l.to_phrase_id = ' . $type->id() . ' 
-                                           AND l.verb_id = ' . cl(db_cl::VERB, verb::IS_A) . ' ) AS a 
+                                           AND l.verb_id = ' . $verbs->id(verb::IS_A) . ' ) AS a 
                                          WHERE ' . $sql_where_exclude . ' ';
 
                 // ... out of all those get the phrase ids that have also other types e.g. Zurich (Canton)
@@ -1011,7 +1097,7 @@ class phrase extends db_object
                                      LEFT JOIN user_triples u ON u.triple_id = l.triple_id 
                                                                 AND u.user_id = ' . $this->user()->id() . '
                                          WHERE l.to_phrase_id <> ' . $type->id() . ' 
-                                           AND l.verb_id = ' . cl(db_cl::VERB, verb::IS_A) . '
+                                           AND l.verb_id = ' . $verbs->id(verb::IS_A) . '
                                            AND l.from_phrase_id IN (' . $sql_wrd_all . ') ) AS o 
                                          WHERE ' . $sql_where_exclude . ' ';
 
@@ -1038,7 +1124,7 @@ class phrase extends db_object
                      LEFT JOIN user_triples u ON u.triple_id = l.triple_id 
                                                 AND u.user_id = ' . $this->user()->id() . '
                          WHERE l.from_phrase_id IN ( ' . $sql_wrd_other . ')                                        
-                           AND l.verb_id = ' . cl(db_cl::VERB, verb::IS_A) . '
+                           AND l.verb_id = ' . $verbs->id(verb::IS_A) . '
                            AND l.to_phrase_id = ' . $type->id() . ' ) AS t 
                          WHERE ' . $sql_where_exclude . ' ';
                 /*
@@ -1143,8 +1229,8 @@ class phrase extends db_object
     }
 
     /*
-    word replication functions
-    */
+     * word replication functions
+     */
 
     function is_time()
     {
@@ -1197,6 +1283,70 @@ class phrase extends db_object
         $wrd = $this->main_word();
         return $wrd->dsp_time_selector($type, $form_name, $pos, $back);
     }
+
+    /**
+     * @return phrase the following phrase based on the predefined verb following
+     * e.g. the year 2020 if the given year phrase is 2019
+     * TODO add to triple and review
+     * TODO create unit tests
+     */
+    function next(): phrase
+    {
+        log_debug($this->dsp_id());
+
+        global $db_con;
+        global $verbs;
+
+        $result = new phrase($this->user());
+
+        $link_id = $verbs->id(verb::FOLLOW);
+        //$link_id = cl(db_cl::VERB, verb::FOLLOW);
+        //$db_con = new mysql;
+        $db_con->usr_id = $this->user()->id();
+        $db_con->set_type(sql_db::TBL_TRIPLE);
+        $key_result = $db_con->get_value_2key('from_phrase_id', 'to_phrase_id', $this->id, verb::FLD_ID, $link_id);
+        if (is_numeric($key_result)) {
+            $id = intval($key_result);
+            if ($id > 0) {
+                $result->load_by_id($id);
+            }
+        }
+        return $result;
+    }
+
+    /**
+     * return the follow word id based on the predefined verb following
+     * TODO add to triple and review
+     * TODO create unit tests
+     */
+    function prior(): word
+    {
+        log_debug($this->dsp_id());
+
+        global $db_con;
+        global $verbs;
+
+        $result = new word($this->user());
+
+        $link_id = $verbs->id(verb::FOLLOW);
+        //$link_id = cl(db_cl::VERB, verb::FOLLOW);
+        //$db_con = new mysql;
+        $db_con->usr_id = $this->user()->id();
+        $db_con->set_type(sql_db::TBL_TRIPLE);
+        $key_result = $db_con->get_value_2key('to_phrase_id', 'from_phrase_id', $this->id, verb::FLD_ID, $link_id);
+        if (is_numeric($key_result)) {
+            $id = intval($key_result);
+            if ($id > 0) {
+                $result->load_by_id($id);
+            }
+        }
+        return $result;
+    }
+
+
+    /*
+     * save
+     */
 
     /**
      * @return string
