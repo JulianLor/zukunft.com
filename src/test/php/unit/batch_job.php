@@ -30,11 +30,19 @@
 
 */
 
-use api\triple_api;
+namespace test;
+
+include_once MODEL_SYSTEM_PATH . 'batch_job_list.php';
+
+use api\word\triple as triple_api;
+use cfg\batch_job_type_list;
+use cfg\batch_job;
+use cfg\batch_job_list;
+use cfg\db\sql_db;
 
 class batch_job_unit_tests
 {
-    function run(testing $t): void
+    function run(test_cleanup $t): void
     {
 
         global $usr;
@@ -50,12 +58,12 @@ class batch_job_unit_tests
 
         // sql to load one batch job
         $job = new batch_job($usr);
-        $t->assert_load_sql_id($db_con, $job);
+        $t->assert_sql_by_id($db_con, $job);
 
         // sql to load a list of open batch jobs
         $sys_usr = $t->system_user();
         $job_lst = new batch_job_list($sys_usr);
-        $t->assert_load_list_sql_type($db_con, $job_lst, job_type_list::BASE_IMPORT);
+        $t->assert_sql_list_by_type($db_con, $job_lst, batch_job_type_list::BASE_IMPORT);
 
 
         $t->subheader('API unit tests');

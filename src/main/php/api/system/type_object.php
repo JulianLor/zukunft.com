@@ -38,9 +38,11 @@
 
 */
 
-namespace api;
+namespace api\system;
 
-class type_api
+include_once API_SYSTEM_PATH . 'db_object.php';
+
+class type_object extends db_object
 {
 
     /*
@@ -51,7 +53,6 @@ class type_api
 
 
     // the standard fields of a type
-    public int $id;                // the database id that is added in th api object
     public string $code_id;        // this id text is unique for all code links and is used for system im- and export
     public string $name;           // simply the type name as shown to the user
     public ?string $comment = '';  // to explain the type to the user as a tooltip
@@ -62,7 +63,7 @@ class type_api
 
     function __construct(int $id, string $code_id, string $name, string $comment = '')
     {
-        $this->set_id($id);
+        parent::__construct($id);
         $this->set_code_id($code_id);
         $this->set_name($name);
         if ($comment != '') {
@@ -72,7 +73,7 @@ class type_api
 
     function reset(): void
     {
-        $this->id = 0;
+        parent::reset();
         $this->code_id = '';
         $this->name = '';
         $this->comment = null;
@@ -81,16 +82,6 @@ class type_api
     /*
      * set and get
      */
-
-    function set_id(int $id): void
-    {
-        $this->id = $id;
-    }
-
-    function id(): int
-    {
-        return $this->id;
-    }
 
     function set_code_id(string $code_id): void
     {

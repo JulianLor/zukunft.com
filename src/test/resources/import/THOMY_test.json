@@ -76,28 +76,28 @@
       "name": "Food ingredients",
       "comment": "List the ingredients of one product",
       "type": "detail_view",
-      "view_components": [
+      "components": [
         {
-          "pos": "1",
+          "position": "1",
           "name": "Name",
-          "code_id": "word_name"
+          "type": "word_name"
         },
         {
-          "pos": "2",
+          "position": "2",
           "name": "ingredient list",
           "code_id": "values_related",
           "row": "ingredients",
           "column": "food ingredient units"
         },
         {
-          "pos": "3",
+          "position": "3",
           "name": "formulas",
-          "code_id": "formula_list"
+          "type": "formula_list"
         },
         {
-          "pos": "4",
+          "position": "4",
           "name": "JSON Export",
-          "code_id": "json_export"
+          "type": "json_export"
         }
       ]
     }

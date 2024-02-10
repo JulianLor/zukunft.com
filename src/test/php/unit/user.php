@@ -6,7 +6,7 @@
     ------------------
 
 
-    This file is part of zukunft.com - calc with users
+    This file is part of zukunft.com - calc with words
 
     zukunft.com is free software: you can redistribute it and/or modify it
     under the terms of the GNU General Public License as
@@ -30,13 +30,16 @@
 
 */
 
-use api\user_api;
-use cfg\phrase_type;
+namespace test;
+
+use cfg\db\sql_db;
+use cfg\user;
+use cfg\user_list;
 
 class user_unit_tests
 {
 
-    function run(testing $t): void
+    function run(test_cleanup $t): void
     {
 
         global $usr;
@@ -45,7 +48,7 @@ class user_unit_tests
         $db_con = new sql_db();
         $t->name = 'user->';
         $t->resource_path = 'db/user/';
-        $json_file = '';
+        $json_file = 'unit/user/user_import.json';
         $usr->set_id(1);
 
         $t->header('Unit tests of the user class (src/main/php/model/user/user.php)');
@@ -54,12 +57,16 @@ class user_unit_tests
         $t->subheader('SQL statement tests');
 
         $test_usr = new user();
-        $t->assert_load_sql_id($db_con, $test_usr);
-        $t->assert_load_sql_name($db_con, $test_usr);
-        $this->assert_load_sql_email($t, $db_con, $test_usr);
-        $this->assert_load_sql_name_or_email($t, $db_con, $test_usr);
-        $this->assert_load_sql_ip($t, $db_con, $test_usr);
-        $this->assert_load_sql_profile($t, $db_con, $test_usr);
+        $t->assert_sql_by_id($db_con, $test_usr);
+        $t->assert_sql_by_name($db_con, $test_usr);
+        $this->assert_sql_by_email($t, $db_con, $test_usr);
+        $this->assert_sql_by_name_or_email($t, $db_con, $test_usr);
+        $this->assert_sql_by_ip($t, $db_con, $test_usr);
+        $this->assert_sql_by_profile($t, $db_con, $test_usr);
+
+        $test_usr_list = new user_list($test_usr);
+        // TODO include all value tables
+        $this->assert_sql_count_changes($t, $db_con, $test_usr_list);
 
 
         $t->subheader('API unit tests');
@@ -70,7 +77,7 @@ class user_unit_tests
 
         $t->subheader('Im- and Export tests');
 
-        //$t->assert_json(new user(), $json_file);
+        $t->assert_json_file(new user(), $json_file);
 
     }
 
@@ -82,100 +89,114 @@ class user_unit_tests
      * similar to assert_load_sql of the testing class but select one user based on the email
      * check the object load by name SQL statements for all allowed SQL database dialects
      *
-     * @param testing $t the testing object with the error counter
+     * @param test_cleanup $t the testing object with the error counter
      * @param sql_db $db_con does not need to be connected to a real database
      * @param object $usr_obj the user sandbox object e.g. a verb
-     * @return bool true if all tests are fine
      */
-    function assert_load_sql_email(testing $t, sql_db $db_con, object $usr_obj): bool
+    private function assert_sql_by_email(test_cleanup $t, sql_db $db_con, object $usr_obj): void
     {
         // check the Postgres query syntax
         $db_con->db_type = sql_db::POSTGRES;
-        $qp = $usr_obj->load_sql_by_email($db_con, 'System test', $usr_obj::class);
+        $qp = $usr_obj->load_sql_by_email($db_con->sql_creator(), 'System test', $usr_obj::class);
         $result = $t->assert_qp($qp, $db_con->db_type);
 
         // ... and check the MySQL query syntax
         if ($result) {
             $db_con->db_type = sql_db::MYSQL;
-            $qp = $usr_obj->load_sql_by_email($db_con, 'System test', $usr_obj::class);
-            $result = $t->assert_qp($qp, $db_con->db_type);
+            $qp = $usr_obj->load_sql_by_email($db_con->sql_creator(), 'System test', $usr_obj::class);
+            $t->assert_qp($qp, $db_con->db_type);
         }
-        return $result;
     }
 
     /**
      * similar to assert_load_sql of the testing class but select one user based on the name or email
      * check the object load by name SQL statements for all allowed SQL database dialects
      *
-     * @param testing $t the testing object with the error counter
+     * @param test_cleanup $t the testing object with the error counter
      * @param sql_db $db_con does not need to be connected to a real database
      * @param object $usr_obj the user sandbox object e.g. a verb
-     * @return bool true if all tests are fine
      */
-    function assert_load_sql_name_or_email(testing $t, sql_db $db_con, object $usr_obj): bool
+    private function assert_sql_by_name_or_email(test_cleanup $t, sql_db $db_con, object $usr_obj): void
     {
         // check the Postgres query syntax
         $db_con->db_type = sql_db::POSTGRES;
-        $qp = $usr_obj->load_sql_by_name_or_email($db_con, 'System test name', 'System test email', $usr_obj::class);
+        $qp = $usr_obj->load_sql_by_name_or_email($db_con->sql_creator(), 'System test name', 'System test email', $usr_obj::class);
         $result = $t->assert_qp($qp, $db_con->db_type);
 
         // ... and check the MySQL query syntax
         if ($result) {
             $db_con->db_type = sql_db::MYSQL;
-            $qp = $usr_obj->load_sql_by_name_or_email($db_con, 'System test name', 'System test email', $usr_obj::class);
-            $result = $t->assert_qp($qp, $db_con->db_type);
+            $qp = $usr_obj->load_sql_by_name_or_email($db_con->sql_creator(), 'System test name', 'System test email', $usr_obj::class);
+            $t->assert_qp($qp, $db_con->db_type);
         }
-        return $result;
     }
 
     /**
      * similar to assert_load_sql of the testing class but select first user with the given ip address
      * check the object load by name SQL statements for all allowed SQL database dialects
      *
-     * @param testing $t the testing object with the error counter
+     * @param test_cleanup $t the testing object with the error counter
      * @param sql_db $db_con does not need to be connected to a real database
      * @param object $usr_obj the user sandbox object e.g. a verb
-     * @return bool true if all tests are fine
      */
-    function assert_load_sql_ip(testing $t, sql_db $db_con, object $usr_obj): bool
+    private function assert_sql_by_ip(test_cleanup $t, sql_db $db_con, object $usr_obj): void
     {
         // check the Postgres query syntax
         $db_con->db_type = sql_db::POSTGRES;
-        $qp = $usr_obj->load_sql_by_ip($db_con, 'System test', $usr_obj::class);
+        $qp = $usr_obj->load_sql_by_ip($db_con->sql_creator(), 'System test', $usr_obj::class);
         $result = $t->assert_qp($qp, $db_con->db_type);
 
         // ... and check the MySQL query syntax
         if ($result) {
             $db_con->db_type = sql_db::MYSQL;
-            $qp = $usr_obj->load_sql_by_ip($db_con, 'System test', $usr_obj::class);
-            $result = $t->assert_qp($qp, $db_con->db_type);
+            $qp = $usr_obj->load_sql_by_ip($db_con->sql_creator(), 'System test', $usr_obj::class);
+            $t->assert_qp($qp, $db_con->db_type);
         }
-        return $result;
     }
 
     /**
      * similar to assert_load_sql of the testing class but select the first user with the given profile
      * check the object load by name SQL statements for all allowed SQL database dialects
      *
-     * @param testing $t the testing object with the error counter
+     * @param test_cleanup $t the testing object with the error counter
      * @param sql_db $db_con does not need to be connected to a real database
      * @param object $usr_obj the user sandbox object e.g. a verb
-     * @return bool true if all tests are fine
      */
-    function assert_load_sql_profile(testing $t, sql_db $db_con, object $usr_obj): bool
+    private function assert_sql_by_profile(test_cleanup $t, sql_db $db_con, object $usr_obj): void
     {
         // check the Postgres query syntax
         $db_con->db_type = sql_db::POSTGRES;
-        $qp = $usr_obj->load_sql_by_profile($db_con, 1, $usr_obj::class);
+        $qp = $usr_obj->load_sql_by_profile($db_con->sql_creator(), 1, $usr_obj::class);
         $result = $t->assert_qp($qp, $db_con->db_type);
 
         // ... and check the MySQL query syntax
         if ($result) {
             $db_con->db_type = sql_db::MYSQL;
-            $qp = $usr_obj->load_sql_by_profile($db_con, 1, $usr_obj::class);
-            $result = $t->assert_qp($qp, $db_con->db_type);
+            $qp = $usr_obj->load_sql_by_profile($db_con->sql_creator(), 1, $usr_obj::class);
+            $t->assert_qp($qp, $db_con->db_type);
         }
-        return $result;
+    }
+
+    /**
+     * check the SQL statements to count the changes by a user
+     *
+     * @param test_cleanup $t the testing object with the error counter
+     * @param sql_db $db_con does not need to be connected to a real database
+     * @param object $usr_obj the user sandbox object e.g. a verb
+     */
+    private function assert_sql_count_changes(test_cleanup $t, sql_db $db_con, object $usr_obj): void
+    {
+        // check the Postgres query syntax
+        $db_con->db_type = sql_db::POSTGRES;
+        $qp = $usr_obj->load_sql_count_changes($db_con->sql_creator());
+        $result = $t->assert_qp($qp, $db_con->db_type);
+
+        // ... and check the MySQL query syntax
+        if ($result) {
+            $db_con->db_type = sql_db::MYSQL;
+            $qp = $usr_obj->load_sql_count_changes($db_con->sql_creator());
+            $t->assert_qp($qp, $db_con->db_type);
+        }
     }
 
 }

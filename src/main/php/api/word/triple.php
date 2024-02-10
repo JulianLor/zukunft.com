@@ -30,13 +30,16 @@
 
 */
 
-namespace api;
+namespace api\word;
 
+use api\word\word as word_api;
+use api\phrase\phrase as phrase_api;
+use api\phrase\term as term_api;
+use api\sandbox\sandbox_typed as sandbox_typed_api;
+use api\verb\verb as verb_api;
 use cfg\phrase_type;
-use html\term_dsp;
-use triple;
 
-class triple_api extends user_sandbox_named_with_type_api
+class triple extends sandbox_typed_api
 {
 
     /*
@@ -45,8 +48,33 @@ class triple_api extends user_sandbox_named_with_type_api
 
     // triple names for stand-alone unit tests that are added with the system initial data load
     // TN_* is the name of the triple used for testing
-    const TN_READ = 'Pi';
-    const TN_READ_NAME = 'Pi (math)';
+    // TD_* is the tooltip/description of the triple
+    const TN_READ = 'Mathematical constant';
+    const TI_READ = 1;
+    const TD_READ = 'A mathematical constant that never changes e.g. Pi';
+    const TN_PI = 'Pi';
+    const TN_CUBIC_METER = 'm3';
+    const TN_PI_NAME = 'Pi (math)';
+    const TI_PI = 2;
+    const TD_PI = 'ratio of the circumference of a circle to its diameter';
+    const TN_E = '𝑒 (math)';
+    const TI_E = 3;
+    const TD_E = 'Is the limit of (1 + 1/n)^n as n approaches infinity';
+    const TN_ADD = 'System Test Triple';
+    const TN_ADD_AUTO = 'System Test Triple';
+    const TN_EXCLUDED = 'System Test Excluded Zurich Insurance is not part of the City of Zurich';
+
+    const TN_ZH_CITY = 'Zurich (City)';
+    const TI_ZH_CITY = 38;
+    const TN_ZH_CITY_NAME = 'City of Zurich';
+    const TN_BE_CITY = 'Bern (City)';
+    const TI_BE_CITY = 39;
+    const TN_GE_CITY = 'Geneva (City)';
+    const TI_GE_CITY = 40;
+    const TN_ZH_CANTON = 'Zurich (Canton)';
+    const TN_ZH_CANTON_NAME = 'Canton Zurich';
+    const TN_ZH_COMPANY = "Zurich Insurance";
+    const TN_VESTAS_COMPANY = "Vestas SA";
 
 
     /*
@@ -58,15 +86,13 @@ class triple_api extends user_sandbox_named_with_type_api
     private verb_api $verb;
     private phrase_api $to;
 
-    public ?string $description = null; // the triple description that is shown as a mouseover explain to the user
-
 
     /*
      * construct and map
      */
 
     function __construct(
-        int $id = 0,
+        int    $id = 0,
         string $name = '',
         string $from = '',
         string $verb = '',
@@ -74,7 +100,9 @@ class triple_api extends user_sandbox_named_with_type_api
     )
     {
         parent::__construct($id, $name);
-        $this->set($from, $verb, $to);
+        if ($from != '' or $verb != '' or $to != '') {
+            $this->set($from, $verb, $to);
+        }
     }
 
 
@@ -84,9 +112,15 @@ class triple_api extends user_sandbox_named_with_type_api
 
     function set(string $from, string $verb, string $to): void
     {
-        $this->set_from(new phrase_api(0, $from));
-        $this->set_verb(new verb_api(0, $verb));
-        $this->set_to(new phrase_api(0, $to));
+        if ($from != '') {
+            $this->set_from(new phrase_api(new word_api(0, $from)));
+        }
+        if ($verb != '') {
+            $this->set_verb(new verb_api(0, $verb));
+        }
+        if ($to != '') {
+            $this->set_to(new phrase_api(new word_api(0, $to)));
+        }
     }
 
     function set_from(phrase_api $from): void
@@ -124,9 +158,17 @@ class triple_api extends user_sandbox_named_with_type_api
      * cast
      */
 
-    function term(): term_api|term_dsp
+    /**
+     * @return phrase_api the related phrase api or display object with the basic values filled
+     */
+    function phrase(): phrase_api
     {
-        return new term_api($this->id, $this->name, triple::class);
+        return new phrase_api($this);
+    }
+
+    function term(): term_api
+    {
+        return new term_api($this);
     }
 
 
@@ -182,7 +224,7 @@ class triple_api extends user_sandbox_named_with_type_api
     }
 
     /**
-     * @return bool true if the word has the type "scaling" (e.g. "million", "million" or "one"; "one" is a hidden scaling type)
+     * @return bool true if the word has the type "scaling" (e.g. "a million", "a million" or "one"; "one" is a hidden scaling type)
      */
     function is_scaling(): bool
     {

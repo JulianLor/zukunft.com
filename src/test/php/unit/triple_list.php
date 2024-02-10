@@ -30,9 +30,28 @@
 
 */
 
+namespace test;
+
+include_once MODEL_WORD_PATH . 'triple_list.php';
+include_once WEB_WORD_PATH . 'triple_list.php';
+
+use api\word\triple as triple_api;
+use cfg\foaf_direction;
+use cfg\phrase_list;
+use cfg\triple;
+use cfg\verb_list;
+use html\word\triple_list as triple_list_dsp;
+use cfg\library;
+use cfg\phrase;
+use cfg\db\sql_db;
+use cfg\triple_list;
+use cfg\verb;
+use cfg\word;
+use cfg\word_list;
+
 class triple_list_unit_tests
 {
-    function run(testing $t): void
+    function run(test_cleanup $t): void
     {
 
         global $usr;
@@ -42,500 +61,58 @@ class triple_list_unit_tests
         $db_con = new sql_db();
         $t->name = 'triple_list->';
         $t->resource_path = 'db/triple/';
+        $json_file = 'unit/triple/triple_list.json';
         $usr->set_id(1);
 
         $t->header('Unit tests of the word link list class (src/main/php/model/word/triple_list.php)');
 
         $t->subheader('Database query creation tests');
 
+        // load only the names
+        $trp_lst = new triple_list($usr);
+        $t->assert_sql_names($db_con, $trp_lst, new triple($usr));
+        $t->assert_sql_names($db_con, $trp_lst, new triple($usr), triple_api::TD_READ);
+
         // load by triple ids
         $trp_lst = new triple_list($usr);
-        $trp_ids = array(3,2,4);
-        $this->assert_sql_by_ids($t, $db_con, $trp_lst, $trp_ids);
+        $t->assert_sql_by_ids($db_con, $trp_lst, array(3,2,4));
 
-        // load by triple phr
+        // load by phr
         $trp_lst = new triple_list($usr);
         $phr = new phrase($usr);
         $phr->set_id(5);
         $this->assert_sql_by_phr($t, $db_con, $trp_lst, $phr);
+        $vrb = new verb(1);
+        $this->assert_sql_by_phr($t, $db_con, $trp_lst, $phr, $vrb, foaf_direction::UP);
+        $this->assert_sql_by_phr($t, $db_con, $trp_lst, $phr, $vrb, foaf_direction::DOWN);
 
-        /*
-         * SQL creation tests (mainly to use the IDE check for the generated SQL statements
-         */
+        // load by phrase list
+        $trp_lst = new triple_list($usr);
+        $phr = new phrase($usr);
+        $phr->set_id(6);
+        $phr2 = new phrase($usr);
+        $phr2->set_id(7);
+        $phr_lst = new phrase_list($usr);
+        $phr_lst->add($phr);
+        $phr_lst->add($phr2);
+        $this->assert_sql_by_phr_lst($t, $db_con, $trp_lst, $phr_lst, null,  foaf_direction::UP);
+        $this->assert_sql_by_phr_lst($t, $db_con, $trp_lst, $phr_lst);
+        $vrb = new verb(1);
+        $this->assert_sql_by_phr_lst($t, $db_con, $trp_lst, $phr_lst, $vrb, foaf_direction::UP);
+        $this->assert_sql_by_phr_lst($t, $db_con, $trp_lst, $phr_lst, $vrb, foaf_direction::DOWN);
+        // TODO activate Prio 1
+        // $this->assert_sql_by_phr_lst($t, $db_con, $trp_lst, $phr_lst, $vrb);
 
-        $db_con = new sql_db();
-        $db_con->db_type = sql_db::POSTGRES;
 
-        // sql to load by word link list by ids
-        $wrd_lnk_lst = new triple_list($usr);
-        $wrd_lnk_lst->ids = [1, 2, 3];
-        $created_sql = $wrd_lnk_lst->load_sql($db_con);
-        //$expected_sql = $t->file('');
-        $expected_sql = "SELECT 
-                          l.triple_id,
-                          ul.triple_id AS user_triple_id,
-                          l.user_id,
-                          l.from_phrase_id,
-                          l.verb_id,
-                          l.word_type_id,
-                          l.to_phrase_id,
-                          l.triple_name,
-                          l.name_given,
-                          l.name_generated,
-                          l.description,
-                          l.values,
-                          l.share_type_id,
-                          l.protect_id,
-                          v.verb_id,
-                          v.code_id,
-                          v.verb_name,
-                          v.name_plural,
-                          v.name_reverse,
-                          v.name_plural_reverse,
-                          v.formula_name,
-                          v.description,
-                          v.words,
-                          CASE WHEN (ul.excluded          IS     NULL) THEN l.excluded      ELSE ul.excluded     END AS excluded,
-                          t1.word_id AS word_id1,
-                          t1.user_id AS user_id1,
-                          CASE WHEN (u1.word_name    <> '' IS NOT TRUE) THEN t1.word_name     ELSE u1.word_name     END AS word_name1,
-                          CASE WHEN (u1.plural       <> '' IS NOT TRUE) THEN t1.plural        ELSE u1.plural        END AS plural1,
-                          CASE WHEN (u1.description  <> '' IS NOT TRUE) THEN t1.description   ELSE u1.description   END AS description1,
-                          CASE WHEN (u1.word_type_id       IS     NULL) THEN t1.word_type_id  ELSE u1.word_type_id  END AS word_type_id1,
-                          CASE WHEN (u1.view_id            IS     NULL) THEN t1.view_id       ELSE u1.view_id       END AS view_id1,
-                          CASE WHEN (u1.excluded           IS     NULL) THEN t1.excluded      ELSE u1.excluded      END AS excluded1,
-                          t1.values AS values1, 
-                          t2.word_id AS word_id2,
-                          t2.user_id AS user_id2,
-                          CASE WHEN (u2.word_name   <> '' IS NOT TRUE) THEN t2.word_name    ELSE u2.word_name    END AS word_name2,
-                          CASE WHEN (u2.plural      <> '' IS NOT TRUE) THEN t2.plural       ELSE u2.plural       END AS plural2,
-                          CASE WHEN (u2.description <> '' IS NOT TRUE) THEN t2.description  ELSE u2.description  END AS description2,
-                          CASE WHEN (u2.word_type_id      IS     NULL) THEN t2.word_type_id ELSE u2.word_type_id END AS word_type_id2,
-                          CASE WHEN (u2.view_id           IS     NULL) THEN t2.view_id      ELSE u2.view_id      END AS view_id2,
-                          CASE WHEN (u2.excluded          IS     NULL) THEN t2.excluded     ELSE u2.excluded     END AS excluded2,
-                          t2.values AS values2
-                     FROM triples l LEFT JOIN user_triples ul  ON ul.triple_id = l.triple_id 
-                                                                    AND ul.user_id = 1,
-                          verbs v, 
-                          words t1     LEFT JOIN user_words u1       ON u1.word_id  = t1.word_id 
-                                                                    AND u1.user_id  = 1 , 
-                          words t2     LEFT JOIN user_words u2       ON u2.word_id = t2.word_id 
-                                                                    AND u2.user_id = 1 
-                    WHERE l.verb_id        = v.verb_id 
-                      AND l.from_phrase_id = t1.word_id
-                      AND l.to_phrase_id   = t2.word_id 
-                      AND l.triple_id  IN (1,2,3)                        
-                 ORDER BY l.verb_id, name_given;"; // order adjusted based on the number of usage
-        $t->dsp('triple_list->load_sql by IDs', $lib->trim($expected_sql), $lib->trim($created_sql));
+        $t->subheader('Im- and Export tests');
 
-        // ... and check if the prepared sql name is unique
-        //$t->assert_sql_name_unique($wrd_lnk_lst->load_sql_name());
+        $t->assert_json_file(new triple_list($usr), $json_file);
 
-        // sql to load by word link list by word and up
-        $wrd = new word($usr);
-        $wrd->set_id(1);
-        $wrd_lnk_lst = new triple_list($usr);
-        $wrd_lnk_lst->wrd = $wrd;
-        $wrd_lnk_lst->direction = triple_list::DIRECTION_UP;
-        $created_sql = $wrd_lnk_lst->load_sql($db_con);
-        $expected_sql = "SELECT 
-                          l.triple_id,
-                          ul.triple_id AS user_triple_id,
-                          l.user_id,
-                          l.from_phrase_id,
-                          l.verb_id,
-                          l.word_type_id,
-                          l.to_phrase_id,
-                          l.triple_name,
-                          l.name_given,
-                          l.name_generated,
-                          l.description,
-                          l.values,
-                          l.share_type_id,
-                          l.protect_id,
-                          v.verb_id,
-                          v.code_id,
-                          v.verb_name,
-                          v.name_plural,
-                          v.name_reverse,
-                          v.name_plural_reverse,
-                          v.formula_name,
-                          v.description,
-                          v.words,
-                          CASE WHEN (ul.excluded          IS     NULL) THEN l.excluded      ELSE ul.excluded     END AS excluded,
-                          t2.word_id AS word_id2,
-                          t2.user_id AS user_id2,
-                          CASE WHEN (u2.word_name   <> '' IS NOT TRUE) THEN t2.word_name    ELSE u2.word_name    END AS word_name2,
-                          CASE WHEN (u2.plural      <> '' IS NOT TRUE) THEN t2.plural       ELSE u2.plural       END AS plural2,
-                          CASE WHEN (u2.description <> '' IS NOT TRUE) THEN t2.description  ELSE u2.description  END AS description2,
-                          CASE WHEN (u2.word_type_id      IS     NULL) THEN t2.word_type_id ELSE u2.word_type_id END AS word_type_id2,
-                          CASE WHEN (u2.view_id           IS     NULL) THEN t2.view_id      ELSE u2.view_id      END AS view_id2,
-                          CASE WHEN (u2.excluded          IS     NULL) THEN t2.excluded     ELSE u2.excluded     END AS excluded2,
-                          t2.values AS values2
-                     FROM triples l LEFT JOIN user_triples ul  ON ul.triple_id = l.triple_id 
-                                                                    AND ul.user_id = 1,
-                          verbs v, 
-                          words t2     LEFT JOIN user_words u2       ON u2.word_id = t2.word_id 
-                                                                    AND u2.user_id = 1 
-                    WHERE l.verb_id        = v.verb_id 
-                      AND l.to_phrase_id   = t2.word_id 
-                      AND l.from_phrase_id = 1                        
-                 ORDER BY l.verb_id, name_given;"; // order adjusted based on the number of usage
-        $t->dsp('triple_list->load_sql by word and up', $lib->trim($expected_sql), $lib->trim($created_sql));
 
-        // ... and check if the prepared sql name is unique
-        $t->assert_sql_name_unique($wrd_lnk_lst->load_sql_name());
+        $t->subheader('HTML frontend unit tests');
 
-        // sql to load by word link list by word and down
-        $wrd = new word($usr);
-        $wrd->set_id(2);
-        $wrd_lnk_lst = new triple_list($usr);
-        $wrd_lnk_lst->wrd = $wrd;
-        $wrd_lnk_lst->direction = triple_list::DIRECTION_DOWN;
-        $created_sql = $wrd_lnk_lst->load_sql($db_con);
-        $expected_sql = "SELECT 
-                          l.triple_id,
-                          ul.triple_id AS user_triple_id,
-                          l.user_id,
-                          l.from_phrase_id,
-                          l.verb_id,
-                          l.word_type_id,
-                          l.to_phrase_id,
-                          l.triple_name,
-                          l.name_given,
-                          l.name_generated,
-                          l.description,
-                          l.values,
-                          l.share_type_id,
-                          l.protect_id,
-                          v.verb_id,
-                          v.code_id,
-                          v.verb_name,
-                          v.name_plural,
-                          v.name_reverse,
-                          v.name_plural_reverse,
-                          v.formula_name,
-                          v.description,
-                          v.words,
-                          CASE WHEN (ul.excluded          IS     NULL) THEN l.excluded      ELSE ul.excluded     END AS excluded,
-                          t2.word_id AS word_id2,
-                          t2.user_id AS user_id2,
-                          CASE WHEN (u2.word_name   <> '' IS NOT TRUE) THEN t2.word_name    ELSE u2.word_name    END AS word_name2,
-                          CASE WHEN (u2.plural      <> '' IS NOT TRUE) THEN t2.plural       ELSE u2.plural       END AS plural2,
-                          CASE WHEN (u2.description <> '' IS NOT TRUE) THEN t2.description  ELSE u2.description  END AS description2,
-                          CASE WHEN (u2.word_type_id      IS     NULL) THEN t2.word_type_id ELSE u2.word_type_id END AS word_type_id2,
-                          CASE WHEN (u2.view_id           IS     NULL) THEN t2.view_id      ELSE u2.view_id      END AS view_id2,
-                          CASE WHEN (u2.excluded          IS     NULL) THEN t2.excluded     ELSE u2.excluded     END AS excluded2,
-                          t2.values AS values2
-                     FROM triples l LEFT JOIN user_triples ul  ON ul.triple_id = l.triple_id 
-                                                                    AND ul.user_id = 1,
-                          verbs v, 
-                          words t2     LEFT JOIN user_words u2       ON u2.word_id = t2.word_id 
-                                                                    AND u2.user_id = 1 
-                    WHERE l.verb_id        = v.verb_id 
-                      AND l.from_phrase_id   = t2.word_id 
-                      AND l.to_phrase_id = 2                        
-                 ORDER BY l.verb_id, name_given;"; // order adjusted based on the number of usage
-        $t->dsp('triple_list->load_sql by word and down', $lib->trim($expected_sql), $lib->trim($created_sql));
-
-        // ... and check if the prepared sql name is unique
-        $t->assert_sql_name_unique($wrd_lnk_lst->load_sql_name());
-
-        // sql to load by word link list by word list and up
-        $wrd_lst = new word_list($usr);
-        $wrd = new word($usr);
-        $wrd->set_id(1);
-        $wrd_lst->add($wrd);
-        $wrd = new word($usr);
-        $wrd->set_id(2);
-        $wrd_lst->add($wrd);
-        $wrd_lnk_lst = new triple_list($usr);
-        $wrd_lnk_lst->wrd_lst = $wrd_lst;
-        $wrd_lnk_lst->direction = triple_list::DIRECTION_UP;
-        $created_sql = $wrd_lnk_lst->load_sql($db_con);
-        $expected_sql = "SELECT 
-                          l.triple_id,
-                          ul.triple_id AS user_triple_id,
-                          l.user_id,
-                          l.from_phrase_id,
-                          l.verb_id,
-                          l.word_type_id,
-                          l.to_phrase_id,
-                          l.triple_name,
-                          l.name_given,
-                          l.name_generated,
-                          l.description,
-                          l.values,
-                          l.share_type_id,
-                          l.protect_id,
-                          v.verb_id,
-                          v.code_id,
-                          v.verb_name,
-                          v.name_plural,
-                          v.name_reverse,
-                          v.name_plural_reverse,
-                          v.formula_name,
-                          v.description,
-                          v.words,
-                          CASE WHEN (ul.excluded         IS     NULL) THEN l.excluded     ELSE ul.excluded    END AS excluded,
-                          t1.word_id AS word_id1,
-                          t1.user_id AS user_id1,
-                          CASE WHEN (u1.word_name <> ''   IS NOT TRUE) THEN t1.word_name    ELSE u1.word_name    END AS word_name1,
-                          CASE WHEN (u1.plural <> ''      IS NOT TRUE) THEN t1.plural       ELSE u1.plural       END AS plural1,
-                          CASE WHEN (u1.description <> '' IS NOT TRUE) THEN t1.description  ELSE u1.description  END AS description1,
-                          CASE WHEN (u1.word_type_id      IS     NULL) THEN t1.word_type_id ELSE u1.word_type_id END AS word_type_id1,
-                          CASE WHEN (u1.view_id           IS     NULL) THEN t1.view_id      ELSE u1.view_id      END AS view_id1,
-                          CASE WHEN (u1.excluded          IS     NULL) THEN t1.excluded     ELSE u1.excluded     END AS excluded1,
-                          t1.values AS values1, 
-                          t2.word_id AS word_id2,
-                          t2.user_id AS user_id2,
-                          CASE WHEN (u2.word_name   <> '' IS NOT TRUE) THEN t2.word_name    ELSE u2.word_name    END AS word_name2,
-                          CASE WHEN (u2.plural      <> '' IS NOT TRUE) THEN t2.plural       ELSE u2.plural       END AS plural2,
-                          CASE WHEN (u2.description <> '' IS NOT TRUE) THEN t2.description  ELSE u2.description  END AS description2,
-                          CASE WHEN (u2.word_type_id      IS     NULL) THEN t2.word_type_id ELSE u2.word_type_id END AS word_type_id2,
-                          CASE WHEN (u2.view_id           IS     NULL) THEN t2.view_id      ELSE u2.view_id      END AS view_id2,
-                          CASE WHEN (u2.excluded          IS     NULL) THEN t2.excluded     ELSE u2.excluded     END AS excluded2,
-                          t2.values AS values2
-                     FROM triples l LEFT JOIN user_triples ul  ON ul.triple_id = l.triple_id 
-                                                                    AND ul.user_id = 1,
-                          verbs v, 
-                          words t1     LEFT JOIN user_words u1       ON u1.word_id = t1.word_id 
-                                                                    AND u1.user_id = 1 , 
-                          words t2     LEFT JOIN user_words u2       ON u2.word_id = t2.word_id 
-                                                                    AND u2.user_id = 1 
-                    WHERE l.verb_id        = v.verb_id 
-                      AND l.from_phrase_id = t1.word_id
-                      AND l.to_phrase_id   = t2.word_id 
-                      AND l.from_phrase_id IN (1,2)
-                 ORDER BY l.verb_id, name_given;"; // order adjusted based on the number of usage
-        $t->dsp('triple_list->load_sql by word list and up', $lib->trim($expected_sql), $lib->trim($created_sql));
-
-        // ... and check if the prepared sql name is unique
-        $t->assert_sql_name_unique($wrd_lnk_lst->load_sql_name());
-
-        // sql to load by word link list by word list and down
-        $wrd_lst = new word_list($usr);
-        $wrd = new word($usr);
-        $wrd->set_id(2);
-        $wrd_lst->add($wrd);
-        $wrd = new word($usr);
-        $wrd->set_id(3);
-        $wrd_lst->add($wrd);
-        $wrd_lnk_lst = new triple_list($usr);
-        $wrd_lnk_lst->wrd_lst = $wrd_lst;
-        $wrd_lnk_lst->direction = triple_list::DIRECTION_DOWN;
-        $created_sql = $wrd_lnk_lst->load_sql($db_con);
-        $expected_sql = "SELECT 
-                          l.triple_id,
-                          ul.triple_id AS user_triple_id,
-                          l.user_id,
-                          l.from_phrase_id,
-                          l.verb_id,
-                          l.word_type_id,
-                          l.to_phrase_id,
-                          l.triple_name,
-                          l.name_given,
-                          l.name_generated,
-                          l.description,
-                          l.values,
-                          l.share_type_id,
-                          l.protect_id,
-                          v.verb_id,
-                          v.code_id,
-                          v.verb_name,
-                          v.name_plural,
-                          v.name_reverse,
-                          v.name_plural_reverse,
-                          v.formula_name,
-                          v.description,
-                          v.words,
-                          CASE WHEN (ul.excluded         IS     NULL) THEN l.excluded     ELSE ul.excluded    END AS excluded,
-                          t1.word_id AS word_id1,
-                          t1.user_id AS user_id1,
-                          CASE WHEN (u1.word_name <> ''   IS NOT TRUE) THEN t1.word_name    ELSE u1.word_name    END AS word_name1,
-                          CASE WHEN (u1.plural <> ''      IS NOT TRUE) THEN t1.plural       ELSE u1.plural       END AS plural1,
-                          CASE WHEN (u1.description <> '' IS NOT TRUE) THEN t1.description  ELSE u1.description  END AS description1,
-                          CASE WHEN (u1.word_type_id      IS     NULL) THEN t1.word_type_id ELSE u1.word_type_id END AS word_type_id1,
-                          CASE WHEN (u1.view_id           IS     NULL) THEN t1.view_id      ELSE u1.view_id      END AS view_id1,
-                          CASE WHEN (u1.excluded          IS     NULL) THEN t1.excluded     ELSE u1.excluded     END AS excluded1,
-                          t1.values AS values1, 
-                          t2.word_id AS word_id2,
-                          t2.user_id AS user_id2,
-                          CASE WHEN (u2.word_name   <> '' IS NOT TRUE) THEN t2.word_name    ELSE u2.word_name    END AS word_name2,
-                          CASE WHEN (u2.plural      <> '' IS NOT TRUE) THEN t2.plural       ELSE u2.plural       END AS plural2,
-                          CASE WHEN (u2.description <> '' IS NOT TRUE) THEN t2.description  ELSE u2.description  END AS description2,
-                          CASE WHEN (u2.word_type_id      IS     NULL) THEN t2.word_type_id ELSE u2.word_type_id END AS word_type_id2,
-                          CASE WHEN (u2.view_id           IS     NULL) THEN t2.view_id      ELSE u2.view_id      END AS view_id2,
-                          CASE WHEN (u2.excluded          IS     NULL) THEN t2.excluded     ELSE u2.excluded     END AS excluded2,
-                          t2.values AS values2
-                     FROM triples l LEFT JOIN user_triples ul  ON ul.triple_id = l.triple_id 
-                                                                    AND ul.user_id = 1,
-                          verbs v, 
-                          words t1     LEFT JOIN user_words u1       ON u1.word_id = t1.word_id 
-                                                                    AND u1.user_id = 1 , 
-                          words t2     LEFT JOIN user_words u2       ON u2.word_id = t2.word_id 
-                                                                    AND u2.user_id = 1 
-                    WHERE l.verb_id        = v.verb_id 
-                      AND l.to_phrase_id   = t1.word_id
-                      AND l.from_phrase_id = t2.word_id 
-                      AND l.to_phrase_id   IN (2,3)
-                 ORDER BY l.verb_id, name_given;"; // order adjusted based on the number of usage
-        $t->dsp('triple_list->load_sql by word list and down', $lib->trim($expected_sql), $lib->trim($created_sql));
-
-        // ... and check if the prepared sql name is unique
-        $t->assert_sql_name_unique($wrd_lnk_lst->load_sql_name());
-
-        // sql to load by word link list by word list and down filtered by a verb
-        $wrd_lst = new word_list($usr);
-        $wrd = new word($usr);
-        $wrd->set_id(2);
-        $wrd_lst->add($wrd);
-        $wrd = new word($usr);
-        $wrd->set_id(3);
-        $wrd_lst->add($wrd);
-        $vrb = new verb();
-        $vrb->set_id(2);
-        $wrd_lnk_lst = new triple_list($usr);
-        $wrd_lnk_lst->wrd_lst = $wrd_lst;
-        $wrd_lnk_lst->vrb = $vrb;
-        $wrd_lnk_lst->direction = triple_list::DIRECTION_DOWN;
-        $created_sql = $wrd_lnk_lst->load_sql($db_con);
-        $expected_sql = "SELECT 
-                          l.triple_id,
-                          ul.triple_id AS user_triple_id,
-                          l.user_id,
-                          l.from_phrase_id,
-                          l.verb_id,
-                          l.word_type_id,
-                          l.to_phrase_id,
-                          l.triple_name,
-                          l.name_given,
-                          l.name_generated,
-                          l.description,
-                          l.values,
-                          l.share_type_id,
-                          l.protect_id,
-                          v.verb_id,
-                          v.code_id,
-                          v.verb_name,
-                          v.name_plural,
-                          v.name_reverse,
-                          v.name_plural_reverse,
-                          v.formula_name,
-                          v.description,
-                          v.words,
-                          CASE WHEN (ul.excluded         IS     NULL) THEN l.excluded     ELSE ul.excluded    END AS excluded,
-                          t1.word_id AS word_id1,
-                          t1.user_id AS user_id1,
-                          CASE WHEN (u1.word_name <> ''   IS NOT TRUE) THEN t1.word_name    ELSE u1.word_name    END AS word_name1,
-                          CASE WHEN (u1.plural <> ''      IS NOT TRUE) THEN t1.plural       ELSE u1.plural       END AS plural1,
-                          CASE WHEN (u1.description <> '' IS NOT TRUE) THEN t1.description  ELSE u1.description  END AS description1,
-                          CASE WHEN (u1.word_type_id      IS     NULL) THEN t1.word_type_id ELSE u1.word_type_id END AS word_type_id1,
-                          CASE WHEN (u1.view_id           IS     NULL) THEN t1.view_id      ELSE u1.view_id      END AS view_id1,
-                          CASE WHEN (u1.excluded          IS     NULL) THEN t1.excluded     ELSE u1.excluded     END AS excluded1,
-                          t1.values AS values1, 
-                          t2.word_id AS word_id2,
-                          t2.user_id AS user_id2,
-                          CASE WHEN (u2.word_name   <> '' IS NOT TRUE) THEN t2.word_name    ELSE u2.word_name    END AS word_name2,
-                          CASE WHEN (u2.plural      <> '' IS NOT TRUE) THEN t2.plural       ELSE u2.plural       END AS plural2,
-                          CASE WHEN (u2.description <> '' IS NOT TRUE) THEN t2.description  ELSE u2.description  END AS description2,
-                          CASE WHEN (u2.word_type_id      IS     NULL) THEN t2.word_type_id ELSE u2.word_type_id END AS word_type_id2,
-                          CASE WHEN (u2.view_id           IS     NULL) THEN t2.view_id      ELSE u2.view_id      END AS view_id2,
-                          CASE WHEN (u2.excluded          IS     NULL) THEN t2.excluded     ELSE u2.excluded     END AS excluded2,
-                          t2.values AS values2
-                     FROM triples l LEFT JOIN user_triples ul  ON ul.triple_id = l.triple_id 
-                                                                    AND ul.user_id = 1,
-                          verbs v, 
-                          words t1     LEFT JOIN user_words u1       ON u1.word_id = t1.word_id 
-                                                                    AND u1.user_id = 1 , 
-                          words t2     LEFT JOIN user_words u2       ON u2.word_id = t2.word_id 
-                                                                    AND u2.user_id = 1 
-                    WHERE l.verb_id        = v.verb_id 
-                      AND l.to_phrase_id   = t1.word_id
-                      AND l.from_phrase_id = t2.word_id 
-                      AND l.to_phrase_id   IN (2,3)
-                      AND l.verb_id = 2 
-                 ORDER BY l.verb_id, name_given;"; // order adjusted based on the number of usage
-        $t->dsp('triple_list->load_sql by word list and down filtered by a verb', $lib->trim($expected_sql), $lib->trim($created_sql));
-
-        // ... and check if the prepared sql name is unique
-        $t->assert_sql_name_unique($wrd_lnk_lst->load_sql_name());
-
-        // sql to load by word link list by word list and down filtered by a verb list
-        $wrd_lst = new word_list($usr);
-        $wrd = new word($usr);
-        $wrd->set_id(2);
-        $wrd_lst->add($wrd);
-        $wrd = new word($usr);
-        $wrd->set_id(3);
-        $wrd_lst->add($wrd);
-        $vrb_lst = new verb_list($usr);
-        $vrb_lst->ids = [1, 2];
-        $wrd_lnk_lst = new triple_list($usr);
-        $wrd_lnk_lst->wrd_lst = $wrd_lst;
-        $wrd_lnk_lst->vrb_lst = $vrb_lst;
-        $wrd_lnk_lst->direction = triple_list::DIRECTION_DOWN;
-        $created_sql = $wrd_lnk_lst->load_sql($db_con);
-        $expected_sql = "SELECT 
-                          l.triple_id,
-                          ul.triple_id AS user_triple_id,
-                          l.user_id,
-                          l.from_phrase_id,
-                          l.verb_id,
-                          l.word_type_id,
-                          l.to_phrase_id,
-                          l.triple_name,
-                          l.name_given,
-                          l.name_generated,
-                          l.description,
-                          l.values,
-                          l.share_type_id,
-                          l.protect_id,
-                          v.verb_id,
-                          v.code_id,
-                          v.verb_name,
-                          v.name_plural,
-                          v.name_reverse,
-                          v.name_plural_reverse,
-                          v.formula_name,
-                          v.description,
-                          v.words,
-                          CASE WHEN (ul.excluded         IS     NULL) THEN l.excluded     ELSE ul.excluded    END AS excluded,
-                          t1.word_id AS word_id1,
-                          t1.user_id AS user_id1,
-                          CASE WHEN (u1.word_name <> ''   IS NOT TRUE) THEN t1.word_name    ELSE u1.word_name    END AS word_name1,
-                          CASE WHEN (u1.plural <> ''      IS NOT TRUE) THEN t1.plural       ELSE u1.plural       END AS plural1,
-                          CASE WHEN (u1.description <> '' IS NOT TRUE) THEN t1.description  ELSE u1.description  END AS description1,
-                          CASE WHEN (u1.word_type_id      IS     NULL) THEN t1.word_type_id ELSE u1.word_type_id END AS word_type_id1,
-                          CASE WHEN (u1.view_id           IS     NULL) THEN t1.view_id      ELSE u1.view_id      END AS view_id1,
-                          CASE WHEN (u1.excluded          IS     NULL) THEN t1.excluded     ELSE u1.excluded     END AS excluded1,
-                          t1.values AS values1, 
-                          t2.word_id AS word_id2,
-                          t2.user_id AS user_id2,
-                          CASE WHEN (u2.word_name   <> '' IS NOT TRUE) THEN t2.word_name    ELSE u2.word_name    END AS word_name2,
-                          CASE WHEN (u2.plural      <> '' IS NOT TRUE) THEN t2.plural       ELSE u2.plural       END AS plural2,
-                          CASE WHEN (u2.description <> '' IS NOT TRUE) THEN t2.description  ELSE u2.description  END AS description2,
-                          CASE WHEN (u2.word_type_id      IS     NULL) THEN t2.word_type_id ELSE u2.word_type_id END AS word_type_id2,
-                          CASE WHEN (u2.view_id           IS     NULL) THEN t2.view_id      ELSE u2.view_id      END AS view_id2,
-                          CASE WHEN (u2.excluded          IS     NULL) THEN t2.excluded     ELSE u2.excluded     END AS excluded2,
-                          t2.values AS values2
-                     FROM triples l LEFT JOIN user_triples ul  ON ul.triple_id = l.triple_id 
-                                                                    AND ul.user_id = 1,
-                          verbs v, 
-                          words t1     LEFT JOIN user_words u1       ON u1.word_id = t1.word_id 
-                                                                    AND u1.user_id = 1 , 
-                          words t2     LEFT JOIN user_words u2       ON u2.word_id = t2.word_id 
-                                                                    AND u2.user_id = 1 
-                    WHERE l.verb_id        = v.verb_id 
-                      AND l.to_phrase_id   = t1.word_id
-                      AND l.from_phrase_id = t2.word_id 
-                      AND l.to_phrase_id   IN (2,3)
-                      AND l.verb_id IN (1,2) 
-                 ORDER BY l.verb_id, name_given;"; // order adjusted based on the number of usage
-        $t->dsp('triple_list->load_sql by word list and down filtered by a verb list', $lib->trim($expected_sql), $lib->trim($created_sql));
-
-        // ... and check if the prepared sql name is unique
-        $t->assert_sql_name_unique($wrd_lnk_lst->load_sql_name());
+        $trp_lst = $t->dummy_triple_list();
+        $t->assert_api_to_dsp($trp_lst, new triple_list_dsp());
 
     }
 
@@ -543,54 +120,62 @@ class triple_list_unit_tests
      * test the SQL statement creation for a triple list in all SQL dialect
      * and check if the statement name is unique
      *
-     * @param testing $t the test environment
-     * @param sql_db $db_con the test database connection
-     * @param triple_list $lst the empty triple list object
-     * @param array $ids filled with a list of word ids to be used for the query creation
-     * @return void
-     */
-    private function assert_sql_by_ids(testing $t, sql_db $db_con, triple_list $lst, array $ids): void
-    {
-        // check the Postgres query syntax
-        $db_con->db_type = sql_db::POSTGRES;
-        $qp = $lst->load_sql_by_ids($db_con, $ids);
-        $t->assert_qp($qp, sql_db::POSTGRES);
-
-        // check the MySQL query syntax
-        $db_con->db_type = sql_db::MYSQL;
-        $qp = $lst->load_sql_by_ids($db_con, $ids);
-        $t->assert_qp($qp, sql_db::MYSQL);
-    }
-
-    /**
-     * test the SQL statement creation for a triple list in all SQL dialect
-     * and check if the statement name is unique
-     *
-     * @param testing $t the test environment
+     * @param test_cleanup $t the test environment
      * @param sql_db $db_con the test database connection
      * @param triple_list $lst the empty triple list object
      * @param phrase $phr the phrase which should be used for selecting the words or triples
      * @param verb|null $vrb if set to filter the selection
-     * @param string $direction to select either the parents, children or all related words ana triples
+     * @param foaf_direction $direction to select either the parents, children or all related words ana triples
      * @return void
      */
     private function assert_sql_by_phr(
-        testing     $t,
-        sql_db      $db_con,
-        triple_list $lst,
-        phrase      $phr,
-        ?verb       $vrb = null,
-        string      $direction = triple_list::DIRECTION_BOTH)
+        test_cleanup   $t,
+        sql_db         $db_con,
+        triple_list    $lst,
+        phrase         $phr,
+        ?verb          $vrb = null,
+        foaf_direction $direction = foaf_direction::BOTH): void
     {
         // check the Postgres query syntax
         $db_con->db_type = sql_db::POSTGRES;
-        $qp = $lst->load_sql_by_phr($db_con, $phr, $vrb, $direction);
-        $t->assert_qp($qp, sql_db::POSTGRES);
+        $qp = $lst->load_sql_by_phr($db_con->sql_creator(), $phr, $vrb, $direction);
+        $t->assert_qp($qp, $db_con->db_type);
 
         // check the MySQL query syntax
         $db_con->db_type = sql_db::MYSQL;
-        $qp = $lst->load_sql_by_phr($db_con, $phr, $vrb, $direction);
-        $t->assert_qp($qp, sql_db::MYSQL);
+        $qp = $lst->load_sql_by_phr($db_con->sql_creator(), $phr, $vrb, $direction);
+        $t->assert_qp($qp, $db_con->db_type);
+    }
+
+    /**
+     * test the SQL statement creation for a triple list in all SQL dialect
+     * and check if the statement name is unique
+     *
+     * @param test_cleanup $t the test environment
+     * @param sql_db $db_con the test database connection
+     * @param triple_list $lst the empty triple list object
+     * @param phrase_list $phr_lst a list of phrases which should be used for selecting the words or triples
+     * @param verb|null $vrb if set to filter the selection
+     * @param foaf_direction $direction to select either the parents, children or all related words ana triples
+     * @return void
+     */
+    private function assert_sql_by_phr_lst(
+        test_cleanup   $t,
+        sql_db         $db_con,
+        triple_list    $lst,
+        phrase_list    $phr_lst,
+        ?verb          $vrb = null,
+        foaf_direction $direction = foaf_direction::BOTH): void
+    {
+        // check the Postgres query syntax
+        $db_con->db_type = sql_db::POSTGRES;
+        $qp = $lst->load_sql_by_phr_lst($db_con->sql_creator(), $phr_lst, $vrb, $direction);
+        $t->assert_qp($qp, $db_con->db_type);
+
+        // check the MySQL query syntax
+        $db_con->db_type = sql_db::MYSQL;
+        $qp = $lst->load_sql_by_phr_lst($db_con->sql_creator(), $phr_lst, $vrb, $direction);
+        $t->assert_qp($qp, $db_con->db_type);
     }
 
 }

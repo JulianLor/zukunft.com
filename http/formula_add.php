@@ -32,12 +32,22 @@
 */
 
 // header for all zukunft.com code 
+use controller\controller;
+use html\html_base;
+use html\view\view as view_dsp;
+use html\formula\formula as formula_dsp;
+use cfg\formula;
+use cfg\user;
+use cfg\view;
+use cfg\word;
+
 $debug = $_GET['debug'] ?? 0;
 const ROOT_PATH = __DIR__ . '/../';
 include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 
 // open database
 $db_con = prg_start("formula_add");
+$html = new html_base();
 
 $result = ''; // reset the html code var
 $msg = ''; // to collect all messages that should be shown to the user immediately
@@ -49,12 +59,12 @@ $result .= $usr->get();
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
 if ($usr->id() > 0) {
 
-    load_usr_data();
+    $usr->load_usr_data();
 
     // prepare the display
-    $dsp = new view_dsp_old($usr);
-    $dsp->load_by_code_id(view::FORMULA_ADD);
-    $back = $_GET['back'];
+    $msk = new view($usr);
+    $msk->load_by_code_id(controller::DSP_FORMULA_ADD);
+    $back = $_GET[controller::API_BACK];
 
     // init the formula object
     $frm = new formula($usr);
@@ -64,10 +74,10 @@ if ($usr->id() > 0) {
         $frm->set_name($_GET['formula_name']);
     } // the new formula name
     if (isset($_GET['formula_text'])) {
-        $frm->usr_text = $_GET['formula_text'];
+        $frm->set_user_text($_GET['formula_text']);
     } // the new formula text in the user format
-    if (isset($_GET['description'])) {
-        $frm->description = $_GET['description'];
+    if (isset($_GET[controller::URL_VAR_DESCRIPTION])) {
+        $frm->description = $_GET[controller::URL_VAR_DESCRIPTION];
     }
     if (isset($_GET['type'])) {
         $frm->type_id = $_GET['type'];
@@ -90,22 +100,22 @@ if ($usr->id() > 0) {
 
         // check parameters
         if (!isset($wrd)) {
-            $msg .= dsp_err('Word missing; Internal error, because a formula should always be linked to a word or a list of words.');
+            $msg .= $html->dsp_err('Word missing; Internal error, because a formula should always be linked to a word or a list of words.');
         }
 
         if ($frm->name() == "") {
-            $msg .= dsp_err('Formula name missing; Please give the unique name to be able to identify it.');
+            $msg .= $html->dsp_err('Formula name missing; Please give the unique name to be able to identify it.');
         }
 
         if ($frm->usr_text == "") {
-            $msg .= dsp_err('Formula text missing; Please define how the calculation should be done.');
+            $msg .= $html->dsp_err('Formula text missing; Please define how the calculation should be done.');
         }
 
         // check if a word, verb or formula with the same name already exists
         log_debug('word');
         $trm = $frm->get_term();
         if ($trm->id_obj() > 0) {
-            $msg .= $trm->id_used_msg();
+            $msg .= $trm->id_used_msg($this);
         }
         log_debug('checked');
 
@@ -129,7 +139,7 @@ if ($usr->id() > 0) {
 
                     // if linking was successful ...
                     if (str_replace('1', '', $add_result) == '') {
-                        $result .= dsp_go_back($back, $usr);
+                        $result .= $html->dsp_go_back($back, $usr);
                     } else {
                         // ... or in case of a problem prepare to show the message
                         $msg .= $add_result;
@@ -142,15 +152,17 @@ if ($usr->id() > 0) {
     // if nothing yet done display the edit view (and any message on the top)
     if ($result == '') {
         // show the header
-        $result .= $dsp->dsp_navbar($back);
-        $result .= dsp_err($msg);
+        $msk_dsp = new view_dsp($msk->api_json());
+        $result .= $msk_dsp->dsp_navbar($back);
+        $result .= $html->dsp_err($msg);
 
-        $result .= $frm->dsp_edit(0, $wrd, $back);
+        $frm_dsp = new formula_dsp($frm->api_json());
+        $result .= $frm_dsp->dsp_edit(0, $wrd, $back);
     }
 }
 
 // display any error message
-$result .= dsp_err($msg);
+$result .= $html->dsp_err($msg);
 
 echo $result;
 

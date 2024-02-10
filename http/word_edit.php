@@ -30,12 +30,21 @@
 */
 
 // standard zukunft header for callable php files to allow debugging and lib loading
+use controller\controller;
+use html\html_base;
+use html\view\view as view_dsp;
+use html\word\word as word_dsp;
+use cfg\user;
+use cfg\view;
+use cfg\word;
+
 $debug = $_GET['debug'] ?? 0;
 const ROOT_PATH = __DIR__ . '/../';
 include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 
 // open database
 $db_con = prg_start("word_edit");
+$html = new html_base();
 
 $result = ''; // reset the html code var
 $msg = ''; // to collect all messages that should be shown to the user immediately
@@ -47,30 +56,30 @@ $result .= $usr->get();
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
 if ($usr->id() > 0) {
 
-    load_usr_data();
+    $usr->load_usr_data();
 
     // prepare the display
-    $dsp = new view_dsp_old($usr);
-    $dsp->load_by_code_id(view::WORD_EDIT);
-    $back = $_GET['back']; // the word id from which this value change has been called (maybe later any page)
+    $msk = new view($usr);
+    $msk->load_by_code_id(controller::DSP_WORD_EDIT);
+    $back = $_GET[controller::API_BACK]; // the word id from which this value change has been called (maybe later any page)
 
-    // create the word object to have an place to update the parameters
+    // create the word object to have a place to update the parameters
     $wrd = new word($usr);
-    $wrd->load_by_id($_GET['id']);
+    $wrd->load_by_id($_GET[controller::URL_VAR_ID]);
 
     if ($wrd->id() <= 0) {
         $result .= log_info("The word id must be set to display a word.", "word_edit.php", '', (new Exception)->getTraceAsString(), $usr);
     } else {
 
         // get all parameters (but if not set, use the database value)
-        if (isset($_GET['name'])) {
-            $wrd->set_name($_GET['name']);
+        if (isset($_GET[controller::URL_VAR_NAME])) {
+            $wrd->set_name($_GET[controller::URL_VAR_NAME]);
         } //
         if (isset($_GET['plural'])) {
             $wrd->plural = $_GET['plural'];
         } //
-        if (isset($_GET['description'])) {
-            $wrd->description = $_GET['description'];
+        if (isset($_GET[controller::URL_VAR_DESCRIPTION])) {
+            $wrd->description = $_GET[controller::URL_VAR_DESCRIPTION];
         } //
         if (isset($_GET['type'])) {
             $wrd->type_id = $_GET['type'];
@@ -101,11 +110,14 @@ if ($usr->id() > 0) {
         // if nothing yet done display the edit view (and any message on the top)
         if ($result == '') {
             // show the header
-            $result .= $dsp->dsp_navbar($back);
-            $result .= dsp_err($msg);
+            $msk_dsp = new view_dsp($msk->api_json());
+            $result .= $msk_dsp->dsp_navbar($back);
+            $result .= $html->dsp_err($msg);
 
             // show the word and its relations, so that the user can change it
-            $result .= $wrd->dsp_edit($back);
+            $wrd_dsp = new word_dsp();
+            $wrd_dsp->set_from_json($wrd->api_json());
+            $result .= $wrd_dsp->dsp_edit($back);
         }
     }
 }

@@ -31,12 +31,22 @@
 */
 
 /* standard zukunft header for callable php files to allow debugging and lib loading */
+
+use controller\controller;
+use html\html_base;
+use html\view\view as view_dsp;
+use cfg\term;
+use cfg\user;
+use cfg\verb;
+use cfg\view;
+
 $debug = $_GET['debug'] ?? 0;
 const ROOT_PATH = __DIR__ . '/../';
 include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 
 /* open database */
 $db_con = prg_start("link_type_add");
+$html = new html_base();
 
 $result = ''; // reset the html code var
 $msg = ''; // to collect all messages that should be shown to the user immediately
@@ -48,15 +58,15 @@ echo $usr->get(); // if the usr identification fails, show any message immediate
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
 if ($usr->id() > 0) {
 
-    load_usr_data();
+    $usr->load_usr_data();
 
     // prepare the display
-    $dsp = new view_dsp_old($usr);
-    $dsp->load_by_code_id(view::VERB_ADD);
-    $back = $_GET['back']; // the calling word which should be displayed after saving
+    $msk = new view($usr);
+    $msk->load_by_code_id(controller::DSP_VERB_ADD);
+    $back = $_GET[controller::API_BACK]; // the calling word which should be displayed after saving
 
     if (!$usr->is_admin()) {
-        $result .= log_err("Only user with the administrator profile can add verbs (word link types).", "verb_add.php");
+        $result .= log_err("Only user with the administrator profile can add verbs (triple types).", "verb_add.php");
     } else {
 
         // create the object to store the parameters so that if the add form is shown again it is already filled
@@ -64,8 +74,8 @@ if ($usr->id() > 0) {
         $vrb->set_user($usr);
 
         // load the parameters to the verb object to display it again in case of an error
-        if (isset($_GET['name'])) {
-            $vrb->set_name($_GET['name']);
+        if (isset($_GET[controller::URL_VAR_NAME])) {
+            $vrb->set_name($_GET[controller::URL_VAR_NAME]);
         }
         if (isset($_GET['plural'])) {
             $vrb->plural = $_GET['plural'];
@@ -88,7 +98,7 @@ if ($usr->id() > 0) {
                 $trm = new term($usr);
                 $trm->load_by_name($vrb->name());
                 if ($trm->id_obj() > 0) {
-                    $msg .= $trm->id_used_msg();
+                    $msg .= $trm->id_used_msg($this);
                 }
 
                 // if the parameters are fine
@@ -99,7 +109,7 @@ if ($usr->id() > 0) {
                     // if adding was successful ...
                     if (str_replace('1', '', $add_result) == '') {
                         // ... and display the calling view
-                        $result .= dsp_go_back($back, $usr);
+                        $result .= $html->dsp_go_back($back, $usr);
                     } else {
                         // ... or in case of a problem prepare to show the message
                         $msg .= $add_result;
@@ -111,8 +121,9 @@ if ($usr->id() > 0) {
         // if nothing yet done display the add view (and any message on the top)
         if ($result == '') {
             // show the header
-            $result .= $dsp->dsp_navbar($back);
-            $result .= dsp_err($msg);
+            $msk_dsp = new view_dsp($msk->api_json());
+            $result .= $msk_dsp->dsp_navbar($back);
+            $result .= $html->dsp_err($msg);
 
             // get the form to add a new verb
             $result .= $vrb->dsp_edit($back);

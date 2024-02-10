@@ -29,27 +29,35 @@
 
 */
 
-namespace api;
+namespace api\system;
 
-use api_message;
-use sql_db;
+include_once API_PATH . 'api_message.php';
 
-class type_lists_api extends api_message implements \JsonSerializable
+use api\system\type_list as type_list_api;
+use api\view\view_list as view_list_api;
+use api\api_message;
+use controller\controller;
+use cfg\db\sql_db;
+use JsonSerializable;
+use cfg\user;
+
+class type_lists extends api_message implements JsonSerializable
 {
 
     // parent object for all preloaded types
     public ?array $type_lists = null;      // a list of system error objects
 
-    function __construct(sql_db $db_con)
+    function __construct(sql_db $db_con, user $usr)
     {
-        parent::__construct($db_con, 'type_lists');
-        $this->type = api_message::TYPE_LISTS;
+        parent::__construct($db_con, 'type_lists', $usr);
+        $this->type = controller::API_TYPE_LISTS;
     }
 
-    function add(type_list_api $lst_to_add, string $api_name): void
+    function add(type_list_api|view_list_api $lst_to_add, string $api_name): void
     {
         $this->type_lists[$api_name] = $lst_to_add;
     }
+
 
     /*
      * interface
@@ -60,9 +68,8 @@ class type_lists_api extends api_message implements \JsonSerializable
      */
     function jsonSerialize(): array
     {
-        $json = [];
-        $json[] = json_decode(json_encode((array)$this));
-        return $json;
+        $vars = get_object_vars($this);
+        return array_filter($vars, fn($value) => !is_null($value) && $value !== '');
     }
 
 

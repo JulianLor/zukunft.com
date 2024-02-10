@@ -34,8 +34,33 @@
 
 namespace html;
 
+use const test\HOST_TESTING;
+
 class html_base
 {
+
+    // html const used in zukunft.com
+    const INPUT_TEXT = 'text';
+    const INPUT_SUBMIT = 'submit';
+    const INPUT_SEARCH = 'search';
+    const INPUT_HIDDEN = 'hidden';
+
+    // bootstrap const used in zukunft.com
+    const BS_FORM = 'form-control';
+    const BS_BTN = 'btn btn-space';
+    const BS_BTN_SUCCESS = 'btn-outline-success';
+    const BS_BTN_CANCEL = 'btn-outline-secondary';
+    const BS_BTN_DEL = 'btn-outline-secondary';
+    const BS_SM_2 = 'mr-sm-2';
+    const COL_SM_2 = 'col-sm-2';
+    const COL_SM_4 = 'col-sm-4';
+    const COL_SM_5 = 'col-sm-5';
+    const COL_SM_6 = 'col-sm-6';
+    const COL_SM_7 = 'col-sm-7';
+    const COL_SM_8 = 'col-sm-8';
+    const COL_SM_10 = 'col-sm-10';
+    const COL_SM_12 = 'col-sm-12';
+
 
     const IMG_LOGO = "/src/main/resources/images/ZUKUNFT_logo.svg";
 
@@ -220,20 +245,20 @@ class html_base
      * @param string $obj_name the object that is requested e.g. a view
      * @param int $id the id of the parameter e.g. 1 for math const
      * @param string|null $back the back trace calls to return to the original url and for undo
-     * @param string $par_name the parameter objects e.g. a phrase
+     * @param string|array $par either the array with the parameters or the parameter objects e.g. a phrase
      * @param string $id_ext an additional id parameter e.g. used to link and unlink two objects
      * @return string the created url
      */
-    function url(string $obj_name,
-                 int $id = 0,
-                 ?string $back = '',
-                 string $par_name = '',
-                 string $id_ext = ''): string
+    function url(string       $obj_name,
+                 int|string   $id = 0,
+                 ?string      $back = '',
+                 string|array $par = '',
+                 string       $id_ext = ''): string
     {
         $result = api::PATH_FIXED . $obj_name . api::EXT;
         if ($id <> 0) {
-            if ($par_name != '') {
-                $result .= '?' . $par_name . '=' . $id;
+            if ($par != '') {
+                $result .= '?' . $par . '=' . $id;
             } else {
                 $result .= '?id=' . $id;
             }
@@ -247,9 +272,43 @@ class html_base
         return $result;
     }
 
+    /**
+     * build an url for link a zukunft.com element
+     *
+     * @param string $obj_name the object that is requested e.g. a view
+     * @return string the created url
+     */
+    function url_api(string $obj_name): string
+    {
+        return $this->host() . api::PATH . $obj_name . '/';
+    }
+
+    /**
+     * @return string the host name of the api
+     */
+    private function host(): string
+    {
+        return HOST_TESTING;
+    }
+
     /*
      * text formatting
      */
+
+    function text_h1(string $title, string $style = ''): string
+    {
+        $result = '';
+        if (UI_USE_BOOTSTRAP) {
+            $result .= "<h2>" . $title . "</h2>";
+        } else {
+            if ($style <> "") {
+                $result .= '<h1 class="' . $style . '">' . $title . '</h1>';
+            } else {
+                $result .= "<h1>" . $title . "</h1>";
+            }
+        }
+        return $result;
+    }
 
     function text_h2(string $title, string $style = ''): string
     {
@@ -265,6 +324,7 @@ class html_base
         }
         return $result;
     }
+
 
     /*
      * images
@@ -381,7 +441,7 @@ class html_base
     function tbl_start_half(): string
     {
         if (UI_USE_BOOTSTRAP) {
-            $result = '<table class="table col-sm-5 table-striped table-bordered">';
+            $result = '<table class="table ' . html_base::COL_SM_5 . ' table-striped table-bordered">';
         } else {
             $result = '<table style="width:' . $this->tbl_width_half() . '">';
         }
@@ -404,7 +464,7 @@ class html_base
     function tbl_start_select(): string
     {
         if (UI_USE_BOOTSTRAP) {
-            $result = '<table class="table col-sm-10 table-borderless">' . "\n";
+            $result = '<table class="table ' . html_base::COL_SM_10 . ' table-borderless">' . "\n";
         } else {
             $result = '<table style="width:' . $this->tbl_width_half() . '">' . "\n";
         }
@@ -433,7 +493,7 @@ class html_base
         string $back = '',
         string $del_call = ''): string
     {
-        return $this->form_start($form_name) . $tbl_rows . $this->form_end($submit_name, $back, $del_call);
+        return $this->form_start($form_name) . $tbl_rows . $this->form_end_with_submit($submit_name, $back, $del_call);
     }
 
     /**
@@ -451,39 +511,22 @@ class html_base
      * @param string $label the expected value of the form field
      * @return string the html code of the form field
      */
-    function form_text(string $field,
+    function form_text(string  $field,
                        ?string $txt_value = '',
-                       string $label = '',
-                       string $class = api::CLASS_COL_4,
-                       string $attribute = ''): string
+                       string  $label = '',
+                       string  $class = html_base::COL_SM_4,
+                       string  $attribute = ''): string
     {
         $result = '';
         if ($label == '') {
             $label = strtoupper($field[0]) . substr($field, 1) . ':';
         }
         if (UI_USE_BOOTSTRAP) {
-            $result .= dsp_form_fld($field, $txt_value, $label, $class, $attribute);
+            $result .= $this->dsp_form_fld($field, $txt_value, $label, $class, $attribute);
         } else {
             $result .= $field . ': <input type="text" name="' . $field . '" value="' . $txt_value . '">';
         }
         return $result;
-    }
-
-    /**
-     * start a html form; the form name must be identical with the php script name
-     * @param string $form_name the name and id of the form
-     * @returns string the HTML code to start a form
-     */
-    function form_start(string $form_name): string
-    {
-        // switch on post forms for private values
-        // return '<form action="'.$form_name.'.php" method="post" id="'.$form_name.'">';
-        if ($form_name == 'user_edit') {
-            $script_name = 'user';
-        } else {
-            $script_name = $form_name;
-        }
-        return '<form action="/http/' . $script_name . '.php" id="' . $form_name . '">';
     }
 
     /**
@@ -500,7 +543,7 @@ class html_base
     /**
      * end a html form
      */
-    function form_end(string $submit_name, string $back, $del_call = ''): string
+    function form_end_with_submit(string $submit_name, string $back, $del_call = ''): string
     {
         $result = '';
         if (UI_USE_BOOTSTRAP) {
@@ -543,7 +586,7 @@ class html_base
     {
         $result = $this->header("", "center_form"); // reset the html code var
 
-        $result .= dsp_form_center();
+        $result .= $this->dsp_form_center();
         $result .= $this->logo_big();
         $result .= '<br><br>';
         $result .= 'is sponsored by <br><br>';
@@ -613,7 +656,7 @@ class html_base
 
         $row_nbr = 0;
         $num_rows = count($item_lst);
-        foreach ($item_lst as $key =>  $item) {
+        foreach ($item_lst as $key => $item) {
             // list of all possible view entries
             $row_nbr = $row_nbr + 1;
             $edit_script = $this->edit_url($class);
@@ -655,18 +698,621 @@ class html_base
         $result = "";
 
         foreach ($item_lst as $item) {
-            if ($item->id != null) {
-                $url = $this->url($class . api::UPDATE, $item->id, $back);
-                $result .= $this->ref($url, $item->name);
+            if ($item->id() != null) {
+                $url = $this->url($class . api::UPDATE, $item->id(), $back);
+                $result .= $this->ref($url, $item->name());
                 $result .= '<br>';
             }
         }
         $url_add = $this->url($class . api::CREATE, 0, $back);
-        $result .= (new button('Add ' . $class, $url_add))->add();
+        $result .= (new button($url_add, $back))->add($class . api::CREATE);
         $result .= '<br>';
 
         return $result;
     }
 
+    /*
+     * to dismiss / replace
+     */
 
+// ------------------------------------------------------------------
+// output device specific support functions for the pure HTML version
+// ------------------------------------------------------------------
+
+// get the normal table width (should be based on the display size)
+    function dsp_tbl_width(): string
+    {
+        return '800px';
+    }
+
+    function dsp_tbl_width_half(): string
+    {
+        return '400px';
+    }
+
+// display an explaining subtitle e.g. (in mio CHF)
+    function dsp_line_small($line_text): string
+    {
+        return "<small>" . $line_text . "</small><br>";
+    }
+
+
+// ------------------------
+// single element functions
+// ------------------------
+
+// simply to display headline text
+    function dsp_text_h1($title, $style = '')
+    {
+        $result = '';
+        if (UI_USE_BOOTSTRAP) {
+            $result .= "<h2>" . $title . "</h2>";
+        } else {
+            if ($style <> "") {
+                $result .= '<h1 class="' . $style . '">' . $title . '</h1>';
+            } else {
+                $result .= "<h1>" . $title . "</h1>";
+            }
+        }
+        return $result;
+    }
+
+    function dsp_text_h2($title, $style = ''): string
+    {
+        $result = '';
+        if (UI_USE_BOOTSTRAP) {
+            $result .= "<h4>" . $title . "</h4>";
+        } else {
+            if ($style <> "") {
+                $result .= '<h2 class="' . $style . '">' . $title . '</h2>';
+            } else {
+                $result .= "<h2>" . $title . "</h2>";
+            }
+        }
+        return $result;
+    }
+
+    function dsp_text_h3($title, $style = ''): string
+    {
+        $result = '';
+        if (UI_USE_BOOTSTRAP) {
+            $result .= "<h6>" . $title . "</h6>";
+        } else {
+            if ($style <> "") {
+                $result .= '<h3 class="' . $style . '">' . $title . '</h3>';
+            } else {
+                $result .= '<h3>' . $title . '</h3>';
+            }
+        }
+        return $result;
+    }
+
+// after simple add views e.g. for a value automatically go back to the calling page
+    function dsp_go_back($back, $usr): string
+    {
+        log_debug('dsp_go_back(' . $back . ')');
+
+        $result = '';
+
+        if ($back == '') {
+            log_err("Internal error: go back page missing.", "dsp_header->dsp_go_back");
+            header("Location: view.php?words=1"); // go back to the fallback page
+        } else {
+            if (is_numeric($back)) {
+                header("Location: view.php?words=" . $back); // go back to the calling page and try to avoid double change script calls
+            } else {
+                header("Location: " . $back); // go back to the calling page and try to avoid double change script calls
+            }
+        }
+
+        return $result;
+    }
+
+// display a simple text button
+    function dsp_btn_text($btn_name, $call): string
+    {
+        $result = '';
+        if (UI_USE_BOOTSTRAP) {
+            $result .= '<a href="' . $call . '" class="btn btn-outline-secondary btn-space" role="button">' . $btn_name . '</a>';
+        } else {
+            $result .= '<a href="' . $call . '">' . $btn_name . '</a>';
+        }
+        return $result;
+    }
+
+// simply to display an error text interactively to the user; use this function always for easy redesign of the error messages
+    function dsp_err($err_text): string
+    {
+        $result = '';
+        if (UI_USE_BOOTSTRAP) {
+            $result .= '<style class="text-danger">' . $err_text . '</style>';
+        } else {
+            $result .= '<style color="red">' . $err_text . '</style>';
+        }
+        return $result;
+    }
+
+// display a list of elements: replaced b html->list
+    function dsp_list($item_lst, $item_type): string
+    {
+        $result = "";
+
+        $edit_script = $item_type . "_edit.php";
+        $add_script = $item_type . "_add.php";
+        foreach ($item_lst as $item) {
+            $result .= '<a href="/http/' . $edit_script . '?id=' . $item->id . '">' . $item->name . '</a><br> ';
+        }
+        $result .= \html\btn_add('Add ' . $item_type, $add_script);
+        $result .= '<br>';
+
+        return $result;
+    }
+
+// display a box with the history and the links
+    function dsp_link_hist_box($comp_name, $comp_html,
+                               $nbrs_name, $nbrs_html,
+                               $hist_name, $hist_html,
+                               $link_name, $link_html): string
+    {
+
+        $result = "";
+
+        $comp_id = str_replace(' ', '_', strtolower($comp_name));
+        $nbrs_id = str_replace(' ', '_', strtolower($nbrs_name));
+        $hist_id = str_replace(' ', '_', strtolower($hist_name));
+        $link_id = str_replace(' ', '_', strtolower($link_name));
+
+        $result .= '<div class="' . html_base::COL_SM_5 . '">';
+        $result .= '<ul class="nav nav-tabs">';
+        $result .= '  <li class="nav-item">';
+        $result .= '    <a class="nav-link active" id="' . $comp_id . '-tab" data-toggle="tab" href="#' . $comp_id . '" role="tab" aria-controls="' . $comp_id . '" aria-selected="true">' . $comp_name . '</a>';
+        $result .= '  </li>';
+        if ($nbrs_name <> '') {
+            $result .= '  <li class="nav-item">';
+            $result .= '    <a class="nav-link"        id="' . $nbrs_id . '-tab" data-toggle="tab" href="#' . $nbrs_id . '" role="tab" aria-controls="' . $nbrs_id . '" aria-selected="false">' . $nbrs_name . '</a>';
+            $result .= '  </li>';
+        }
+        $result .= '  <li class="nav-item">';
+        $result .= '    <a class="nav-link"        id="' . $hist_id . '-tab" data-toggle="tab" href="#' . $hist_id . '" role="tab" aria-controls="' . $hist_id . '" aria-selected="false">' . $hist_name . '</a>';
+        $result .= '  </li>';
+        $result .= '  <li class="nav-item">';
+        $result .= '    <a class="nav-link"        id="' . $link_id . '-tab" data-toggle="tab" href="#' . $link_id . '" role="tab" aria-controls="' . $link_id . '" aria-selected="false">' . $link_name . '</a>';
+        $result .= '  </li>';
+        $result .= '</ul>';
+        $result .= '<div class="tab-content border-right border-bottom border-left rounded-bottom" id="comp-hist-tab-content">';
+        $result .= '  <div class="tab-pane fade active show" id="' . $comp_id . '" role="tabpanel" aria-labelledby="' . $comp_id . '-tab">';
+        $result .= '    <div class="container">';
+        $result .= $comp_html;
+        $result .= '    </div>';
+        $result .= '  </div>';
+        if ($nbrs_name <> '') {
+            $result .= '  <div class="tab-pane fade" id="' . $nbrs_id . '" role="tabpanel" aria-labelledby="' . $nbrs_id . '-tab">';
+            $result .= '    <div class="container">';
+            $result .= $nbrs_html;
+            $result .= '    </div>';
+            $result .= '  </div>';
+        }
+        $result .= '  <div class="tab-pane fade" id="' . $hist_id . '" role="tabpanel" aria-labelledby="' . $hist_id . '-tab">';
+        $result .= '    <div class="container">';
+        $result .= $hist_html;
+        $result .= '    </div>';
+        $result .= '  </div>';
+        $result .= '  <div class="tab-pane fade" id="' . $link_id . '" role="tabpanel" aria-labelledby="' . $link_id . '-tab">';
+        $result .= '    <div class="container">';
+        $result .= $link_html;
+        $result .= '    </div>';
+        $result .= '  </div>';
+        $result .= '</div>'; // of tab content
+
+        return $result;
+    }
+
+// -----------------------
+// table element functions
+// -----------------------
+
+    function dsp_tbl_start(): string
+    {
+        if (UI_USE_BOOTSTRAP) {
+            $result = '<table class="table table-striped table-bordered">' . "\n";
+        } else {
+            $result = '<table style="width:' . $this->dsp_tbl_width() . '">' . "\n";
+        }
+        return $result;
+    }
+
+    function dsp_tbl_start_half(): string
+    {
+        if (UI_USE_BOOTSTRAP) {
+            $result = '<table class="table ' . html_base::COL_SM_5 . ' table-borderless">' . "\n";
+        } else {
+            $result = '<table style="width:' . $this->dsp_tbl_width_half() . '">' . "\n";
+        }
+        return $result;
+    }
+
+    function dsp_tbl_start_hist(): string
+    {
+        if (UI_USE_BOOTSTRAP) {
+            $result = '<table class="table table-borderless text-muted">' . "\n";
+        } else {
+            $result = '<table class="change_hist"' . "\n";
+        }
+        return $result;
+    }
+
+// a table for a list of selectors
+    function dsp_tbl_start_select(): string
+    {
+        if (UI_USE_BOOTSTRAP) {
+            $result = '<table class="table ' . html_base::COL_SM_10 . ' table-borderless">' . "\n";
+        } else {
+            $result = '<table style="width:' . $this->dsp_tbl_width_half() . '">' . "\n";
+        }
+        return $result;
+    }
+
+    function dsp_tbl_end(): string
+    {
+        $result = '</table>' . "\n";
+        return $result;
+    }
+
+// -------------------------
+// formula element functions
+// -------------------------
+
+// start a html form; the form name must be identical with the php script name
+    function dsp_form_start($form_name): string
+    {
+        // switch on post forms for private values
+        // return '<form action="'.$form_name.'.php" method="post" id="'.$form_name.'">';
+        return '<form action="' . $form_name . '.php" id="' . $form_name . '">';
+    }
+
+// end a html form
+    function dsp_form_end($submit_name, $back, $del_call = ''): string
+    {
+        $result = '';
+        if (UI_USE_BOOTSTRAP) {
+            if ($submit_name == "") {
+                $result .= '<button type="submit" class="btn btn-outline-success btn-space">Save</button>';
+            } else {
+                $result .= '<button type="submit" class="btn btn-outline-success btn-space">' . $submit_name . '</button>';
+            }
+            if ($back <> "") {
+                if (is_numeric($back)) {
+                    $result .= '<a href="/http/view.php?words=' . $back . '" class="btn btn-outline-secondary btn-space" role="button">Cancel</a>';
+                } else {
+                    $result .= '<a href="' . $back . '" class="btn btn-outline-secondary btn-space" role="button">Cancel</a>';
+                }
+            }
+            if ($del_call <> '') {
+                $result .= '<a href="' . $del_call . '" class="btn btn-outline-danger" role="button">delete</a>';
+            }
+        } else {
+            if ($submit_name == "") {
+                $result .= '<input type="submit">';
+            } else {
+                $result .= '<input type="submit" value="' . $submit_name . '">';
+            }
+            if ($back <> "") {
+                $result .= \html\btn_back($back);
+            }
+            if ($del_call <> "") {
+                $result .= \html\btn_del('delete', $del_call);
+            }
+        }
+        $result .= '</form>';
+        return $result;
+    }
+
+    function dsp_form_center(): string
+    {
+        if (UI_USE_BOOTSTRAP) {
+            return '<div class="container text-center">';
+        } else {
+            return '<div class="center_form">';
+        }
+    }
+
+// add the element id, which should always be using the field "id"
+    function dsp_form_id($id): string
+    {
+        return '<input type="hidden" name="id" value="' . $id . '">';
+    }
+
+// add the hidden field
+    function dsp_form_hidden($field, $id): string
+    {
+        return '<input type="hidden" name="' . $field . '" value="' . $id . '">';
+    }
+
+// add the text field to a form
+    function dsp_form_text($field, $txt_value, $label, $class = self::COL_SM_4, $attribute = ''): string
+    {
+        $result = '';
+        if (UI_USE_BOOTSTRAP) {
+            $result .= $this->dsp_form_fld($field, $txt_value, $label, $class, $attribute);
+        } else {
+            $result .= '' . $field . ': <input type="text" name="' . $field . '" value="' . $txt_value . '">';
+        }
+        return $result;
+    }
+
+// add the text big field to a form
+    function dsp_form_text_big($field, $txt_value, $label, $class = self::COL_SM_4, $attribute = ''): string
+    {
+        $result = '';
+        if (UI_USE_BOOTSTRAP) {
+            $result .= $this->dsp_form_fld($field, $txt_value, $label, $class, $attribute);
+        } else {
+            $result .= '' . $field . ': <input type="text" name="' . $field . '" class="resizedTextbox" value="' . $txt_value . '">';
+        }
+        return $result;
+    }
+
+// add the field to a form
+    function dsp_form_fld($field, $txt_value, $label, $class = self::COL_SM_4, $attribute = ''): string
+    {
+        $result = '';
+        if ($label == '') {
+            $label = $field;
+        }
+        if (UI_USE_BOOTSTRAP) {
+            $result .= '<div class="form-group ' . $class . '">';
+            $result .= '<label for="' . $field . '">' . $label . '</label>';
+            $result .= '<input class="form-control" name="' . $field . '" id="' . $field . '" value="' . $txt_value . '" ' . $attribute . '>';
+            $result .= '</div>';
+        } else {
+            $result .= $label . ' <input name="' . $field . '" value="' . $txt_value . '">';
+        }
+        return $result;
+    }
+
+// add the field to a form
+    function dsp_form_fld_checkbox($field, $is_checked, $label): string
+    {
+        $result = '';
+        if ($label == '') {
+            $label = $field;
+        }
+        if (UI_USE_BOOTSTRAP) {
+            $result .= '<div class="form-check-inline">';
+            $result .= '<label class="form-check-label">';
+            $result .= '<input class="form-check-input" type="checkbox" name="' . $field . '"';
+            if ($is_checked) {
+                $result .= ' checked';
+            }
+            $result .= '>' . $label . '</label>';
+            $result .= '</div>';
+        } else {
+            $result .= '  <input type="checkbox" name="' . $field . '"';
+            if ($is_checked) {
+                $result .= ' checked';
+            }
+            $result .= '> ';
+            $result .= $label;
+        }
+        return $result;
+    }
+
+    /**
+     * display a file selector form
+     */
+    function dsp_form_file_select(): string
+    {
+        $result = '';
+        /*
+        if (UI_USE_BOOTSTRAP) {
+          $result .= ' <form>';
+          $result .= '  <div class="custom-file">';
+          $result .= '    <input type="file" class="custom-file-input" id="fileToUpload">';
+          $result .= '    <label class="custom-file-label" for="fileToUpload">Choose file</label>';
+          $result .= '  </div>';
+          //$result .= '  <button type="submit" id="submit" name="import" class="btn-submit">Import</button>';
+          $result .= '</form>';
+
+          $result .= '<script>';
+          $result .= '$(".custom-file-input").on("change", function() {';
+          $result .= '  var fileName = $(this).val().split("\\\\").pop();';
+          $result .= '  $(this).siblings(".custom-file-label").addClass("selected").html(fileName);';
+          $result .= '});';
+          $result .= '</script> ';
+        } else {
+        */
+        $result .= ' <form action="import.php" method="post" enctype="multipart/form-data">';
+        $result .= '   Select JSON to upload:';
+        $result .= '   <input type="file" name="fileToUpload" id="fileToUpload">';
+        $result .= '   <input type="submit" value="Upload JSON" name="submit">';
+        $result .= ' </form>';
+        //}
+        return $result;
+    }
+
+
+    /*
+     * base elements - functions for all html elements used in zukunft.com
+     */
+
+    function button(string $text, string $style = '', string $type = ''): string
+    {
+        if ($style == '') {
+            $style = self::BS_BTN_SUCCESS;
+        }
+        $class = ' class="' . self::BS_BTN . ' ' . $style . '"';
+        if ($type == '') {
+            $type = self::INPUT_SUBMIT;
+        }
+        $type = ' type="' . $type . '"';
+        return '<button' . $class . $type . '>' . $text . '</button>';
+    }
+
+    function label(string $text, string $for = ''): string
+    {
+        if ($for == '') {
+            $for = strtolower($text);
+        }
+        return '<label for="' . $for . '">' . $text . '</label>';
+    }
+
+    /**
+     * create the HTML code for an input field
+     * @param string $name the title and id of the input field e.g. Name
+     * @param string $value the suggested value which is in most cases the value already saved in the db
+     * @param string $type the type of the input e.g. a text or if not set a submit field
+     * @param string $class_add the formatting code to adjust the formatting e.g. extend the description to the full screen width
+     * @param string $placeholder
+     * @return string the HTML code for the field
+     */
+    function input(
+        string $name = '',
+        string $value = '',
+        string $type = '',
+        string $class_add = '',
+        string $placeholder = ''): string
+    {
+        if ($name != '') {
+            $id = strtolower($name);
+            $name = ' name="' . $name . '"';
+        } else {
+            $id = '1';
+        }
+        if ($value != '') {
+            $value = ' value="' . $value . '"';
+        }
+        if ($type == '') {
+            $type = self::INPUT_SUBMIT;
+        }
+        $type = ' type="' . $type . '"';
+        if ($class_add != '' and $class_add[0] != ' ') {
+            $class_add = ' ' . $class_add;
+        }
+        $class = ' class="' . self::BS_FORM . $class_add . '"';
+        if ($placeholder != '') {
+            $placeholder = ' placeholder="' . $placeholder . '"';
+        }
+        $id = ' id="' . $id . '"';
+        return '<input' . $class . $type . $name . $id . $value . $placeholder . '>';
+    }
+
+    function div(string $text, string $class = ''): string
+    {
+        if ($class == '') {
+            $class = 'form-group ' . self::COL_SM_4;
+        } else {
+            $class = 'form-group ' . $class;
+        }
+        return '<div class="' . $class . '">' . $text . '</div>';
+    }
+
+    /**
+     * start a html form; the form name must be identical with the php script name
+     * @param string $form_name the name and id of the form
+     * @returns string the HTML code to start a form
+     */
+    function form_start(string $form_name): string
+    {
+        // switch on post forms for private values
+        // return '<form action="'.$form_name.'.php" method="post" id="'.$form_name.'">';
+        if ($form_name == 'user_edit') {
+            $script_name = 'user';
+        } else {
+            $script_name = $form_name;
+        }
+        $action = ' action="/http/' . $script_name . '.php"';
+        $id = ' id="' . $form_name . '"';
+
+        return '<form' . $action . $id . '>';
+    }
+
+    /**
+     * create the HTML code for an input field including the label
+     * @param string $name the title and id of the input field e.g. Name
+     * @param string $value the suggested value which is in most cases the value already saved in the db
+     * @param string $type the type of the input e.g. a text or if not set a submit field
+     * @param string $input_class the formatting code to change the input type
+     * @param string $col_class the formatting code to adjust the formatting e.g. extend the description to the full screen width
+     * @return string the HTML code for the field with the label
+     */
+    function form_field(
+        string $name,
+        string $value,
+        string $type = '',
+        string $input_class = '',
+        string $col_class = ''
+    ): string
+    {
+        $text = $this->label($name) . $this->input($name, $value, $type, $input_class);
+        return $this->div($text, $col_class);
+    }
+
+    /**
+     * @return string html code to end a form
+     */
+    function form_end(): string
+    {
+        return '</form>';
+    }
+
+    /**
+     * @return string html code to combine the next elements to one row
+     */
+    function row_start(): string
+    {
+        return '<div class="row col-sm-12">';
+    }
+
+    /**
+     * @return string html code to combine the next elements to one row and align to the right
+     */
+    function row_right(): string
+    {
+        return '<div class="text-right">';
+    }
+
+    /**
+     * @return string html code to end a form
+     */
+    function row_end(): string
+    {
+        return '</div>';
+    }
+
+
+    /*
+     * display interface
+     *
+     * all interface functions that should be used
+     * depending on the settings either pure HTML, BOOTSTRAP HTML or JavaScript functions are called
+     */
+
+    /**
+     * display a html text immediately to the user
+     * @param string $txt the text that should be should to the user
+     */
+    function echo_html(string $txt): void
+    {
+        echo $txt . '<br>';
+    }
+
+    /**
+     * display a message immediately to the user
+     * @param string $txt the text that should be should to the user
+     */
+    function echo(string $txt): void
+    {
+        echo $txt;
+    }
+
+    /**
+     *display a progress bar
+     * TODO create a auto refresh page for async processes and the HTML front end without JavaScript
+     * TODO create a db table, where the async process can drop the status
+     * TODO add the refresh frequency setting to the general and user settings
+     */
+    function ui_progress($id, $value, $max, $text)
+    {
+        echo $text;
+    }
 }

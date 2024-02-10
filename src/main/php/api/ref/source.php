@@ -30,9 +30,13 @@
 
 */
 
-namespace api;
+namespace api\ref;
 
-class source_api extends user_sandbox_named_with_type_api
+use api\sandbox\sandbox_typed as sandbox_typed_api;
+
+include_once API_SANDBOX_PATH . 'sandbox_typed.php';
+
+class source extends sandbox_typed_api
 {
 
     /*
@@ -41,6 +45,7 @@ class source_api extends user_sandbox_named_with_type_api
 
     // persevered source names for unit and integration tests (TN means TEST NAME)
     const TN_READ = 'wikidata';
+    const TN_MATH = 'Mathematical constant';
     const TN_READ_API = 'The International System of Units';
     const TD_READ_API = 'Bureau International des Poids et Mesures - The intergovernmental organization through which Member States act together on matters related to measurement science and measurement standards';
     const TU_READ_API = 'https://www.bipm.org/documents/20126/41483022/SI-Brochure-9.pdf';
@@ -63,6 +68,11 @@ class source_api extends user_sandbox_named_with_type_api
     // source group for creating the test sources and remove them after the test
     const RESERVED_SOURCES = array(
         self::TN_READ, // the source for all data imported from wikidata that does not yet have a source defined in wikidata
+        self::TN_ADD,
+        self::TN_ADD_API,
+        self::TN_RENAMED
+    );
+    const TEST_SOURCES = array(
         self::TN_ADD,
         self::TN_ADD_API,
         self::TN_RENAMED

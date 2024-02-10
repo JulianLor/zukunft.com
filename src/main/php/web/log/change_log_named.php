@@ -29,20 +29,22 @@
 
 */
 
-namespace api;
+namespace html\log;
 
-use back_trace;
-use change_log;
-use change_log_action;
-use change_log_field;
-use change_log_table;
-use controller\log\change_log_named_api;
-use formula;
+include_once API_SANDBOX_PATH . 'user_config.php';
+
+use api\log\change_log_named as change_log_named_api;
+use api\sandbox\user_config;
 use html\api;
 use html\button;
 use html\html_base;
+use html\msg;
+use html\system\back_trace;
+use cfg\log\change_log_action;
+use cfg\log\change_log_table;
+use cfg\formula;
 
-class change_log_named_dsp extends change_log_named_api
+class change_log_named extends change_log_named_api
 {
 
 
@@ -133,19 +135,19 @@ class change_log_named_dsp extends change_log_named_api
         if ($this->table_name() == change_log_table::WORD) {
             if ($this->action_code_id() == change_log_action::ADD) {
                 $undo_call = $html->url('value' . api::REMOVE, $this->id, $back->url_encode());
-                $undo_btn = (new button('delete this value', $undo_call))->undo();
+                $undo_btn = (new button($undo_call))->undo(msg::UNDO_ADD);
             }
         } elseif ($this->table_name() == change_log_table::VIEW) {
             if ($this->action_code_id() == change_log_action::ADD) {
                 $undo_call = $html->url('value' . api::REMOVE, $this->id, $back->url_encode());
-                $undo_btn = (new button('delete this value', $undo_call))->undo();
+                $undo_btn = (new button($undo_call))->undo(msg::UNDO_EDIT);
             }
         } elseif ($this->table_name() == change_log_table::FORMULA) {
             if ($this->action_code_id() == change_log_action::UPDATE) {
                 $undo_call = $html->url(
                     formula::class . api::UPDATE, $this->row_id,
                     $back->url_encode() . '&undo_change=' . $this->id());
-                $undo_btn = (new button('revert this change', $undo_call))->undo();
+                $undo_btn = (new button($undo_call))->undo(msg::UNDO_DEL);
             }
         }
         // display the undo button
@@ -178,7 +180,7 @@ class change_log_named_dsp extends change_log_named_api
     {
         global $change_log_actions;
 
-        $action = $change_log_actions->get_by_id($this->action_id);
+        $action = $change_log_actions->get($this->action_id);
         return $action->code_id;
     }
 
@@ -200,7 +202,7 @@ class change_log_named_dsp extends change_log_named_api
     {
         global $change_log_fields;
 
-        $field = $change_log_fields->get_by_id($this->field_id);
+        $field = $change_log_fields->get($this->field_id);
         return $field->code_id;
     }
 
@@ -211,7 +213,7 @@ class change_log_named_dsp extends change_log_named_api
     {
         global $change_log_fields;
 
-        $field = $change_log_fields->get_by_id($this->field_id);
+        $field = $change_log_fields->get($this->field_id);
         return $field->comment;
     }
 
@@ -222,7 +224,7 @@ class change_log_named_dsp extends change_log_named_api
     {
         global $change_log_tables;
 
-        $table = $change_log_tables->get_by_id($this->table_id);
+        $table = $change_log_tables->get($this->table_id);
         return $table->name;
     }
 

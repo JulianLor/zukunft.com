@@ -31,30 +31,42 @@
 
 
 /* standard zukunft header for callable php files to allow debugging and lib loading */
+
+use controller\controller;
+use html\html_base;
+use html\view\view as view_dsp;
+use html\word\word as word_dsp;
+use cfg\term;
+use cfg\triple;
+use cfg\user;
+use cfg\view;
+use cfg\word;
+
 $debug = $_GET['debug'] ?? 0;
 const ROOT_PATH = __DIR__ . '/../';
 include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 
 /* open database */
 $db_con = prg_start("phrase_list");
+$html = new html_base();
 
 $result = ''; // reset the html code var
 $msg = ''; // to collect all messages that should be shown to the user immediately
 
 // load the session user parameters
 $usr = new user;
-$phr_lst = new phrase_list_dsp_old($usr);
 $result .= $usr->get();
 
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
 if ($usr->id() > 0) {
 
-    load_usr_data();
+    $usr->load_usr_data();
 
     // prepare the display
-    $dsp = new view_dsp_old($usr);
-    $dsp->load_by_code_id(view::WORD_ADD);
-    $back = $_GET['back']; // the calling page which should be displayed after saving
+    $dsp_db = new view($usr);
+    $dsp_db->load_by_code_id(controller::DSP_WORD_ADD);
+    $dsp = new view_dsp($dsp_db->api_json());
+    $back = $_GET[controller::API_BACK]; // the calling page which should be displayed after saving
 
     // create the word object to have a place to update the parameters
     $wrd = new word($usr);
@@ -67,7 +79,7 @@ if ($usr->id() > 0) {
         $wrd->type_id = $_GET['type'];
     }      // the type that adds special behavior to the word
 
-    // all words should be linked to an existing word, so collect the parameters for the word link now
+    // all words should be linked to an existing word, so collect the parameters for the triple now
     $phr_id = $_GET['add'];  // id of an existing word that should be linked
     $vrb_id = $_GET['verb']; // id of the link between the words e.g. clicking add at Nestle is a company should lead to a question ... is (also) a company
     $phr_to = $_GET['word']; // a selected word where the new word should be linked to; e.g. company in the example above
@@ -82,7 +94,7 @@ if ($usr->id() > 0) {
         /*
         For easy adding of new words it is no longer needed to link a word to an existing word. Instead, a special page with the unlinked words should be added.
         if ($vrb_id == 0) {
-          $msg .= 'Link missing; Please press back and select a word link, because all new words must be linked in a defined way to an existing word. ';
+          $msg .= 'Link missing; Please press back and select a triple, because all new words must be linked in a defined way to an existing word. ';
         }
         if ($wrd_to <= 0) {
           $msg .= 'Word missing; Please press back and select a related word, because all new words must be linked to an existing word. ';
@@ -107,7 +119,7 @@ if ($usr->id() > 0) {
                   zu_debug('word_add -> changed type to ('.$wrd->type_id.')');
                 } else {
                 */
-                $msg .= $trm->id_used_msg();
+                $msg .= $trm->id_used_msg($this);
                 log_debug();
                 //}
             }
@@ -115,14 +127,14 @@ if ($usr->id() > 0) {
         } elseif ($phr_id > 0) {
             // check link of the existing word already exists
             $lnk_test = new triple($usr);
-            $lnk_test->load_by_link($phr_id, $vrb_id, $phr_to);
+            $lnk_test->load_by_link_id($phr_id, $vrb_id, $phr_to);
             if ($lnk_test->id() > 0) {
                 $lnk_test->load_objects();
                 log_debug('forward link ' . $phr_id . ' ' . $vrb_id . ' ' . $phr_to . '');
                 $msg .= '"' . $lnk_test->from_name . ' ' . $lnk_test->verb->name() . ' ' . $lnk_test->to_name . '" already exists. ';
             }
             $lnk_rev = new triple($usr);
-            $lnk_rev->load_by_link($phr_to, $vrb_id, $phr_id);
+            $lnk_rev->load_by_link_id($phr_to, $vrb_id, $phr_id);
             if ($lnk_rev->id() > 0) {
                 $lnk_rev->load_objects();
                 $msg .= 'The reverse of "' . $lnk_rev->from_name . ' ' . $lnk_rev->verb->name() . ' ' . $lnk_rev->to_name . '" already exists. Do you really want to add both sides? ';
@@ -144,9 +156,9 @@ if ($usr->id() > 0) {
                 // ... and link it to an existing word
                 log_debug('word ' . $wrd->id() . ' linked via ' . $vrb_id . ' to ' . $phr_to . ': ' . $add_result);
                 $lnk = new triple($usr);
-                $lnk->from->set_id($wrd->id());
+                $lnk->fob->set_id($wrd->id());
                 $lnk->verb->set_id($vrb_id);
-                $lnk->to->set_id($phr_to);
+                $lnk->tob->set_id($phr_to);
                 $add_result .= $lnk->save();
             }
 
@@ -168,9 +180,10 @@ if ($usr->id() > 0) {
     if ($result == '') {
         // display the add view again
         $result .= $dsp->dsp_navbar($back);
-        $result .= dsp_err($msg);
+        $result .= $html->dsp_err($msg);
 
-        $result .= $wrd->dsp_add($phr_id, $phr_to, $vrb_id, $back);
+        $wrd_dsp = new word_dsp($wrd->api_json());
+        $result .= $wrd_dsp->dsp_add($phr_id, $phr_to, $vrb_id, $back);
     }
 }
 

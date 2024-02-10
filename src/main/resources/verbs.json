@@ -17,7 +17,8 @@
       "description": "the main child to parent relation e.g. Zurich is a Canton. The reverse is valid and usually plural is used e.g. Cantons are Zurich, Bern, ...",
       "name_plural_reverse": "are",
       "name_plural": "are",
-      "name_reverse": "are"
+      "name_reverse": "are",
+      "protection": "admin_protection"
     },
     {
       "name": "is part of",
@@ -73,6 +74,7 @@
     {
       "name": "uses",
       "code_id": "",
+      "description": "real use e.g. wind energy is used by a wind turbine",
       "name_plural_reverse": "are used by",
       "name_plural": "uses",
       "name_reverse": "is used by"
@@ -154,6 +156,14 @@
       "name_plural": "per",
       "name_plural_reverse": "",
       "name_reverse": ""
+    },
+    {
+      "name": "is selector for",
+      "code_id": "selector",
+      "description": "used to group a selection list to make it shorter",
+      "name_plural": "are selectors for",
+      "name_plural_reverse": "are grouped by",
+      "name_reverse": "is grouped by"
     }
   ]
 }

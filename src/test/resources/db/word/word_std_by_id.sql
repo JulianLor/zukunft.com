@@ -1,10 +1,10 @@
-PREPARE word_std_by_id (int) AS
+PREPARE word_std_by_id (bigint) AS
     SELECT word_id,
            word_name,
            values,
            plural,
            description,
-           word_type_id,
+           phrase_type_id,
            view_id,
            excluded,
            share_type_id,

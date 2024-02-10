@@ -30,7 +30,10 @@
 
 */
 
-function run_import_test($file_list, testing $t): void
+use test\test_cleanup;
+use const test\TIMEOUT_LIMIT_IMPORT;
+
+function run_import_test($file_list, test_cleanup $t): void
 {
     global $usr;
 

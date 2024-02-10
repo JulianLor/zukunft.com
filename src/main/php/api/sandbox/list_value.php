@@ -33,33 +33,18 @@
 
 */
 
-namespace api;
+namespace api\sandbox;
 
-class list_value_api extends list_api
+include_once API_SANDBOX_PATH . 'list_object.php';
+
+use api\sandbox\list_object as list_api;
+
+class list_value extends list_api
 {
 
     function __construct(array $lst = array())
     {
         parent::__construct($lst);
-    }
-
-    /**
-     * @returns phrase_list_api with the phrases that are used in all values of the list
-     */
-    protected function common_phrases(): phrase_list_api
-    {
-        // get common words
-        $common_phr_lst = new phrase_list_api();
-        foreach ($this->lst as $val) {
-            if ($val != null) {
-                if ($val->phr_lst() != null) {
-                    if ($val->phr_lst()->lst != null) {
-                        $common_phr_lst->intersect($val->phr_lst());
-                    }
-                }
-            }
-        }
-        return $common_phr_lst;
     }
 
 }

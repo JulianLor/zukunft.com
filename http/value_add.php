@@ -30,12 +30,21 @@
 */
 
 // standard zukunft header for callable php files to allow debugging and lib loading
+use controller\controller;
+use html\html_base;
+use html\view\view as view_dsp;
+use html\value\value as value_dsp;
+use cfg\user;
+use cfg\value;
+use cfg\view;
+
 $debug = $_GET['debug'] ?? 0;
 const ROOT_PATH = __DIR__ . '/../';
 include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 
 // open database
 $db_con = prg_start("value_add");
+$html = new html_base();
 
 $result = ''; // reset the html code var
 $msg = ''; // to collect all messages that should be shown to the user immediately
@@ -47,12 +56,12 @@ $result .= $usr->get();
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
 if ($usr->id() > 0) {
 
-    load_usr_data();
+    $usr->load_usr_data();
 
     // prepare the display
-    $dsp = new view_dsp_old($usr);
-    $dsp->load_by_code_id(view::VALUE_ADD);
-    $back = $_GET['back'];     // the word id from which this value change has been called (maybe later any page)
+    $msk = new view($usr);
+    $msk->load_by_code_id(controller::DSP_VALUE_ADD);
+    $back = $_GET[controller::API_BACK];     // the word id from which this value change has been called (maybe later any page)
 
     // create the object to store the parameters so that if the add form is shown again it is already filled
     $val = new value($usr);
@@ -117,16 +126,18 @@ if ($usr->id() > 0) {
         }
 
         log_debug("go back to " . $back . ".");
-        $result .= dsp_go_back($back, $usr);
+        $result .= $html->dsp_go_back($back, $usr);
     }
 
     // if nothing yet done display the add view (and any message on the top)
     if ($result == '') {
         // display the view header
-        $result .= $dsp->dsp_navbar($back);
-        $result .= dsp_err($msg);
+        $msk_dsp = new view_dsp($msk->api_json());
+        $result .= $msk_dsp->dsp_navbar($back);
+        $result .= $html->dsp_err($msg);
 
-        $result .= $val->dsp_edit($type_ids, $back);
+        $val_dsp = new value_dsp($val->api_json());
+        $result .= $val_dsp->dsp_edit($type_ids, $back);
     }
 }
 

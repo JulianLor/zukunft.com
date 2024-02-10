@@ -30,31 +30,51 @@
 
 */
 
-use api\word_api;
+namespace test;
+
+include_once MODEL_WORD_PATH . 'word_list.php';
+include_once WEB_WORD_PATH . 'word_list.php';
+
+use api\verb\verb as verb_api;
+use api\word\word as word_api;
+use cfg\foaf_direction;
 use cfg\phrase_type;
+use cfg\library;
+use cfg\db\sql_db;
+use cfg\verb;
+use cfg\word;
+use cfg\word_list;
+use cfg\word_select_direction;
+use html\word\word_list as word_list_dsp;
 
 class word_list_unit_tests
 {
-    function run(testing $t): void
+    function run(test_cleanup $t): void
     {
 
         global $usr;
         global $phrase_types;
+        global $verbs;
 
         // init
         $db_con = new sql_db();
         $t->name = 'word_list->';
         $t->resource_path = 'db/word/';
+        $json_file = 'unit/word/word_list.json';
         $usr->set_id(1);
 
         $t->header('Unit tests of the word list class (src/main/php/model/word/word_list.php)');
 
         $t->subheader('Database query creation tests');
 
+        // load only the names
+        $wrd_lst = new word_list($usr);
+        $t->assert_sql_names($db_con, $wrd_lst, new word($usr));
+        $t->assert_sql_names($db_con, $wrd_lst, new word($usr), word_api::TN_READ);
+
         // load by word ids
         $wrd_lst = new word_list($usr);
-        $wrd_ids = array(3,2,4);
-        $this->assert_sql_by_ids($t, $db_con, $wrd_lst, $wrd_ids);
+        $t->assert_sql_by_ids($db_con, $wrd_lst, array(3, 2, 4));
 
         // load by word names
         $wrd_lst = new word_list($usr);
@@ -81,38 +101,39 @@ class word_list_unit_tests
         $wrd = new word($usr);
         $wrd->set_id(6);
         $wrd_lst->add($wrd);
-        $verb_id = 0;
-        $direction = word_select_direction::UP;
-        $this->assert_sql_by_linked_words($t, $db_con, $wrd_lst, $verb_id, $direction);
+        $vrb = null;
+        $direction = foaf_direction::UP;
+        $this->assert_sql_by_linked_words($t, $db_con, $wrd_lst, $vrb, $direction);
 
         // the parent words filtered by verb
         $wrd_lst = new word_list($usr);
         $wrd = new word($usr);
         $wrd->set_id(7);
         $wrd_lst->add($wrd);
-        $verb_id = 1;
-        $this->assert_sql_by_linked_words($t, $db_con, $wrd_lst, $verb_id, $direction);
+        $vrb = $verbs->get_verb(verb::IS);
+        $this->assert_sql_by_linked_words($t, $db_con, $wrd_lst, $vrb, $direction);
 
         // the child words
         $wrd_lst = new word_list($usr);
         $wrd = new word($usr);
         $wrd->set_id(8);
         $wrd_lst->add($wrd);
-        $verb_id = 0;
-        $direction = word_select_direction::DOWN;
-        $this->assert_sql_by_linked_words($t, $db_con, $wrd_lst, $verb_id, $direction);
+        $vrb = null;
+        $direction = foaf_direction::DOWN;
+        $this->assert_sql_by_linked_words($t, $db_con, $wrd_lst, $vrb, $direction);
 
         // the child words filtered by verb
         $wrd_lst = new word_list($usr);
         $wrd = new word($usr);
         $wrd->set_id(9);
         $wrd_lst->add($wrd);
-        $verb_id = 1;
-        $this->assert_sql_by_linked_words($t, $db_con, $wrd_lst, $verb_id, $direction);
+        $vrb = $verbs->get_verb(verb::IS);
+        $this->assert_sql_by_linked_words($t, $db_con, $wrd_lst, $vrb, $direction);
 
         $t->subheader('Modify and filter word lists');
 
         // create words for unit testing
+        // TODO used create dummy functions
         $wrd1 = new word($usr);
         $wrd1->set_id(1);
         $wrd1->set_name('word1');
@@ -251,152 +272,142 @@ class word_list_unit_tests
         $t->assert($t->name . '->percent list', $wrd_lst_percent->name(), '""');
 
         // JSON export list
+        $lib = new library();
         $wrd_lst = new word_list($usr);
         $wrd_lst->add($wrd_time);
         $wrd_lst->add($wrd_measure);
         $wrd_lst->add($wrd_scale);
         $json = json_decode(json_encode($wrd_lst->export_obj()));
         $json_expected = json_decode(file_get_contents(PATH_TEST_FILES . 'export/word/word_list.json'));
-        $result = json_is_similar($json, $json_expected);
+        $result = $lib->json_is_similar($json, $json_expected);
+        // TODO remove, for faster debugging only
+        $json_expected_txt = json_encode($json_expected);
+        $json_actual_txt = json_encode($json);
         $t->assert('JSON export word list', $result, true);
 
-    }
 
-    /**
-     * test the SQL statement creation for a word list in all SQL dialect
-     * and check if the statement name is unique
-     *
-     * @param testing $t the test environment
-     * @param sql_db $db_con the test database connection
-     * @param word_list $lst the empty word list object
-     * @param array $ids filled with a list of word ids to be used for the query creation
-     * @return bool true if all tests are fine
-     */
-    private function assert_sql_by_ids(testing $t, sql_db $db_con, word_list $lst, array $ids): bool
-    {
-        // check the Postgres query syntax
-        $db_con->db_type = sql_db::POSTGRES;
-        $qp = $lst->load_sql_by_ids($db_con, $ids);
-        $result = $t->assert_qp($qp, sql_db::POSTGRES);
+        $t->subheader('Im- and Export tests');
 
-        // ... and check the MySQL query syntax
-        if ($result) {
-        $db_con->db_type = sql_db::MYSQL;
-        $qp = $lst->load_sql_by_ids($db_con, $ids);
-        $t->assert_qp($qp, sql_db::MYSQL);
-        }
-        return $result;
+        $t->assert_json_file(new word_list($usr), $json_file);
+
+
+        $t->subheader('HTML frontend unit tests');
+
+        $wrd_lst = $t->dummy_word_list();
+        $t->assert_api_to_dsp($wrd_lst, new word_list_dsp());
+
     }
 
     /**
      * similar to assert_sql_by_ids, but for word names
      *
-     * @param testing $t the test environment
+     * @param test_cleanup $t the test environment
      * @param sql_db $db_con the test database connection
      * @param word_list $lst the empty word list object
      * @param array $words filled with a list of word names to be used for the query creation
      * @return void
      */
-    private function assert_sql_by_names(testing $t, sql_db $db_con, word_list $lst, array $words): void
+    private function assert_sql_by_names(test_cleanup $t, sql_db $db_con, word_list $lst, array $words): void
     {
         // check the Postgres query syntax
         $db_con->db_type = sql_db::POSTGRES;
-        $qp = $lst->load_sql_by_names($db_con, $words);
-        $t->assert_qp($qp, sql_db::POSTGRES);
+        $qp = $lst->load_sql_by_names($db_con->sql_creator(), $words);
+        $t->assert_qp($qp, $db_con->db_type);
 
         // check the MySQL query syntax
         $db_con->db_type = sql_db::MYSQL;
-        $qp = $lst->load_sql_by_names($db_con, $words);
-        $t->assert_qp($qp, sql_db::MYSQL);
+        $qp = $lst->load_sql_by_names($db_con->sql_creator(), $words);
+        $t->assert_qp($qp, $db_con->db_type);
     }
 
     /**
      * similar to assert_sql_by_ids, but for a phrase group
      *
-     * @param testing $t the test environment
+     * @param test_cleanup $t the test environment
      * @param sql_db $db_con the test database connection
      * @param word_list $lst the empty word list object
      * @param int $grp_id the phrase group id that should be used for selecting the words
      * @return void
      */
-    private function assert_sql_by_group_id(testing $t, sql_db $db_con, word_list $lst, int $grp_id): void
+    private function assert_sql_by_group_id(test_cleanup $t, sql_db $db_con, word_list $lst, int $grp_id): void
     {
         // check the Postgres query syntax
         $db_con->db_type = sql_db::POSTGRES;
-        $qp = $lst->load_sql_by_grp_id($db_con, $grp_id);
-        $t->assert_qp($qp, sql_db::POSTGRES);
+        $qp = $lst->load_sql_by_grp_id($db_con->sql_creator(), $grp_id);
+        $t->assert_qp($qp, $db_con->db_type);
 
         // check the MySQL query syntax
         $db_con->db_type = sql_db::MYSQL;
-        $qp = $lst->load_sql_by_grp_id($db_con, $grp_id);
-        $t->assert_qp($qp, sql_db::MYSQL);
+        $qp = $lst->load_sql_by_grp_id($db_con->sql_creator(), $grp_id);
+        $t->assert_qp($qp, $db_con->db_type);
     }
 
     /**
      * similar to assert_sql_by_ids, but for a type
      *
-     * @param testing $t the test environment
+     * @param test_cleanup $t the test environment
      * @param sql_db $db_con the test database connection
      * @param word_list $lst the empty word list object
      * @param int $type_id the phrase group id that should be used for selecting the words
      * @return void
      */
-    private function assert_sql_by_type_id(testing $t, sql_db $db_con, word_list $lst, int $type_id): void
+    private function assert_sql_by_type_id(test_cleanup $t, sql_db $db_con, word_list $lst, int $type_id): void
     {
         // check the Postgres query syntax
         $db_con->db_type = sql_db::POSTGRES;
-        $qp = $lst->load_sql_by_type($db_con, $type_id);
-        $t->assert_qp($qp, sql_db::POSTGRES);
+        $qp = $lst->load_sql_by_type($db_con->sql_creator(), $type_id);
+        $t->assert_qp($qp, $db_con->db_type);
 
         // check the MySQL query syntax
         $db_con->db_type = sql_db::MYSQL;
-        $qp = $lst->load_sql_by_type($db_con, $type_id);
-        $t->assert_qp($qp, sql_db::MYSQL);
+        $qp = $lst->load_sql_by_type($db_con->sql_creator(), $type_id);
+        $t->assert_qp($qp, $db_con->db_type);
     }
 
     /**
      * similar to assert_sql_by_ids, but for a type
      *
-     * @param testing $t the test environment
+     * @param test_cleanup $t the test environment
      * @param sql_db $db_con the test database connection
      * @param word_list $lst the empty word list object
      * @param string $pattern the text pattern to select the words
      * @return void
      */
-    private function assert_sql_by_pattern(testing $t, sql_db $db_con, word_list $lst, string $pattern): void
+    private function assert_sql_by_pattern(test_cleanup $t, sql_db $db_con, word_list $lst, string $pattern): void
     {
         // check the Postgres query syntax
         $db_con->db_type = sql_db::POSTGRES;
-        $qp = $lst->load_sql_pattern($db_con, $pattern);
-        $t->assert_qp($qp, sql_db::POSTGRES);
+        $qp = $lst->load_sql_like($db_con->sql_creator(), $pattern);
+        $t->assert_qp($qp, $db_con->db_type);
 
         // check the MySQL query syntax
         $db_con->db_type = sql_db::MYSQL;
-        $qp = $lst->load_sql_pattern($db_con, $pattern);
-        $t->assert_qp($qp, sql_db::MYSQL);
+        $qp = $lst->load_sql_like($db_con->sql_creator(), $pattern);
+        $t->assert_qp($qp, $db_con->db_type);
     }
 
     /**
      * similar to assert_sql_by_ids, but for a linked words
      *
-     * @param testing $t the test environment
+     * @param test_cleanup $t the test environment
      * @param sql_db $db_con the test database connection
      * @param word_list $lst the empty word list object
-     * @param int $verb_id to select only words linked with this verb
-     * @param string $direction to define the link direction
+     * @param verb|null $vrb to select only words linked with this verb
+     * @param foaf_direction $direction to define the link direction
      * @return void
      */
-    private function assert_sql_by_linked_words(testing $t, sql_db $db_con, word_list $lst, int $verb_id, string $direction): void
+    private function assert_sql_by_linked_words(
+        test_cleanup $t, sql_db $db_con, word_list $lst, ?verb $vrb, foaf_direction $direction): void
     {
         // check the Postgres query syntax
         $db_con->db_type = sql_db::POSTGRES;
-        $qp = $lst->load_sql_linked_words($db_con, $verb_id, $direction);
-        $t->assert_qp($qp, sql_db::POSTGRES);
+        $qp = $lst->load_sql_linked_words($db_con->sql_creator(), $vrb, $direction);
+        $t->assert_qp($qp, $db_con->db_type);
 
         // check the MySQL query syntax
         $db_con->db_type = sql_db::MYSQL;
-        $qp = $lst->load_sql_linked_words($db_con, $verb_id, $direction);
-        $t->assert_qp($qp, sql_db::MYSQL);
+        $qp = $lst->load_sql_linked_words($db_con->sql_creator(), $vrb, $direction);
+        $t->assert_qp($qp, $db_con->db_type);
     }
 
 }

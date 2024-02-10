@@ -12,6 +12,8 @@
     { "name": "Canton"},
     { "name": "City"},
     { "name": "Zurich"},
+    { "name": "Bern"},
+    { "name": "Geneva"},
     { "name": "Germany", "refs": [ { "name": "Germany", "type": "wikipedia" } ] },
     { "name": "inhabitants"},
     { "name": "2015", "type": "time"},
@@ -42,13 +44,16 @@
       "refs": [ { "name": "Canton of Zürich", "type": "wikipedia" },
                 { "name": "Q11943", "type": "wikidata" } ]
     },
-    {"name": "Zurich (City)", "from": "Zurich", "verb": "is a", "to": "City",
+    {"name": "Zurich (City)", "from": "Zurich", "verb": "is a", "to": "City"},
+    {"name": "Bern (City)", "from": "Bern", "verb": "is a", "to": "City"},
+    {"name": "Geneva (City)", "from": "Geneva", "verb": "is a", "to": "City",
       "refs": [ { "name": "Zürich", "type": "wikipedia" },
                 { "name": "Q72", "type": "wikidata" },
                 { "name": "zurich", "type": "conceptnet" } ]
     },
     {"from": "Zurich (Canton)", "verb": "is part of", "to": "Switzerland"},
     {"from": "Zurich (City)", "verb": "is part of", "to": "Zurich (Canton)"},
+    {"from": "ZU", "verb": "is an acronym for", "to": "Zurich"},
     {"from": "2015", "verb": "is a", "to": "Year"},
     {"from": "2016", "verb": "is a", "to": "Year"},
     {"from": "2017", "verb": "is a", "to": "Year"},
@@ -108,6 +113,11 @@
       "name": "increase",
       "expression": "\"percent\" = ( \"this\" - \"prior\" ) / \"prior\"",
       "assigned_word": "\"inhabitants\""
+    },
+    {
+      "name": "population in the city of Zurich in percent of Switzerland",
+      "expression": "\"percent\" = \"inhabitants\" \"Zurich (City)\" / \"inhabitants\" \"Switzerland\"",
+      "assigned_word": "\"Switzerland\""
     }
   ],
   "sources": [
@@ -120,11 +130,11 @@
     {
       "name": "Country ratios",
       "comment": "List all countries with the main ratios",
-      "view_components": [
+      "components": [
         {
-          "pos": "1",
+          "position": "1",
           "name": "Name",
-          "code_id": "word_name"
+          "type": "word_name"
         }
       ]
     }

@@ -5,7 +5,7 @@
   api/verb/index.php - the verb API controller: send a verb to the frontend
   ------------------
   
-  This file is part of zukunft.com - calc with verbs
+  This file is part of zukunft.com - calc with words
 
   zukunft.com is free software: you can redistribute it and/or modify it
   under the terms of the GNU General Public License as
@@ -29,13 +29,24 @@
   
 */
 
-use api\verb_api;
 use controller\controller;
+use cfg\user;
+use cfg\verb;
+use api\verb\verb as verb_api;
 
 // standard zukunft header for callable php files to allow debugging and lib loading
-const ROOT_PATH = __DIR__ . '/../../';
-include_once ROOT_PATH . 'src/main/php/zu_lib.php';
-$debug = $_GET[controller::URL_VAR_DEBUG] ?? 0;
+global $debug;
+$debug = $_GET['debug'] ?? 0;
+const ROOT_PATH = __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR;
+const PHP_PATH = ROOT_PATH . 'src' . DIRECTORY_SEPARATOR . 'main' . DIRECTORY_SEPARATOR . 'php' . DIRECTORY_SEPARATOR;
+include_once PHP_PATH . 'zu_lib.php';
+
+include_once API_PATH . 'api.php';
+include_once API_PATH . 'controller.php';
+include_once API_PATH . 'api_message.php';
+include_once MODEL_USER_PATH . 'user.php';
+include_once MODEL_VERB_PATH . 'verb.php';
+include_once API_VERB_PATH . 'verb.php';
 
 // open database
 $db_con = prg_start("api/verb", "", false);
@@ -57,10 +68,10 @@ if ($usr->id() > 0) {
     $vrb = new verb();
     if ($vrb_id > 0) {
         $vrb->load_by_id($vrb_id);
-        $result = $vrb->api_obj();
+        $result = $vrb->api_verb_obj();
     } elseif ($vrb_name != '') {
         $vrb->load_by_name($vrb_name);
-        $result = $vrb->api_obj();
+        $result = $vrb->api_verb_obj();
     } else {
         $msg = 'verb id or name is missing';
     }

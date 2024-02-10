@@ -29,21 +29,95 @@
 
 */
 
-namespace html;
+namespace html\verb;
 
-use api\verb_api;
-use verb;
+include_once WEB_SANDBOX_PATH . 'sandbox_named.php';
 
-class verb_dsp extends verb_api
+use api\api;
+use api\verb\verb as verb_api;
+use html\api as api_dsp;
+use html\html_base;
+use html\phrase\term as term_dsp;
+use html\sandbox\sandbox_named as sandbox_named_dsp;
+
+class verb extends sandbox_named_dsp
 {
 
     /*
-     * casting
+     * object vars
+     */
+
+    public string $code_id;        // this id text is unique for all code links and is used for system im- and export
+
+
+    /*
+     * set and get
+     */
+
+    /**
+     * set the vars of this object bases on the api json array
+     * public because it is reused e.g. by the phrase group display object
+     * @param array $json_array an api json message
+     * @return void
+     */
+    function set_from_json_array(array $json_array): void
+    {
+        parent::set_from_json_array($json_array);
+        if (array_key_exists(api::FLD_CODE_ID, $json_array)) {
+            $this->set_code_id($json_array[api::FLD_CODE_ID]);
+        } else {
+            $this->set_code_id('');
+        }
+    }
+
+    /**
+     * the verb itself is a type
+     * this function is only used as an interface mapping for the term
+     * @return int|null
+     */
+    function type_id(): ?int
+    {
+        return $this->id;
+    }
+
+
+    /*
+     * set and get
+     */
+
+    function set_code_id(string $code_id): void
+    {
+        $this->code_id = $code_id;
+    }
+
+    function code_id(): string
+    {
+        return $this->code_id;
+    }
+
+    /*
+     * cast
      */
 
     function term(): term_dsp
     {
-        return new term_dsp($this->id, $this->name, verb::class);
+        $trm = new term_dsp();
+        $trm->set_obj($this);
+        return $trm;
+    }
+
+
+    /*
+     * display
+     */
+
+    /**
+     * display the verb with the tooltip
+     * @returns string the html code
+     */
+    function display(): string
+    {
+        return $this->name();
     }
 
     /**
@@ -52,11 +126,27 @@ class verb_dsp extends verb_api
      * @param string $style the CSS style that should be used
      * @returns string the html code
      */
-    function dsp_link(?string $back = '', string $style = ''): string
+    function display_linked(?string $back = '', string $style = ''): string
     {
         $html = new html_base();
-        $url = $html->url(api::VERB, $this->id, $back, api::PAR_VIEW_VERBS);
+        $url = $html->url(api_dsp::VERB, $this->id, $back, api_dsp::PAR_VIEW_VERBS);
         return $html->ref($url, $this->name(), $this->name(), $style);
+    }
+
+
+    /*
+     * interface
+     */
+
+    /**
+     * @return array the json message array to send the updated data to the backend
+     * an array is used (instead of a string) to enable combinations of api_array() calls
+     */
+    function api_array(): array
+    {
+        $vars = parent::api_array();
+        $vars[api::FLD_CODE_ID] = $this->code_id();
+        return $vars;
     }
 
 }

@@ -32,15 +32,20 @@
 
 */
 
-namespace html;
+namespace html\user;
 
-use api\type_list_api;
+use api\system\type_list as type_list_api;
+use html\html_base;
+use html\html_selector;
+use cfg\library;
 
-class _type_list_dsp extends type_list_api
+class user_type_list extends type_list_api
 {
 
     function list(string $class, string $title = ''): string
     {
+        $lib = new library();
+        $class = $lib->class_to_name($class);
         $html = new html_base();
         if ($title != '') {
             $title = $html->text_h2($title);
@@ -56,9 +61,9 @@ class _type_list_dsp extends type_list_api
         $sel = new html_selector();
         $sel->name = $name;
         $sel->form = $form;
-        $sel->lst = $this->lst_key();
+        $sel->lst = $this->db_id_list();
         $sel->selected = $selected;
-        return $sel->dsp();
+        return $sel->display();
     }
 
 }

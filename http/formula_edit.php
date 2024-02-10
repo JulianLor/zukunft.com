@@ -30,12 +30,20 @@
 */
 
 use controller\controller;
+use html\html_base;
+use html\view\view as view_dsp;
+use html\formula\formula as formula_dsp;
+use cfg\formula;
+use cfg\phrase;
+use cfg\user;
+use cfg\view;
 
 $debug = $_GET['debug'] ?? 0;
 const ROOT_PATH = __DIR__ . '/../';
 include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 
 $db_con = prg_start("formula_edit");
+$html = new html_base();
 
 // get the parameters
 $frm_id = $_GET[controller::URL_VAR_ID] ?? 0;
@@ -50,12 +58,12 @@ $result .= $usr->get();
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
 if ($usr->id() > 0) {
 
-    load_usr_data();
+    $usr->load_usr_data();
 
     // prepare the display
-    $dsp = new view_dsp_old($usr);
-    $dsp->load_by_code_id(view::FORMULA_EDIT);
-    $back = $_GET['back'];
+    $msk = new view($usr);
+    $msk->load_by_code_id(controller::DSP_FORMULA_EDIT);
+    $back = $_GET[controller::API_BACK];
 
     // create the formula object to have a place to update the parameters
     $frm = new formula($usr);
@@ -68,8 +76,8 @@ if ($usr->id() > 0) {
     if (isset($_GET['formula_text'])) {
         $frm->usr_text = $_GET['formula_text'];
     } // the new formula text in the user format
-    if (isset($_GET['description'])) {
-        $frm->description = $_GET['description'];
+    if (isset($_GET[controller::URL_VAR_DESCRIPTION])) {
+        $frm->description = $_GET[controller::URL_VAR_DESCRIPTION];
     }
     if (isset($_GET['type'])) {
         $frm->type_id = $_GET['type'];
@@ -89,18 +97,18 @@ if ($usr->id() > 0) {
 
         // do the direct changes initiated by other buttons than the save button
         // to link the formula to another word
-        if ($_GET['link_phrase'] > 0) {
+        $link_phr_id = $_GET[controller::URL_VAR_LINK_PHRASE] ?? 0;
+        if ($link_phr_id != 0) {
             $phr = new phrase($usr);
-            $phr->set_id($_GET['link_phrase']);
-            $phr->load_by_obj_par();
+            $phr->load_by_id($link_phr_id);
             $upd_result = $frm->link_phr($phr);
         }
 
         // to unlink a word from the formula
-        if ($_GET['unlink_phrase'] > 0) {
+        $unlink_phr_id = $_GET[controller::URL_VAR_UNLINK_PHRASE] ?? 0;
+        if ($unlink_phr_id > 0) {
             $phr = new phrase($usr);
-            $phr->set_id($_GET['unlink_phrase']);
-            $phr->load_by_obj_par();
+            $phr->load_by_id($unlink_phr_id);
             $upd_result = $frm->unlink_phr($phr);
         }
 
@@ -116,11 +124,11 @@ if ($usr->id() > 0) {
                 // because formula changing may need several updates the edit view is shown again
                 //$result .= dsp_go_back($back, $usr);
 
-                // trigger to update the related formula values / results
-                if ($frm->needs_fv_upd) {
+                // trigger to update the related results / results
+                if ($frm->needs_res_upd) {
                     // update the formula results
                     $phr_lst = $frm->assign_phr_lst();
-                    //$fv_list = $frm->calc($phr_lst);
+                    //$res_list = $frm->calc($phr_lst);
                 }
             } else {
                 // ... or in case of a problem prepare to show the message
@@ -131,17 +139,15 @@ if ($usr->id() > 0) {
         // if nothing yet done display the edit view (and any message on the top)
         if ($result == '') {
             // display the view header
-            $result .= $dsp->dsp_navbar($back);
-            $result .= dsp_err($msg);
+            $msk_dsp = new view_dsp($msk->api_json());
+            $result .= $msk_dsp->dsp_navbar($back);
+            $result .= $html->dsp_err($msg);
 
             // display the view to change the formula
             $frm->load_by_id($frm_id); // reload to formula object to display the real database values
-            if (isset($_GET['add_link'])) {
-                $add_link = $_GET['add_link'];
-            } else {
-                $add_link = 0;
-            }
-            $result .= $frm->dsp_edit($add_link, 0, $back); // with add_link to add a link and display a word selector
+            $add_link = $_GET['add_link'] ?? 0;
+            $frm_dsp = new formula_dsp($frm->api_json());
+            $result .= $frm_dsp->dsp_edit($add_link, 0, $back); // with add_link to add a link and display a word selector
         }
     }
 }

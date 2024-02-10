@@ -5,7 +5,7 @@
     api/formulaList/index.php - the formula list API controller: send a list of formulas to the frontend
     -------------------------
 
-    This file is part of zukunft.com - calc with values
+    This file is part of zukunft.com - calc with words
 
     zukunft.com is free software: you can redistribute it and/or modify it
     under the terms of the GNU General Public License as
@@ -29,19 +29,30 @@
   
 */
 
-use api\formula_list_api;
 use controller\controller;
+use cfg\user;
+use cfg\formula_list;
+use api\formula\formula_list as formula_list_api;
 
 // standard zukunft header for callable php files to allow debugging and lib loading
-const ROOT_PATH = __DIR__ . '/../../';
-include_once ROOT_PATH . 'src/main/php/zu_lib.php';
-$debug = $_GET[controller::URL_VAR_DEBUG] ?? 0;
+global $debug;
+$debug = $_GET['debug'] ?? 0;
+const ROOT_PATH = __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR;
+const PHP_PATH = ROOT_PATH . 'src' . DIRECTORY_SEPARATOR . 'main' . DIRECTORY_SEPARATOR . 'php' . DIRECTORY_SEPARATOR;
+include_once PHP_PATH . 'zu_lib.php';
+
+include_once API_PATH . 'api.php';
+include_once API_PATH . 'controller.php';
+include_once API_PATH . 'api_message.php';
+include_once MODEL_USER_PATH . 'user.php';
+include_once MODEL_FORMULA_PATH . 'formula_list.php';
+include_once API_FORMULA_PATH . 'formula_list.php';
 
 // open database
 $db_con = prg_start("api/formulaList", "", false);
 
 // get the parameters
-$frm_ids = $_GET['ids'] ?? 0;
+$frm_ids = $_GET[controller::URL_VAR_ID_LST] ?? 0;
 
 $msg = '';
 $result = new formula_list_api(); // reset the html code var
@@ -58,7 +69,7 @@ if ($usr->id() > 0) {
         $lst->load_by_ids(explode(',',$frm_ids));
         $result = $lst->api_obj();
     } else {
-        $msg = 'formula id is missing';
+        $msg = 'list of formula id is missing';
     }
 }
 

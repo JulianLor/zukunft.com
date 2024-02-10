@@ -30,9 +30,17 @@
 
 */
 
-namespace api;
+namespace api\view;
 
-class view_api extends user_sandbox_named_with_type_api
+include_once API_SANDBOX_PATH . 'sandbox_typed.php';
+include_once API_COMPONENT_PATH . 'component_list.php';
+include_once API_VIEW_PATH . 'component_link_list.php';
+
+use api\component\component_list AS component_list_api;
+use api\sandbox\sandbox_typed as sandbox_typed_api;
+use api\view\component_link_list AS component_link_list_api;
+
+class view extends sandbox_typed_api
 {
 
     /*
@@ -41,30 +49,48 @@ class view_api extends user_sandbox_named_with_type_api
 
     // persevered view names for unit and integration tests
     // TN_* means 'test name'
-    // TD_* means 'description'
-    // TI_* means 'code id'
+    // TD_* means 'test description'
+    // TI_* means 'test code id'
     const TN_READ = 'Word';
     const TD_READ = 'the default view for words';
     const TI_READ = 'word';
     const TN_ADD = 'System Test View';
     const TN_RENAMED = 'System Test View Renamed';
     const TN_COMPLETE = 'System Test View Complete';
+    const TN_EXCLUDED = 'System Test View Excluded';
     const TN_TABLE = 'System Test View Table';
+    const TN_ALL = 'complete';
+
+    // to test a system view (add word) as unit test without database
+    const TN_FORM = 'Add word';
+    const TD_FORM = 'system form to add a word';
+    const TI_FORM = 'word_add';
 
     const TN_READ_RATIO = 'Company ratios';
     const TN_READ_NESN_2016 = 'Nestlé Financial Statement 2016';
 
     // array of view names that used for testing and remove them after the test
     const RESERVED_VIEWS = array(
+        self::TN_READ,
         self::TN_ADD,
         self::TN_RENAMED,
         self::TN_COMPLETE,
+        self::TN_EXCLUDED,
         self::TN_TABLE
     );
 
     // array of test view names create before the test
     const TEST_VIEWS = array(
+        self::TN_ADD,
+        self::TN_RENAMED,
         self::TN_COMPLETE,
+        self::TN_EXCLUDED,
+        self::TN_TABLE
+    );
+
+    const TEST_VIEWS_AUTO_CREATE = array(
+        self::TN_COMPLETE,
+        self::TN_EXCLUDED,
         self::TN_TABLE
     );
 
@@ -78,5 +104,5 @@ class view_api extends user_sandbox_named_with_type_api
     public ?string $code_id = null;
 
     // the components linked to this view
-    public array $cmp_lst = [];
+    public ?component_link_list_api $components = null;
 }

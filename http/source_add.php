@@ -31,12 +31,24 @@
 */
 
 /* standard zukunft header for callable php files to allow debugging and lib loading */
+
+use controller\controller;
+use html\html_base;
+use html\view\view as view_dsp;
+use html\ref\source as source_dsp;
+use cfg\source;
+use cfg\user;
+use cfg\view;
+
 $debug = $_GET['debug'] ?? 0;
 const ROOT_PATH = __DIR__ . '/../';
 include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 
 /* open database */
 $db_con = prg_start("source_add");
+$html = new html_base();
+
+global $system_views;
 
 $result = ''; // reset the html code var
 $msg = ''; // to collect all messages that should be shown to the user immediately
@@ -48,25 +60,27 @@ echo $usr->get(); // if the usr identification fails, show any message immediate
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
 if ($usr->id() > 0) {
 
-    load_usr_data();
+    $html = new html_base();
+
+    $usr->load_usr_data();
 
     // prepare the display
-    $dsp = new view_dsp_old($usr);
-    $dsp->load_by_id(cl(db_cl::VIEW, view::SOURCE_ADD));
-    $back = $_GET['back'];      // the calling word which should be displayed after saving
+    $msk = new view($usr);
+    $msk->load_by_id($system_views->id(controller::DSP_SOURCE_ADD));
+    $back = $_GET[controller::API_BACK];      // the calling word which should be displayed after saving
 
     // create the object to store the parameters so that if the add form is shown again it is already filled
     $src = new source($usr);
 
     // load the parameters to the view object to display the user input again in case of an error
-    if (isset($_GET['name'])) {
-        $src->set_name($_GET['name']);
+    if (isset($_GET[controller::URL_VAR_NAME])) {
+        $src->set_name($_GET[controller::URL_VAR_NAME]);
     }    // name of the new source to add
     if (isset($_GET['url'])) {
         $src->url = $_GET['url'];
     }     // url of the new source to add
-    if (isset($_GET['comment'])) {
-        $src->description = $_GET['comment'];
+    if (isset($_GET[controller::URL_VAR_COMMENT])) {
+        $src->description = $_GET[controller::URL_VAR_COMMENT];
     }
 
     // if the user has pressed save at least once
@@ -95,7 +109,7 @@ if ($usr->id() > 0) {
                     $usr->set_source($src->id());
 
                     // ... and display the calling view
-                    $result .= dsp_go_back($back, $usr);
+                    $result .= $html->dsp_go_back($back, $usr);
                 } else {
                     // ... or in case of a problem prepare to show the message
                     $msg .= $add_result;
@@ -107,11 +121,13 @@ if ($usr->id() > 0) {
     // if nothing yet done display the add view (and any message on the top)
     if ($result == '') {
         // display the add view again
-        $result .= $dsp->dsp_navbar($back);
-        $result .= dsp_err($msg);
+        $msk_dsp = new view_dsp($msk->api_json());
+        $result .= $msk_dsp->dsp_navbar($back);
+        $result .= $html->dsp_err($msg);
 
         // display the add source view
-        $result .= $src->dsp_obj()->dsp_edit($back);
+        $scr_dsp = new source_dsp($src->api_json());
+        $result .= $scr_dsp->dsp_edit($back);
     }
 }
 

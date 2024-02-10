@@ -33,8 +33,12 @@
 
 namespace html;
 
+include_once WEB_SYSTEM_PATH . 'messages.php';
+
 class html_selector
 {
+    const TYPE_SELECT = "select";
+    const TYPE_DATALIST = "datalist";
 
     // the parameters
     public string $name = '';       // the HTML form field name
@@ -46,112 +50,100 @@ class html_selector
     public ?array $lst = null;      // list of objects from which the user can select
     public ?int $selected = null;   // id of the selected object
     public string $dummy_text = ''; // text for the NULL result if allowed
+    public string $type = self::TYPE_SELECT;  // the selector type
 
-    function dsp(): string
+    function display(): string
     {
-        $result = $this->start_selector($this->form, $this->name, $this->label, $this->bs_class, $this->attribute);
+        $result = $this->start_selector();
 
         if ($this->dummy_text == '') {
             $this->dummy_text = (new msg())->txt(msg::PLEASE_SELECT);
         }
 
         if ($this->selected == 0) {
-            $result .= '<option value="0" selected>' . $this->dummy_text . '</option>';
+            if ($this->type == self::TYPE_DATALIST) {
+                $result .= '<option data-value="0" selected>' . $this->dummy_text . '</option>';
+            } else {
+                $result .= '<option value="0" selected>' . $this->dummy_text . '</option>';
+            }
         }
 
-        if (count($this->lst) > 0) {
+        if ($this->count() > 0) {
             foreach ($this->lst as $key => $value) {
                 $row_option = '';
                 if ($key == $this->selected and $this->selected <> 0) {
                     $row_option = ' selected';
                 }
-                $result .= '<option value="' . $key . '" ' . $row_option . ' >' . $value . '</option>';
-            }
-        }
-
-        $result .= $this->end_selector();
-
-        return $result;
-    }
-
-    /**
-     * TODO deprecate because it is base on an sql query, but should always be based on a list
-     */
-    function display(): string
-    {
-        log_debug('selector->display (' . $this->name . ',' . $this->form . ',' . $this->sql . ',s' . $this->selected . ',' . $this->dummy_text . ')');
-
-        global $db_con;
-
-        $result = $this->start_selector($this->form, $this->name, $this->label, $this->bs_class, $this->attribute);
-
-        /*
-        if ($this->dummy_text == '') {
-            $this->dummy_text == 'please select ...';
-        }
-        */
-
-        if ($this->selected == 0) {
-            $result .= '<option value="0" selected>' . $this->dummy_text . '</option>';
-        }
-
-        // check if list needs to be reloaded
-        if ($this->sql != '') {
-            $db_lst = $db_con->get_old($this->sql);
-            foreach ($db_lst as $db_entry) {
-                $this->lst[$db_entry['id']] = $db_entry['name'];
-            }
-        }
-        if (count($this->lst) > 0) {
-            foreach ($this->lst as $key => $value) {
-                $row_option = '';
-                if ($key == $this->selected and $this->selected <> 0) {
-                    log_debug('selector->display ... selected ' . $key);
-                    $row_option = ' selected';
+                if ($this->type == self::TYPE_DATALIST) {
+                    $result .= '<option data-value="' . $key . '" ' . $row_option . ' >' . $value . '</option>';
+                } else {
+                    $result .= '<option value="' . $key . '" ' . $row_option . ' >' . $value . '</option>';
                 }
-                $result .= '<option value="' . $key . '" ' . $row_option . ' >' . $value . '</option>';
             }
         }
 
         $result .= $this->end_selector();
 
-        log_debug('selector->display ... done');
         return $result;
     }
 
     /**
      * @returns string the HTML code that starts a selector field
      */
-    private function start_selector($form, $field, $label, $class, $attribute): string
+    private function start_selector(): string
     {
         $result = '';
         // 06.11.2019: removed, check the calling functions
         /*
         if ($label == '') {
-          $label == $field;
+          $label == $this->name;
         }
         */
         if (UI_USE_BOOTSTRAP) {
-            $result .= '<div class="form-group ' . $class . '">';
-            if ($label != "") {
-                $result .= '<label for="' . $field . '">' . $label . '</label>';
+            $result .= '<div class="form-group ' . $this->bs_class . '">';
+            if ($this->label != "") {
+                $result .= '<label for="' . $this->name . '">' . $this->label . '</label>';
             }
-            if ($form != "") {
-                $result .= '<select class="form-control" name="' . $field . '" form="' . $form . '" id="' . $field . '" ' . $attribute . '>';
+            $bs_class = 'form-control';
+            /*
+            if ($this->bs_class != '') {
+                $bs_class .= ' ' . $this->bs_class;
+            }
+            */
+            if ($this->type == self::TYPE_DATALIST) {
+                $result .= '<input type="text" list="' . $this->name . '_list" class="' . $bs_class . '" name="' . $this->name . '" form="' . $this->form . '" id="' . $this->name . '" ' . $this->attribute . '>';
+                $result .= '<datalist id="' . $this->name . '_list">';
             } else {
-                $result .= '<select class="form-control" name="' . $field . '" id="' . $field . '" ' . $attribute . '>';
+                if ($this->form != "") {
+                    $result .= '<select class="' . $bs_class . '" name="' . $this->name . '" form="' . $this->form . '" id="' . $this->name . '" ' . $this->attribute . '>';
+                } else {
+                    $result .= '<select class="' . $bs_class . '" name="' . $this->name . '" id="' . $this->name . '" ' . $this->attribute . '>';
+                }
             }
         } else {
-            $result .= $label . ' <select name="' . $field . '" form="' . $form . '">';
+            $result .= $this->label . ' <select name="' . $this->name . '" form="' . $this->form . '">';
         }
         return $result;
+    }
+
+    private function count(): int
+    {
+        if ($this->lst != null) {
+            return count($this->lst);
+        } else {
+            return 0;
+        }
     }
 
     /**
      * @returns string the HTML code to end a selector field
      */
     function end_selector(): string {
-        $result = '</select>';
+        if ($this->type == self::TYPE_DATALIST) {
+            $result = '</datalist>';
+        } else {
+            $result = '</select>';
+        }
         if (UI_USE_BOOTSTRAP) {
             $result .= '</div>';
         }

@@ -30,9 +30,18 @@
 
 */
 
+namespace test;
+
+include_once MODEL_FORMULA_PATH . 'formula_link_list.php';
+
+use cfg\formula_link;
+use cfg\formula_link_list;
+use cfg\library;
+use cfg\db\sql_db;
+
 class formula_link_unit_tests
 {
-    function run(testing $t)
+    function run(test_cleanup $t): void
     {
 
         global $usr;
@@ -44,7 +53,7 @@ class formula_link_unit_tests
         $t->resource_path = 'db/formula/';
         $usr->set_id(1);
 
-        // TODO use assert_load_sql idf possible
+        // TODO use assert_sql_all if possible
 
         $t->header('Unit tests of the formula link class (src/main/php/model/formula/formula_link.php)');
 
@@ -53,59 +62,34 @@ class formula_link_unit_tests
 
         // SQL creation tests (mainly to use the IDE check for the generated SQL statements)
         $flk = new formula_link($usr);
-        $t->assert_load_sql_id($db_con, $flk);
-        $t->assert_load_sql_link($db_con, $flk);
+        $t->assert_sql_by_id($db_con, $flk);
+        $t->assert_sql_by_link($db_con, $flk);
 
 
-        $t->subheader('SQL statement tests');
+        $t->subheader('SQL load default statement tests');
 
         // sql to load the standard formula link by id
         $lnk = new formula_link($usr);
         $lnk->set_id(1);
-        $db_con->db_type = sql_db::POSTGRES;
-        $created_sql = $lnk->load_standard_sql($db_con)->sql;
-        $expected_sql = $t->file('db/formula/formula_link_std_by_id.sql');
-        $t->assert('formula_link->load_standard_sql by formula link id', $lib->trim($created_sql), $lib->trim($expected_sql));
-
-        // ... and check if the prepared sql name is unique
-        $t->assert_sql_name_unique($lnk->load_standard_sql($db_con, formula_link::class)->name);
-
-        // ... and for MySQL
-        $db_con->db_type = sql_db::MYSQL;
-        $created_sql = $lnk->load_standard_sql($db_con)->sql;
-        $expected_sql = $t->file('db/formula/formula_link_std_by_id_mysql.sql');
-        $t->assert('formula_link->load_standard_sql for MySQL by formula link id', $lib->trim($created_sql), $lib->trim($expected_sql));
+        $t->assert_sql_standard($db_con, $lnk);
+        $t->assert_sql_not_changed($db_con, $lnk);
 
         // sql to load the user formula link by id
         $db_con->db_type = sql_db::POSTGRES;
-        $created_sql = $lnk->usr_cfg_sql($db_con)->sql;
-        $expected_sql = $t->file('db/formula/formula_link_by_id_e_user.sql');
+        $created_sql = $lnk->load_sql_user_changes($db_con->sql_creator())->sql;
+        $expected_sql = $t->file('db/formula/formula_link_by_usr_cfg.sql');
         $t->assert('formula_link->load_user_sql by formula link id', $lib->trim($created_sql), $lib->trim($expected_sql));
-
-        // sql to check if no one else has changed the formula link
-        $lnk = new formula_link($usr);
-        $lnk->set_id(2);
-        $lnk->owner_id = 3;
-        $db_con->db_type = sql_db::POSTGRES;
-        $created_sql = $lnk->not_changed_sql($db_con)->sql;
-        $expected_sql = $t->file('db/formula/formula_link_by_id_other_user.sql');
-        $t->assert('formula_link->not_changed_sql by owner id', $lib->trim($created_sql), $lib->trim($expected_sql));
-
-        // ... and check if the prepared sql name is unique
-        $t->assert_sql_name_unique($lnk->not_changed_sql($db_con)->name);
-
-        // MySQL check not needed, because it is the same as for Postgres
 
         /*
         $t->subheader('Im- and Export tests');
 
         $json_in = json_decode(file_get_contents(PATH_TEST_IMPORT_FILES . 'unit/formula/scale_second_to_minute.json'), true);
         $lnk = new formula($usr);
-        $lnk->import_obj($json_in, false);
+        $lnk->import_obj($json_in, $t);
         $json_ex = json_decode(json_encode($lnk->export_obj(false)), true);
         $result = json_is_similar($json_in, $json_ex);
         $target = true;
-        $t->dsp('formula_link->import check name', $target, $result);
+        $t->display('formula_link->import check name', $target, $result);
         */
 
         $t->name = 'formula_link_list->';
@@ -116,15 +100,31 @@ class formula_link_unit_tests
 
         // sql to load the formula link list by formula id
         $frm_lnk_lst = new formula_link_list($usr);
+        $this->assert_sql_by_frm_id($t, $db_con, $frm_lnk_lst);
+
+    }
+
+    /**
+     * check the load SQL statements to get a named log entry by field row
+     * for all allowed SQL database dialects
+     *
+     * @param test_cleanup $t the test environment
+     * @param sql_db $db_con does not need to be connected to a real database
+     * @param formula_link_list $frm_lnk
+     */
+    private function assert_sql_by_frm_id(test_cleanup $t, sql_db $db_con, formula_link_list $frm_lnk): void
+    {
+        // check the Postgres query syntax
         $db_con->db_type = sql_db::POSTGRES;
-        $qp = $frm_lnk_lst->load_sql_by_frm_id($db_con, 7);
-        $t->assert_qp($qp, sql_db::POSTGRES);
+        $qp = $frm_lnk->load_sql_by_frm_id($db_con->sql_creator(), 7);
+        $result = $t->assert_qp($qp, $db_con->db_type);
 
-        // ... and for MySQL
-        $db_con->db_type = sql_db::MYSQL;
-        $qp = $frm_lnk_lst->load_sql_by_frm_id($db_con, 7);
-        $t->assert_qp($qp, sql_db::MYSQL);
-
+        // ... and check the MySQL query syntax
+        if ($result) {
+            $db_con->db_type = sql_db::MYSQL;
+            $qp = $frm_lnk->load_sql_by_frm_id($db_con->sql_creator(), 7);
+            $t->assert_qp($qp, $db_con->db_type);
+        }
     }
 
 }

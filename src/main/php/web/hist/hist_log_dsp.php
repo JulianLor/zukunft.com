@@ -29,9 +29,11 @@
   
 */
 
-namespace html;
+namespace html\hist;
 
-use word;
+use html\html_base;
+use html\word\word as word_dsp;
+use cfg\word;
 
 class hist_log_dsp
 {
@@ -39,6 +41,7 @@ class hist_log_dsp
     // show the changes of the view
     function dsp_log_view(word $wrd, string $back = ''): string
     {
+        $html = new html_base();
         log_debug($wrd->id());
         $result = '';
 
@@ -51,9 +54,10 @@ class hist_log_dsp
                 $wrd->load_by_id($wrd->id());
             }
 
-            $changes = $wrd->dsp_hist(1, 20, '', $back);
+            $wrd_dsp = new word_dsp($wrd->api_json());
+            $changes = $wrd_dsp->dsp_hist(1, 20, '', $back);
             if (trim($changes) <> "") {
-                $result .= dsp_text_h3("Latest view changes related to this word", "change_hist");
+                $result .= $html->dsp_text_h3("Latest view changes related to this word", "change_hist");
                 $result .= $changes;
             }
         }

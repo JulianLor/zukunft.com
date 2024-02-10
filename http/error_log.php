@@ -38,32 +38,21 @@
 
 */
 
-function err_dsp($err_id, $user_id)
+use controller\controller;
+use cfg\log\system_log;
+use html\log\system_log as system_log_dsp;
+use html\html_base;
+use html\view\view as view_dsp;
+use cfg\user;
+use cfg\view;
+use cfg\word;
+
+function err_dsp($err_id, $user_id): string
 {
-
-    global $db_con;
-    $result = "";
-
-    $sql = "SELECT l.sys_log_text, l.sys_log_description, s.type_name AS sys_log_status_name, l.sys_log_trace
-              FROM sys_log l 
-         LEFT JOIN sys_log_status s ON l.sys_log_status_id = s.sys_log_status_id
-             WHERE l.sys_log_id = " . $err_id . ";";
-    //$db_con = New mysql;
-    $db_con->usr_id = $user_id;
-    $db_err = $db_con->get1_old($sql);
-
-    $result .= dsp_text_h2("Status of error #" . $err_id . ': ' . $db_err['sys_log_status_name']);
-    $result .= '"' . $db_err['sys_log_text'] . '" <br>';
-    if ($db_err['sys_log_description'] <> 'NULL') {
-        $result .= '"' . $db_err['sys_log_description'] . '" <br>';
-    }
-    $result .= '<br>';
-    $result .= 'Program trace:<br>';
-    $result .= '' . $db_err['sys_log_trace'] . ' ';
-    //echo "<font color=green>OK</font>" .$test_text;
-    //echo "<font color=red>Error</font>".$test_text;
-
-    return $result;
+    $log = new system_log();
+    $log->load_by_id($err_id);
+    $dsp = new system_log_dsp($log->api_json());
+    return $dsp->page_view();
 }
 
 
@@ -73,10 +62,12 @@ include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 
 $db_con = prg_start("error_log");
 
+global $system_views;
+
 $result = ''; // reset the html code var
 
-$err_id = $_GET['id'];
-$back = $_GET['back'];
+$err_id = $_GET[controller::URL_VAR_ID];
+$back = $_GET[controller::API_BACK];
 
 // load the session user parameters
 $usr = new user;
@@ -93,12 +84,13 @@ if ($usr->id() > 0) {
     if ($err_id > 0) {
         log_debug("error_log (" . $err_id . ")");
 
-        load_usr_data();
+        $usr->load_usr_data();
 
         // prepare the display to edit the view
-        $dsp = new view_dsp_old($usr);
-        $dsp->set_id(cl(db_cl::VIEW, view::ERR_LOG));
-        $result .= $dsp->dsp_navbar($back);
+        $msk = new view($usr);
+        $msk->set_id($system_views->id(controller::DSP_ERR_LOG));
+        $msk_dsp = new view_dsp($msk->api_json());
+        $result .= $msk_dsp->dsp_navbar($back);
         //$result .= " in \"zukunft.com\" that has been logged in the system automatically by you.";
         $result .= err_dsp($err_id, $usr->id());
     }

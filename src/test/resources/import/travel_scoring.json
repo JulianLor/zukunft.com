@@ -19822,11 +19822,11 @@
       "name": "Personal Travel Score",
       "comment": "view the personal travel score",
       "type": "detail_view",
-      "view_components": [
+      "components": [
         {
-          "pos": "1",
+          "position": "1",
           "name": "Name",
-          "code_id": "word_name"
+          "type": "word_name"
         }
       ]
     }

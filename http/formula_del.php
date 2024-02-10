@@ -29,11 +29,20 @@
   
 */
 
+use controller\controller;
+use html\html_base;
+use html\view\view as view_dsp;
+use cfg\formula;
+use cfg\user;
+use cfg\view;
+
 $debug = $_GET['debug'] ?? 0;
 const ROOT_PATH = __DIR__ . '/../';
 include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 
 $db_con = prg_start("formula_del");
+
+global $system_views;
 
 $result = ''; // reset the html code var
 
@@ -44,15 +53,17 @@ $result .= $usr->get();
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
 if ($usr->id() > 0) {
 
-    load_usr_data();
+    $html = new html_base();
+
+    $usr->load_usr_data();
 
     // prepare the display
-    $dsp = new view_dsp_old($usr);
-    $dsp->load_by_id(cl(db_cl::VIEW, view::FORMULA_DEL));
-    $back = $_GET['back'];
+    $msk = new view($usr);
+    $msk->load_by_id($system_views->id(controller::DSP_FORMULA_DEL));
+    $back = $_GET[controller::API_BACK];
 
     // get the parameters
-    $formula_id = $_GET['id'];           // id of the formula that can be changed
+    $formula_id = $_GET[controller::URL_VAR_ID];           // id of the formula that can be changed
     $confirm = $_GET['confirm'];
 
     // delete the link or ask for confirmation
@@ -65,10 +76,11 @@ if ($usr->id() > 0) {
         if ($confirm == 1) {
             $frm->del();
 
-            $result .= dsp_go_back($back, $usr);
+            $result .= $html->dsp_go_back($back, $usr);
         } else {
             // display the view header
-            $result .= $dsp->dsp_navbar($back);
+            $msk_dsp = new view_dsp($msk->api_json());
+            $result .= $msk_dsp->dsp_navbar($back);
 
             if ($frm->is_used()) {
                 $result .= \html\btn_yesno("Exclude \"" . $frm->name() . "\" ", "/http/formula_del.php?id=" . $formula_id . "&back=" . $back);
@@ -77,7 +89,7 @@ if ($usr->id() > 0) {
             }
         }
     } else {
-        $result .= dsp_go_back($back, $usr);
+        $result .= $html->dsp_go_back($back, $usr);
     }
 }
 

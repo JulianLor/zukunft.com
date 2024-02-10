@@ -30,11 +30,13 @@
 
 */
 
-namespace api;
+namespace api\log;
 
-use controller\log\change_log_named_api;
+use api\log\change_log_named as change_log_named_api;
+use api\sandbox\list_object as list_api;
+use JsonSerializable;
 
-class change_log_list_api extends list_api implements \JsonSerializable
+class change_log_list extends list_api implements JsonSerializable
 {
 
     /*
@@ -47,9 +49,9 @@ class change_log_list_api extends list_api implements \JsonSerializable
     }
 
     /**
-     * add a word to the list
+     * add a change log entry to the list
      * @param change_log_named_api $chg one change of a user sandbox object
-     * @returns bool true if the word has been added
+     * @returns bool true if the log entry has been added
      */
     function add(change_log_named_api $chg): bool
     {
@@ -66,7 +68,7 @@ class change_log_list_api extends list_api implements \JsonSerializable
     function jsonSerialize(): array
     {
         $vars = [];
-        foreach ($this->lst as $chg) {
+        foreach ($this->lst() as $chg) {
             $vars[] = json_decode(json_encode($chg));
         }
         return $vars;

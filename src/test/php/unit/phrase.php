@@ -30,13 +30,23 @@
 
 */
 
-use api\word_api;
+namespace test;
+
+include_once WEB_PHRASE_PATH . 'phrase.php';
+
+use api\word\word as word_api;
 use cfg\phrase_type;
+use html\word\word as word_dsp;
+use html\word\triple as triple_dsp;
+use html\phrase\phrase as phrase_dsp;
+use cfg\phrase;
+use cfg\db\sql_db;
+use cfg\word;
 
 class phrase_unit_tests
 {
 
-    function run(testing $t): void
+    function run(test_cleanup $t): void
     {
 
         global $usr;
@@ -54,8 +64,8 @@ class phrase_unit_tests
         $t->subheader('SQL statement tests');
 
         $phr = new phrase($usr);
-        $t->assert_load_sql_id($db_con, $phr);
-        $t->assert_load_sql_name($db_con, $phr);
+        $t->assert_sql_by_id($db_con, $phr);
+        $t->assert_sql_by_name($db_con, $phr);
 
         // sql to load the phrase by id
         $phr = new phrase($usr);
@@ -72,6 +82,13 @@ class phrase_unit_tests
         $t->assert_sql($t->name . $sql_name, $created_sql, $expected_sql
         );
 
+        $t->subheader('HTML frontend unit tests');
+
+        $phr = $t->dummy_word()->phrase();
+        $t->assert_api_to_dsp($phr, new phrase_dsp());
+        $phr = $t->dummy_triple_pi()->phrase();
+        $t->assert_api_to_dsp($phr, new phrase_dsp());
+
 
         $t->header('Unit tests of the phrase type class (src/main/php/model/phrase/phrase_type.php)');
 
@@ -80,6 +97,9 @@ class phrase_unit_tests
         global $phrase_types;
         $phr_typ = $phrase_types->get_by_code_id(phrase_type::PERCENT);
         $t->assert_api($phr_typ, 'phrase_type');
+
+
+        $t->subheader('Combined objects like phrases should not be used for im- or export, so not tests is needed. Instead the single objects like word or triple should be im- and exported');
 
     }
 

@@ -33,7 +33,7 @@
       "name": "Nestlé"
     },
     {
-      "name": "Vestas (Company)"
+      "name": "Vestas"
     },
     {
       "name": "Zurich"
@@ -211,7 +211,7 @@
       "to": "Company"
     },
     {
-      "name": "Vestas (Company)",
+      "name": "Vestas SA",
       "from": "Vestas",
       "verb": "is a",
       "to": "Company"
@@ -546,23 +546,23 @@
       "name": "Company sheet",
       "comment": "The income statement, balance sheet or cash flow sheet of a big company",
       "type": "detail_view",
-      "view_components": [
+      "components": [
         {
-          "pos": "1",
+          "position": "1",
           "name": "Cash Flow Statement",
-          "code_id": "values_related",
+          "type": "values_related",
           "row": "cash flow statement",
           "column": "Year"
         },
         {
-          "pos": "2",
+          "position": "2",
           "name": "formulas",
-          "code_id": "formula_list"
+          "type": "formula_list"
         },
         {
-          "pos": "3",
+          "position": "3",
           "name": "JSON Export",
-          "code_id": "json_export"
+          "type": "json_export"
         }
       ]
     },
@@ -570,26 +570,26 @@
       "name": "complete",
       "comment": "Show a word, all related words to edit the word tree and the linked formulas with some results",
       "type": "word_default",
-      "view_components": [
+      "components": [
         {
-          "pos": "1",
+          "position": "1",
           "name": "Name",
-          "code_id": "word_name"
+          "type": "word_name"
         },
         {
-          "pos": "2",
+          "position": "2",
           "name": "formulas",
-          "code_id": "formula_list"
+          "type": "formula_list"
         },
         {
-          "pos": "3",
+          "position": "3",
           "name": "JSON Export",
-          "code_id": "json_export"
+          "type": "json_export"
         },
         {
-          "pos": "4",
+          "position": "4",
           "name": "XML Export",
-          "code_id": "xml_export"
+          "type": "xml_export"
         }
       ]
     },
@@ -597,11 +597,11 @@
       "name": "Company list with main ratios",
       "comment": "List the most interesting companies with the main ratios",
       "type": "detail_view",
-      "view_components": [
+      "components": [
         {
-          "pos": "1",
+          "position": "1",
           "name": "Company with ratios",
-          "code_id": "word_value_list",
+          "type": "word_value_list",
           "row": "Company",
           "column": "Company main ratio"
         }

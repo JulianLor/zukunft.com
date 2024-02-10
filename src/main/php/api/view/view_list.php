@@ -2,7 +2,7 @@
 
 /*
 
-    api/view/view_list_api.php - a list object of minimal/api view list object
+    api/view/view_list.php - a list object of minimal/api view list object
     --------------------------
 
 
@@ -30,11 +30,14 @@
 
 */
 
-namespace api;
+namespace api\view;
 
-use html\view_list_dsp;
+use api\sandbox\list_object as list_api;
+use api\view\view as view_api;
+use html\view\view_list as view_list_dsp;
+use JsonSerializable;
 
-class view_list_api extends list_api
+class view_list extends list_api implements JsonSerializable
 {
 
     /*
@@ -69,7 +72,7 @@ class view_list_api extends list_api
 
         // cast the single list objects
         $lst_dsp = array();
-        foreach ($this->lst as $wrd) {
+        foreach ($this->lst() as $wrd) {
             if ($wrd != null) {
                 $wrd_dsp = $wrd->dsp_obj();
                 $lst_dsp[] = $wrd_dsp;
@@ -80,6 +83,22 @@ class view_list_api extends list_api
         $dsp_obj->set_lst_dirty();
 
         return $dsp_obj;
+    }
+
+    /*
+     * interface
+     */
+
+    /**
+     * an array of the value vars including the private vars
+     */
+    function jsonSerialize(): array
+    {
+        $vars = [];
+        foreach ($this->lst() as $dsp) {
+            $vars[] = json_decode(json_encode($dsp));
+        }
+        return $vars;
     }
 
 }

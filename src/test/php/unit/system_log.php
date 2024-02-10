@@ -30,11 +30,15 @@
 
 */
 
-use api\triple_api;
+namespace test;
+
+use cfg\library;
+use cfg\db\sql_db;
+use cfg\log\system_log;
 
 class system_log_unit_tests
 {
-    function run(testing $t): void
+    function run(test_cleanup $t): void
     {
 
         global $usr;
@@ -52,7 +56,7 @@ class system_log_unit_tests
 
         // sql to load one error by id
         $err = new system_log();
-        $t->assert_load_sql_id($db_con, $err);
+        $t->assert_sql_by_id($db_con, $err);
 
 
         $t->subheader('API unit tests');

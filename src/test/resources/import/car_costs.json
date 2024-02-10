@@ -563,11 +563,11 @@
       "name": "car cost agreement",
       "comment": "view the cost agreement of car usage",
       "type": "detail view",
-      "view_components": [
+      "components": [
         {
-          "pos": "1",
+          "position": "1",
           "name": "Name",
-          "code_id": "word_name"
+          "type": "word_name"
         }
       ]
     }

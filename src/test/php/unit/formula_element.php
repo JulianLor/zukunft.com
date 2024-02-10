@@ -2,8 +2,8 @@
 
 /*
 
-  test/unit/formula_element.php - TESTing of the FORMULA ELEMENT and formula element list functions
-  -----------------------------
+    test/unit/formula_element.php - TESTing of the FORMULA ELEMENT and formula element list functions
+    -----------------------------
   
 
     This file is part of zukunft.com - calc with words
@@ -30,9 +30,17 @@
 
 */
 
+namespace test;
+
+include_once MODEL_FORMULA_PATH . 'formula_element_list.php';
+
+use cfg\formula_element;
+use cfg\formula_element_list;
+use cfg\db\sql_db;
+
 class formula_element_unit_tests
 {
-    function run(testing $t)
+    function run(test_cleanup $t): void
     {
 
         global $usr;
@@ -44,6 +52,12 @@ class formula_element_unit_tests
         $usr->set_id(1);
 
         $t->header('Unit tests of the formula element class (src/main/php/model/formula/formula_element.php)');
+
+        $t->subheader('SQLy creation tests');
+
+        $elm = $t->dummy_element();
+        $t->assert_sql_by_id($db_con, $elm);
+
 
         $t->subheader('Database query list creation tests');
 
@@ -74,50 +88,51 @@ class formula_element_unit_tests
      * test the SQL statement creation for a formula element list in all SQL dialect
      * and check if the statement name is unique
      *
-     * @param testing $t the test environment
+     * @param test_cleanup $t the test environment
      * @param sql_db $db_con the test database connection
      * @param formula_element_list $lst the empty formula element list object
      * @param int $frm_id id of the formula to be used for the query creation
      * @return void
      */
-    private function assert_sql_by_frm_id(testing $t, sql_db $db_con, formula_element_list $lst, int $frm_id)
+    private function assert_sql_by_frm_id(test_cleanup $t, sql_db $db_con, formula_element_list $lst, int $frm_id): void
     {
         // check the Postgres query syntax
         $db_con->db_type = sql_db::POSTGRES;
-        $qp = $lst->load_sql_by_frm_id($db_con, $frm_id);
-        $t->assert_qp($qp, sql_db::POSTGRES);
+        $qp = $lst->load_sql_by_frm_id($db_con->sql_creator(), $frm_id);
+        $t->assert_qp($qp, $db_con->db_type);
 
         // check the MySQL query syntax
         $db_con->db_type = sql_db::MYSQL;
-        $qp = $lst->load_sql_by_frm_id($db_con, $frm_id);
-        $t->assert_qp($qp, sql_db::MYSQL);
+        $qp = $lst->load_sql_by_frm_id($db_con->sql_creator(), $frm_id);
+        $t->assert_qp($qp, $db_con->db_type);
     }
 
     /**
      * test the SQL statement creation for a formula element list in all SQL dialect
      * and check if the statement name is unique
      *
-     * @param testing $t the test environment
+     * @param test_cleanup $t the test environment
      * @param sql_db $db_con the test database connection
      * @param formula_element_list $lst the empty formula element list object
      * @param int $frm_id id of the formula to be used for the query creation
+     * @param int $elm_type_id
      * @return void
      */
-    private function assert_sql_by_frm_and_type_id(testing              $t,
+    private function assert_sql_by_frm_and_type_id(test_cleanup         $t,
                                                    sql_db               $db_con,
                                                    formula_element_list $lst,
                                                    int                  $frm_id,
-                                                   int                  $elm_type_id)
+                                                   int                  $elm_type_id): void
     {
         // check the Postgres query syntax
         $db_con->db_type = sql_db::POSTGRES;
-        $qp = $lst->load_sql_by_frm_and_type_id($db_con, $frm_id, $elm_type_id);
-        $t->assert_qp($qp, sql_db::POSTGRES);
+        $qp = $lst->load_sql_by_frm_and_type_id($db_con->sql_creator(), $frm_id, $elm_type_id);
+        $t->assert_qp($qp, $db_con->db_type);
 
         // check the MySQL query syntax
         $db_con->db_type = sql_db::MYSQL;
-        $qp = $lst->load_sql_by_frm_and_type_id($db_con, $frm_id, $elm_type_id);
-        $t->assert_qp($qp, sql_db::MYSQL);
+        $qp = $lst->load_sql_by_frm_and_type_id($db_con->sql_creator(), $frm_id, $elm_type_id);
+        $t->assert_qp($qp, $db_con->db_type);
     }
 
 }

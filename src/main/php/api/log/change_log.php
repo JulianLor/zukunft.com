@@ -30,13 +30,16 @@
 
 */
 
-namespace controller\log;
+namespace api\log;
 
-use api\user_api;
-use api\user_sandbox_api;
+include_once API_USER_PATH . 'user.php';
+include_once API_SANDBOX_PATH . 'sandbox.php';
+
+use api\sandbox\sandbox as sandbox_api;
+use api\user\user as user_api;
 use DateTime;
 
-class change_log_api extends user_sandbox_api
+class change_log extends sandbox_api
 {
 
 

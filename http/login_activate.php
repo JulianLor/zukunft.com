@@ -30,7 +30,10 @@
 */
 
 // standard zukunft header for callable php files to allow debugging and lib loading
+use controller\controller;
 use html\html_base;
+use cfg\db\sql_db;
+use cfg\user;
 
 $debug = $_GET['debug'] ?? 0;
 const ROOT_PATH = __DIR__ . '/../';
@@ -38,7 +41,7 @@ include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 
 // open database 
 $db_con = prg_start("login_activate", "center_form");
-
+$html = new html_base();
 
 $result = ''; // reset the html code var
 $msg = '';
@@ -46,7 +49,9 @@ $msg = '';
 $_SESSION['logged'] = FALSE;
 
 if (isset($_POST['submit'])) {
-    $usr_id = $_POST['id'];
+    $html = new html_base();
+
+    $usr_id = $_POST[controller::URL_VAR_ID];
     $debug = $_POST['debug'];
     log_debug("login_activate (user: " . $usr_id . ")");
 
@@ -54,18 +59,11 @@ if (isset($_POST['submit'])) {
     $db_con->usr_id = $usr_id;
 
     // check key
-    $sql = "SELECT activation_key FROM users  
-            WHERE user_id =" . $usr_id . ";";
-    $db_row = $db_con->get1_old($sql);
-    $db_key = $db_row['activation_key'];
-    $sql = "SELECT activation_key_timeout FROM users  
-            WHERE user_id =" . $usr_id . ";";
-    $db_row = $db_con->get1_old($sql);
-    $db_time_limit = $db_row['activation_key_timeout'];
-    // get the server now
-    $sql = "SELECT NOW() AS db_dow;";
-    $db_row = $db_con->get1_old($sql);
-    $db_now = $db_row['db_dow'];
+    $usr = new user();
+    $usr->load_by_id($usr_id);
+    $db_key = $usr->activation_key;
+    $db_time_limit = $usr->activation_timeout; // TODO check if and when the conversion to time should be done
+    $db_now = $usr->db_now; // get the server now
     log_debug("login_activate (db: " . $db_key . ", post: " . $_POST['key'] . ", limit: " . $db_time_limit . ", db now:" . $db_now . ")");
     if ($db_key == $_POST['key'] and $db_time_limit > $db_now) {
 
@@ -86,9 +84,9 @@ if (isset($_POST['submit'])) {
             // create a session, and session variables,
             $pw_hash = hash('sha256', mysqli_real_escape_string($db_con->mysql, $_POST['password']));
             //$pw_hash = password_hash($_POST['password'], password_DEFAULT);
-            $db_con->set_type(sql_db::TBL_USER);
+            $db_con->set_class(sql_db::TBL_USER);
             $db_con->set_usr(SYSTEM_USER_ID);
-            $db_con->update($usr_id, array('password', 'activation_key', 'activation_key_timeout'), array($pw_hash, '', 'NOW()'));
+            $db_con->update_old($usr_id, array('password', 'activation_key', 'activation_key_timeout'), array($pw_hash, '', 'NOW()'));
             /*
             $sql = sprintf("UPDATE users
                           SET password       = '%s',
@@ -99,13 +97,10 @@ if (isset($_POST['submit'])) {
             $sql_result = mysql_query($sql);
             */
 
-            $db_con->set_type(sql_db::TBL_USER);
-            $db_con->set_usr(SYSTEM_USER_ID);
-            $db_con->set_where_std($usr_id);
-            $sql = $db_con->select_by_set_id();
-
-            $db_row = $db_con->get1_old($sql);
-            $usr_name = $db_row[user::FLD_NAME];
+            // TODO check if a system or admin user is needed to read any user
+            $usr = new user();
+            $usr->load_by_id($usr_id);
+            $usr_name = $usr->name();
 
             if ($usr_id > 0 and $usr_name <> '') {
                 // auto login
@@ -121,28 +116,27 @@ if (isset($_POST['submit'])) {
             header("Location: view.php");
             exit;
         } else {
-            $msg .= dsp_err($error) . '<br>';
+            $msg .= $html->dsp_err($error) . '<br>';
         }
     } else {
         if ($db_key <> "") {
             //$msg .= dsp_err ('Error: activation key ('.$db_key.'/'.$_POST['key'].' for '.$usr_id.') does not match. Please request the password reset again.').'<br>';
-            $msg .= dsp_err('Error: activation key does not match. Please request the password reset again.') . '<br>';
+            $msg .= $html->dsp_err('Error: activation key does not match. Please request the password reset again.') . '<br>';
         } else {
-            $msg .= dsp_err('Activation key is not valid any more. Please request the password reset again.') . '<br>';
+            $msg .= $html->dsp_err('Activation key is not valid any more. Please request the password reset again.') . '<br>';
         }
     }
 }
 
 if (!$_SESSION['logged']) {
-    $usr_id = $_GET['id'];
+    $usr_id = $_GET[controller::URL_VAR_ID];
     if ($usr_id <= 0) {
         if (isset($_POST['submit'])) {
-            $usr_id = $_POST['id'];
+            $usr_id = $_POST[controller::URL_VAR_ID];
         }
     }
     if ($usr_id > 0) {
-        $html = new html_base();
-        $result .= dsp_form_center();
+        $result .= $html->dsp_form_center();
         $result .= $html->logo_big();
         $result .= '<br><br>';
         $result .= '<form action="login_activate.php" method="post">';
@@ -150,7 +144,7 @@ if (!$_SESSION['logged']) {
         if ($debug > 0) {
             $result .= '<input type="hidden" name="debug" value="' . $debug . '">';
         }
-        $result .= dsp_text_h2('Change password<br>');
+        $result .= $html->dsp_text_h2('Change password<br>');
 
         $key = $_GET['key'];
         if ($key <> '') {

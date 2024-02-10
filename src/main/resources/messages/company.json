@@ -17,6 +17,12 @@
     },
     {
       "name": "Earnings"
+    },
+    {
+      "name": "parts"
+    },
+    {
+      "name": "total"
     }
   ],
   "formulas": [
@@ -30,24 +36,24 @@
     {
       "name": "Company sheet",
       "comment": "The income statement, balance sheet or cash flow sheet of a big company",
-      "view_components": [
+      "components": [
         {
-          "pos": "1",
+          "position": "1",
           "name": "Name",
-          "code_id": "word_name"
+          "type": "word_name"
         },
         {
-          "pos": "2",
+          "position": "2",
           "name": "Cash Flow Statement"
         }
       ]
     },
     {
       "name": "Company list with main ratios",
-      "comment": "List the most interesting companies with the main ratios",
-      "view_components": [
+      "comment": "list the most interesting companies with the main ratios",
+      "components": [
         {
-          "pos": "1",
+          "position": "1",
           "name": "Company with ratios"
         }
       ]

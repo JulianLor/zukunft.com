@@ -30,9 +30,15 @@
 */
 
 // standard zukunft header for callable php files to allow debugging and lib loading
+use controller\controller;
 use html\api;
 use html\button;
 use html\html_base;
+use html\msg;
+use html\view\view as view_dsp;
+use cfg\user;
+use cfg\value;
+use cfg\view;
 
 $debug = $_GET['debug'] ?? 0;
 const ROOT_PATH = __DIR__ . '/../';
@@ -53,15 +59,15 @@ $result .= $usr->get();
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
 if ($usr->id() > 0) {
 
-    load_usr_data();
+    $usr->load_usr_data();
 
     // prepare the display
-    $dsp = new view_dsp_old($usr);
-    $dsp->load_by_code_id(view::VALUE_DEL);
-    $back = $_GET['back'];  // the page from which the value deletion has been called
+    $msk = new view($usr);
+    $msk->load_by_code_id(controller::DSP_VALUE_DEL);
+    $back = $_GET[controller::API_BACK];  // the page from which the value deletion has been called
 
     // get the parameters
-    $val_id = $_GET['id'];
+    $val_id = $_GET[controller::URL_VAR_ID];
     $confirm = $_GET['confirm'];
 
     if ($val_id > 0) {
@@ -74,17 +80,20 @@ if ($usr->id() > 0) {
             // actually delete the value (at least for this user)
             $val->del();
 
-            $result .= dsp_go_back($back, $usr);
+            $result .= $html->dsp_go_back($back, $usr);
         } else {
             // display the view header
-            $result .= $dsp->dsp_navbar($back);
+            $msk_dsp = new view_dsp($msk->api_json());
+            $result .= $msk_dsp->dsp_navbar($back);
 
             $val->load_phrases();
             $url = $html->url(api::VALUE . api::REMOVE, $val_id, $back);
-            $result .= (new button('Delete ' . $val->number() . ' for ' . $val->phr_lst()->dsp_name() . '? ', $url))->yesno();
+            $ui_msg = new msg();
+            $result .= (new button($url, $back))->yesno(
+                msg::VALUE_DEL, $val->number() . $ui_msg->txt(msg::FOR) . $val->phr_lst()->dsp_name() . '?');
         }
     } else {
-        $result .= dsp_go_back($back, $usr);
+        $result .= $html->dsp_go_back($back, $usr);
     }
 }
 

@@ -108,11 +108,11 @@
       "name": "personal climate gas emission",
       "comment": "overview over the climate gas emissions of the current user",
       "type": "detail_view",
-      "view_components": [
+      "components": [
         {
-          "pos": "1",
+          "position": "1",
           "name": "Name",
-          "code_id": "word_name"
+          "type": "word_name"
         }
       ]
     }

@@ -30,11 +30,16 @@
 
 */
 
-namespace api;
+namespace api\phrase;
 
-use html\phrase_list_dsp;
+include_once API_SANDBOX_PATH . 'list_object.php';
+include_once WEB_PHRASE_PATH . 'phrase_list.php';
 
-class phrase_list_api extends list_api implements \JsonSerializable
+use api\sandbox\list_object as list_api;
+use html\phrase\phrase_list as phrase_list_dsp;
+use JsonSerializable;
+
+class phrase_list extends list_api implements JsonSerializable
 {
 
     /*
@@ -50,7 +55,7 @@ class phrase_list_api extends list_api implements \JsonSerializable
      * add a phrase to the list
      * @returns bool true if the phrase has been added
      */
-    function add(phrase_api $phr): bool
+    function add(phrase $phr): bool
     {
         return parent::add_obj($phr);
     }
@@ -69,7 +74,7 @@ class phrase_list_api extends list_api implements \JsonSerializable
 
         // cast the single list objects
         $lst_dsp = array();
-        foreach ($this->lst as $phr) {
+        foreach ($this->lst() as $phr) {
             if ($phr != null) {
                 $phr_dsp = $phr->dsp_obj();
                 $lst_dsp[] = $phr_dsp;
@@ -82,24 +87,34 @@ class phrase_list_api extends list_api implements \JsonSerializable
         return $dsp_obj;
     }
 
+
     /*
      * interface
      */
 
     /**
-     * an array of the value vars including the private vars
+     * @return string the json api message as a text string
+     */
+    function get_json(): string
+    {
+        return json_encode($this->jsonSerialize());
+    }
+
+    /**
+     * @return array with the value vars including the protected vars
      */
     function jsonSerialize(): array
     {
         $vars = [];
-        foreach ($this->lst as $phr) {
-            $vars[] = json_decode(json_encode($phr));
+        foreach ($this->lst() as $phr) {
+            $vars[] = $phr->jsonSerialize();
         }
         return $vars;
     }
 
+
     /*
-     * information functions
+     * info
      */
 
     /**
@@ -108,7 +123,7 @@ class phrase_list_api extends list_api implements \JsonSerializable
     function has_percent(): bool
     {
         $result = false;
-        foreach ($this->lst as $phr) {
+        foreach ($this->lst() as $phr) {
             if ($phr->is_percent()) {
                 $result = true;
             }
@@ -121,43 +136,18 @@ class phrase_list_api extends list_api implements \JsonSerializable
      * modification functions
      */
 
-    /**
-     * removes all terms from this list that are not in the given list
-     * @param term_list_api $new_lst the terms that should remain in this list
-     * @returns phrase_list_api with the phrases of this list and the new list
-     */
-    function intersect(phrase_list_api $new_lst): phrase_list_api
-    {
-        if (!$new_lst->is_empty()) {
-            if ($this->is_empty()) {
-                $this->set_lst($new_lst->lst);
-            } else {
-                // next line would work if array_intersect could handle objects
-                // $this->lst = array_intersect($this->lst, $new_lst->lst());
-                $found_lst = new phrase_list_api();
-                foreach ($new_lst->lst() as $phr) {
-                    if (in_array($phr->id(), $this->id_lst())) {
-                        $found_lst->add($phr);
-                    }
-                }
-                $this->set_lst($found_lst->lst);
-            }
-        }
-        return $this;
-    }
-
-    function remove(phrase_list_api $del_lst): phrase_list_api
+    function remove(phrase_list $del_lst): phrase_list
     {
         if (!$del_lst->is_empty()) {
             // next line would work if array_intersect could handle objects
-            // $this->lst = array_intersect($this->lst, $new_lst->lst());
-            $remain_lst = new phrase_list_api();
+            // $this->lst() = array_intersect($this->lst(), $new_lst->lst());
+            $remain_lst = new phrase_list();
             foreach ($this->lst() as $phr) {
                 if (!in_array($phr->id(), $del_lst->id_lst())) {
                     $remain_lst->add($phr);
                 }
             }
-            $this->set_lst($remain_lst->lst);
+            $this->set_lst($remain_lst->lst());
         }
         return $this;
     }

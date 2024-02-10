@@ -30,6 +30,10 @@
 
 */
 
+use cfg\triple;
+use cfg\user;
+use controller\controller;
+
 $debug = $_GET['debug'] ?? 0;
 const ROOT_PATH = __DIR__ . '/../';
 include_once ROOT_PATH . 'src/main/php/zu_lib.php';
@@ -39,10 +43,10 @@ $result = ''; // reset the html code var
 // open database
 $db_con = prg_start("triple");
 
-if ($db_con == null) {
+if (!$db_con->connected()) {
     $result = log_fatal("Cannot connect to " . SQL_DB_TYPE . " database with user " . SQL_DB_USER_MYSQL, "find.php");
 } else {
-    $back = $_GET['back'];
+    $back = $_GET[controller::API_BACK];
     $id = $_GET['triples'];
 
     // load the session user parameters
@@ -52,7 +56,7 @@ if ($db_con == null) {
     // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
     if ($usr->id() > 0) {
 
-        load_usr_data();
+        $usr->load_usr_data();
 
         // show view header
         $trp = new triple($usr);

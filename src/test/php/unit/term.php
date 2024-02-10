@@ -30,13 +30,31 @@
 
 */
 
-use api\formula_api;
-use api\triple_api;
-use api\word_api;
+namespace test;
+
+include_once WEB_WORD_PATH . 'word.php';
+include_once WEB_WORD_PATH . 'triple.php';
+include_once WEB_FORMULA_PATH . 'formula.php';
+include_once WEB_VERB_PATH . 'verb.php';
+include_once WEB_PHRASE_PATH . 'term.php';
+
+use api\formula\formula as formula_api;
+use api\word\triple as triple_api;
+use api\word\word as word_api;
+use html\formula\formula as formula_dsp;
+use html\phrase\term as term_dsp;
+use html\word\word as word_dsp;
+use html\word\triple as triple_dsp;
+use html\verb\verb as verb_dsp;
+use cfg\formula;
+use cfg\db\sql_db;
+use cfg\term;
+use cfg\triple;
+use cfg\verb;
 
 class term_unit_tests
 {
-    function run(testing $t): void
+    function run(test_cleanup $t): void
     {
 
         global $usr;
@@ -56,20 +74,17 @@ class term_unit_tests
         $t->assert($t->name . 'word id', $trm->id_obj(), $wrd->id());
         $t->assert($t->name . 'word name', $trm->name(), $wrd->name_dsp());
 
-        $trp = new triple($usr);
-        $trp->set(1, triple_api::TN_READ);
+        $trp = $t->dummy_triple_pi();
         $trm = $trp->term();
         $t->assert($t->name . 'triple id', $trm->id_obj(), $trp->id());
         $t->assert($t->name . 'triple name', $trm->name(), $trp->name());
 
-        $frm = new formula($usr);
-        $frm->set(1, formula_api::TN_READ);
+        $frm = $t->dummy_formula();
         $trm = $frm->term();
         $t->assert($t->name . 'formula id', $trm->id_obj(), $frm->id());
         $t->assert($t->name . 'formula name', $trm->name(), $frm->name());
 
-        $vrb = new verb(1, verb::IS_A);
-        $vrb->set_user($usr);
+        $vrb = $t->dummy_verb();
         $trm = $vrb->term();
         $t->assert($t->name . 'verb id', $trm->id_obj(), $vrb->id());
         $t->assert($t->name . 'verb name', $trm->name(), $vrb->name());
@@ -81,8 +96,21 @@ class term_unit_tests
         // TODO use assert_load_sql_id for all objects
         // TODO use assert_load_sql_name for all named objects
         $trm = new term($usr);
-        $t->assert_load_sql_id($db_con, $trm);
-        $t->assert_load_sql_name($db_con, $trm);
+        $t->assert_sql_by_id($db_con, $trm);
+        $t->assert_sql_by_name($db_con, $trm);
+
+
+        $t->subheader('HTML frontend unit tests');
+
+        $trm = $t->dummy_term();
+        $t->assert_api_to_dsp($trm, new term_dsp());
+        $trm = $t->dummy_term_triple();
+        $t->assert_api_to_dsp($trm, new term_dsp());
+        $trm = $t->dummy_term_formula();
+        $t->assert_api_to_dsp($trm, new term_dsp());
+        $trm = $t->dummy_term_verb();
+        $t->assert_api_to_dsp($trm, new term_dsp());
+
     }
 
 }

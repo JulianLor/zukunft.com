@@ -31,6 +31,12 @@
 */
 
 // standard zukunft header for callable php files to allow debugging and lib loading
+use controller\controller;
+use html\html_base;
+use html\view\view as view_dsp;
+use cfg\user;
+use cfg\view;
+
 $debug = $_GET['debug'] ?? 0;
 const ROOT_PATH = __DIR__ . '/../';
 include_once ROOT_PATH . 'src/main/php/zu_lib.php';
@@ -47,16 +53,18 @@ $msg = ''; // to collect all messages that should be shown to the user immediate
 // load the session user parameters
 $usr = new user;
 $result .= $usr->get();
-$back = $_GET['back'];     // the word id from which this value change has been called (maybe later any page)
+$back = $_GET[controller::API_BACK];     // the word id from which this value change has been called (maybe later any page)
 
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
 if ($usr->id() > 0) {
 
-    load_usr_data();
+    $html = new html_base();
+
+    $usr->load_usr_data();
 
     // prepare the display
-    $dsp = new view_dsp_old($usr);
-    $dsp->load_by_code_id(view::IMPORT);
+    $msk = new view($usr);
+    $msk->load_by_code_id(controller::DSP_IMPORT);
 
     if ($usr->is_admin()) {
 
@@ -70,15 +78,17 @@ if ($usr->id() > 0) {
         // start base configuration load and check
         // ---------------------------------------
 
-        ui_echo($dsp->dsp_navbar($back));
+        $html = new html_base();
+        $msk_dsp = new view_dsp($msk->api_json());
+        $html->echo($msk_dsp->dsp_navbar($back));
 
-        ui_echo("loading of base configuration started<br>");
+        $html->echo("loading of base configuration started<br>");
 
         import_base_config($usr);
 
-        ui_echo("loading of base configuration finished<br>");
+        $html->echo("loading of base configuration finished<br>");
 
-        ui_echo(dsp_go_back($back, $usr));
+        $html->echo($html->dsp_go_back($back, $usr));
     }
 }
 

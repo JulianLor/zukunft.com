@@ -31,13 +31,19 @@
 */
 
 use cfg\phrase_type;
+use cfg\source;
+use cfg\word;
+use test\test_cleanup;
+use const test\TS_IPCC_AR6_SYNTHESIS;
+use const test\TS_IPCC_AR6_SYNTHESIS_URL;
+use const test\TW_MIO;
 
-function run_user_sandbox_test(testing $t): void
+function run_sandbox_test(test_cleanup $t): void
 {
 
     global $phrase_types;
 
-    $t->header('Test the user sandbox class (classes/user_sandbox.php)');
+    $t->header('Test the user sandbox class (classes/sandbox.php)');
 
     $t->subheader('Test the is_same and is_similar function');
 
@@ -50,21 +56,21 @@ function run_user_sandbox_test(testing $t): void
     $wrd2->set_name(TW_MIO);
     $target = false;
     $result = $wrd1->is_same($wrd2);
-    $t->dsp("a word is not the same as the same word that represents a formula", $target, $result);
+    $t->display("a word is not the same as the same word that represents a formula", $target, $result);
 
     // ... but it is similar
     $target = true;
     $result = $wrd1->is_similar_named($wrd2);
-    $t->dsp("... but it is similar", $target, $result);
+    $t->display("... but it is similar", $target, $result);
 
     $t->subheader('Test the saving function');
 
-    // create a new source (user_sandbox->save case 1)
+    // create a new source (_sandbox->save case 1)
     $src = new source($t->usr1);
     $src->set_name(TS_IPCC_AR6_SYNTHESIS);
     $result = $src->save();
     $target = '';
-    $t->dsp('user_sandbox->save create a new source', $target, $result);
+    $t->display('_sandbox->save create a new source', $target, $result);
 
     // remember the id
     $src_id = 0;
@@ -72,21 +78,21 @@ function run_user_sandbox_test(testing $t): void
         $src_id = $src->id();
     }
 
-    // check if the source has been saved (check user_sandbox->save case 1)
+    // check if the source has been saved (check _sandbox->save case 1)
     $src = new source($t->usr1);
     if ($src->load_by_id($src_id)) {
         $result = $src->name();
     }
     $target = TS_IPCC_AR6_SYNTHESIS;
-    $t->dsp('user_sandbox->save check created source', $target, $result);
+    $t->display('_sandbox->save check created source', $target, $result);
 
-    // update the source url by name (user_sandbox->save case 2)
+    // update the source url by name (_sandbox->save case 2)
     $src = new source($t->usr1);
     $src->set_name(TS_IPCC_AR6_SYNTHESIS);
     $src->url = TS_IPCC_AR6_SYNTHESIS_URL;
     $result = $src->save();
     $target = '';
-    $t->dsp('user_sandbox->save update the source url by name', $target, $result);
+    $t->display('_sandbox->save update the source url by name', $target, $result);
 
     // remember the id
     $src_id = 0;
@@ -94,13 +100,13 @@ function run_user_sandbox_test(testing $t): void
         $src_id = $src->id();
     }
 
-    // check if the source url has been updates (check user_sandbox->save case 2)
+    // check if the source url has been updates (check _sandbox->save case 2)
     $src = new source($t->usr1);
     if ($src->load_by_id($src_id)) {
         $result = $src->url;
     }
     $target = TS_IPCC_AR6_SYNTHESIS_URL;
-    $t->dsp('user_sandbox->save check if the source url has been updates', $target, $result);
+    $t->display('_sandbox->save check if the source url has been updates', $target, $result);
 
 }
 

@@ -47,12 +47,24 @@ Delete a word (check if nothing is depending on the word to delete)
 
 
 /* standard zukunft header for callable php files to allow debugging and lib loading */
+
+use controller\controller;
+use html\html_base;
+use html\view\view as view_dsp;
+use html\word\word as word_dsp;
+use cfg\term;
+use cfg\triple;
+use cfg\user;
+use cfg\view;
+use cfg\word;
+
 $debug = $_GET['debug'] ?? 0;
 const ROOT_PATH = __DIR__ . '/../';
 include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 
 /* open database */
-$db_con = prg_start("word_add");
+$db_con = prg_start(controller::DSP_WORD_ADD);
+$html = new html_base();
 
 $result = ''; // reset the html code var
 $msg = ''; // to collect all messages that should be shown to the user immediately
@@ -64,12 +76,12 @@ $result .= $usr->get();
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
 if ($usr->id() > 0) {
 
-    load_usr_data();
+    $usr->load_usr_data();
 
     // prepare the display
-    $dsp = new view_dsp_old($usr);
-    $dsp->load_by_code_id(view::WORD_ADD);
-    $back = $_GET['back']; // the calling page which should be displayed after saving
+    $msk = new view($usr);
+    $msk->load_by_code_id(controller::DSP_WORD_ADD);
+    $back = $_GET[controller::API_BACK]; // the calling page which should be displayed after saving
 
     // create the word object to have a place to update the parameters
     $wrd = new word($usr);
@@ -119,10 +131,9 @@ if ($usr->id() > 0) {
                   // maybe ask for confirmation
                   // change the link type to "formula link"
                   $wrd->type_id = cl(SQL_WORD_TYPE_FORMULA_LINK);
-                  zu_debug('word_add -> changed type to ('.$wrd->type_id.')');
                 } else {
                 */
-                $msg .= $trm->id_used_msg();
+                $msg .= $trm->id_used_msg($this);
                 log_debug();
                 //}
             }
@@ -130,14 +141,14 @@ if ($usr->id() > 0) {
         } elseif ($wrd_id > 0) {
             // check link of the existing word already exists
             $lnk_test = new triple($usr);
-            $lnk_test->load_by_link($wrd_id, $vrb_id, $wrd_to);
+            $lnk_test->load_by_link_id($wrd_id, $vrb_id, $wrd_to);
             if ($lnk_test->id() > 0) {
                 $lnk_test->load_objects();
                 log_debug('check forward link ' . $wrd_id . ' ' . $vrb_id . ' ' . $wrd_to . '');
                 $msg .= '"' . $lnk_test->from_name . ' ' . $lnk_test->verb->name() . ' ' . $lnk_test->to_name . '" already exists. ';
             }
             $lnk_rev = new triple($usr);
-            $lnk_rev->load_by_link($wrd_to, $vrb_id, $wrd_id);
+            $lnk_rev->load_by_link_id($wrd_to, $vrb_id, $wrd_id);
             if ($lnk_rev->id() > 0) {
                 $lnk_rev->load_objects();
                 $msg .= 'The reverse of "' . $lnk_rev->from_name . ' ' . $lnk_rev->verb->name() . ' ' . $lnk_rev->to_name . '" already exists. Do you really want to add both sides? ';
@@ -159,9 +170,9 @@ if ($usr->id() > 0) {
                 // ... and link it to an existing word
                 log_debug('word ' . $wrd->id() . ' linked via ' . $vrb_id . ' to ' . $wrd_to . ': ' . $add_result);
                 $lnk = new triple($usr);
-                $lnk->from->set_id($wrd->id());
+                $lnk->fob->set_id($wrd->id());
                 $lnk->verb->set_id($vrb_id);
-                $lnk->to->set_id($wrd_to);
+                $lnk->tob->set_id($wrd_to);
                 $add_result .= $lnk->save();
             }
 
@@ -182,10 +193,12 @@ if ($usr->id() > 0) {
     // if nothing yet done display the add view (and any message on the top)
     if ($result == '') {
         // display the add view again
-        $result .= $dsp->dsp_navbar($back);
-        $result .= dsp_err($msg);
+        $msk_dsp = new view_dsp($msk->api_json());
+        $result .= $msk_dsp->dsp_navbar($back);
+        $result .= $html->dsp_err($msg);
 
-        $result .= $wrd->dsp_add($wrd_id, $wrd_to, $vrb_id, $back);
+        $wrd_dsp = new word_dsp($wrd->api_json());
+        $result .= $wrd_dsp->dsp_add($wrd_id, $wrd_to, $vrb_id, $back);
     }
 }
 

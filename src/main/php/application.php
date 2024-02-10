@@ -2,8 +2,8 @@
 
 /*
 
-  application.php - the application settings
-  ---------------
+  model/application.php - the application settings
+  ---------------------
 
   This file is part of zukunft.com - calc with words
 
@@ -28,6 +28,10 @@
   http://zukunft.com
 
 */
+
+include_once MODEL_SYSTEM_PATH . 'sys_log_level.php';
+
+use cfg\sys_log_level;
 
 const POD_NAME = "zukunft.com"; // the default pod name if not defined
 const PRG_VERSION = "0.0.3"; // to detect the correct update script and to mark the data export

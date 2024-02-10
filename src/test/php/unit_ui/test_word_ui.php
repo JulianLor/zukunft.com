@@ -34,8 +34,10 @@
 // start testing the system functionality 
 // --------------------------------------
 
-use api\word_api;
-use html\word_dsp;
+use api\word\word as word_api;
+use html\word\word as word_dsp;
+use const test\TIMEOUT_LIMIT_PAGE;
+use const test\TIMEOUT_LIMIT_PAGE_SEMI;
 
 function run_word_ui_test(testing $t): void
 {

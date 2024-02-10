@@ -30,22 +30,33 @@
 
 */
 
+use controller\controller;
+use html\html_base;
+use html\view\view as view_dsp;
+use html\word\word_list as word_list_dsp;
+use cfg\user;
+use cfg\view;
+use cfg\word_list;
+
 $debug = $_GET['debug'] ?? 0;
 const ROOT_PATH = __DIR__ . '/../';
 include_once ROOT_PATH . 'src/main/php/zu_lib.php';
+
+global $system_views;
 
 $result = ''; // reset the html code var
 
 // open database
 $db_con = prg_start("find");
+$html = new html_base();
 
 // TODO review the http API code based on this example
 // TODO but first reduce the API files
 // TODO but first resolve all testing error
-if ($db_con == null) {
+if (!$db_con->connected()) {
     $result = log_fatal("Cannot connect to " . SQL_DB_TYPE . " database with user " . SQL_DB_USER_MYSQL, "find.php");
 } else {
-    $back = $_GET['back'];
+    $back = $_GET[controller::API_BACK];
 
     // load the session user parameters
     $usr = new user;
@@ -54,16 +65,17 @@ if ($db_con == null) {
     // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
     if ($usr->id() > 0) {
 
-        load_usr_data();
+        $usr->load_usr_data();
 
         // show view header
-        $dsp = new view_dsp_old($usr);
-        $dsp->set_id(cl(db_cl::VIEW, view::WORD_FIND));
-        $result .= $dsp->dsp_navbar($back);
+        $msk = new view($usr);
+        $msk->set_id($system_views->id(controller::DSP_WORD_FIND));
+        $msk_dsp = new view_dsp($msk->api_json());
+        $result .= $msk_dsp->dsp_navbar($back);
 
         $find_str = $_GET['pattern'];
 
-        $result .= dsp_text_h2('Find word');
+        $result .= $html->dsp_text_h2('Find word');
 
         // show a search field
         /* replaced by the navbar form
@@ -73,8 +85,11 @@ if ($db_con == null) {
         */
 
         // show the matching words to select
+        // TODO replace by term or phrase list
         $wrd_lst = new word_list($usr);
-        $result .= $wrd_lst->dsp_obj()->dsp_like($find_str, $usr);
+        $wrd_lst->load_like($find_str);
+        $dsp_lst = new word_list_dsp($wrd_lst->api_json());
+        $result .= $dsp_lst->display();
 
         // show the matching terms to select
         // TODO create a term list object

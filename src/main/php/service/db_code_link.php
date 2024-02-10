@@ -31,21 +31,23 @@
 
 */
 
+namespace model;
+
 use cfg\type_object;
 
 class db_cl
 {
     // list of all user types that are used
     const SYS_USER = "system_user";
-    const PHRASE_TYPE = "word_type";
+    const PHRASE_TYPE = "phrase_type";
     const VERB = "verb";
     const FORMULA_TYPE = "formula_type";
     const FORMULA_LINK_TYPE = "formula_link_type";
     const FORMULA_ELEMENT_TYPE = "formula_element_type";
     const VIEW = "view";
     const VIEW_TYPE = "view_type";
-    const VIEW_COMPONENT_TYPE = "view_component_type";
-    const VIEW_COMPONENT_POS_TYPE = "view_component_position_type";
+    const VIEW_COMPONENT_TYPE = "component_type";
+    const VIEW_COMPONENT_POS_TYPE = "component_position_type";
     const REF_TYPE = "ref_type";
     const SOURCE_TYPE = "source_type";
     const SHARE_TYPE = "share_type";
@@ -126,16 +128,16 @@ class db_cl
         return $view_types->id($code_id);
     }
 
-    function view_component_type_id(string $code_id): int
+    function component_type_id(string $code_id): int
     {
-        global $view_component_types;
-        return $view_component_types->id($code_id);
+        global $component_types;
+        return $component_types->id($code_id);
     }
 
-    function view_component_pos_type_id(string $code_id): int
+    function component_pos_type_id(string $code_id): int
     {
-        global $view_component_position_types;
-        return $view_component_position_types->id($code_id);
+        global $component_position_types;
+        return $component_position_types->id($code_id);
     }
 
     function ref_type_id(string $code_id): int
@@ -246,16 +248,16 @@ class db_cl
         return $view_types->get_by_id($id);
     }
 
-    function view_component_type(int $id)
+    function component_type(int $id)
     {
-        global $view_component_types;
-        return $view_component_types->get_by_id($id);
+        global $component_types;
+        return $component_types->get_by_id($id);
     }
 
-    function view_component_pos_type(int $id)
+    function component_pos_type(int $id)
     {
-        global $view_component_position_types;
-        return $view_component_position_types->get_by_id($id);
+        global $component_position_types;
+        return $component_position_types->get_by_id($id);
     }
 
     function share_type(int $id)
@@ -372,16 +374,16 @@ class db_cl
         return $view_types->name($id);
     }
 
-    function view_component_type_name(int $id): string
+    function component_type_name(int $id): string
     {
-        global $view_component_types;
-        return $view_component_types->name($id);
+        global $component_types;
+        return $component_types->name($id);
     }
 
-    function view_component_pos_type_name(int $id): string
+    function component_pos_type_name(int $id): string
     {
-        global $view_component_position_types;
-        return $view_component_position_types->name($id);
+        global $component_position_types;
+        return $component_position_types->name($id);
     }
 
     function ref_type_name(int $id): string
@@ -446,91 +448,6 @@ class db_cl
 
 }
 
-
-/**
- * get the database id of a predefined type e.g. word type, formula type, ...
- * shortcut name for db_code_link for better code reading
- * TODO it is more data saving to use get on the global object e.g. $user_profile->get($code_id)
- *
- * @param string $type e.g. phrase_type or formulas_type to select the list of unique code ids
- * @param string $code_id the code id that must be unique within the given type
- * @return int the database prime key row id
- */
-function cl(string $type, string $code_id): int
-{
-    $result = 0;
-    $db_code_link = new db_cl();
-    switch ($type) {
-        case db_cl::LOG_STATUS:
-            $result = $db_code_link->sys_log_status_id($code_id);
-            break;
-        case db_cl::SYS_USER:
-            $result = $db_code_link->sys_usr_id($code_id);
-            break;
-        case db_cl::USER_PROFILE:
-            $result = $db_code_link->user_profile_id($code_id);
-            break;
-        case db_cl::PHRASE_TYPE:
-            $result = $db_code_link->phrase_type_id($code_id);
-            break;
-        case db_cl::VERB:
-            $result = $db_code_link->verb_id($code_id);
-            break;
-        case db_cl::FORMULA_TYPE:
-            $result = $db_code_link->formula_type_id($code_id);
-            break;
-        case db_cl::FORMULA_LINK_TYPE:
-            $result = $db_code_link->formula_link_type_id($code_id);
-            break;
-        case db_cl::FORMULA_ELEMENT_TYPE:
-            $result = $db_code_link->formula_element_type_id($code_id);
-            break;
-        case db_cl::VIEW:
-            $result = $db_code_link->view_id($code_id);
-            break;
-        case db_cl::VIEW_TYPE:
-            $result = $db_code_link->view_type_id($code_id);
-            break;
-        case db_cl::VIEW_COMPONENT_TYPE:
-            $result = $db_code_link->view_component_type_id($code_id);
-            break;
-        case db_cl::VIEW_COMPONENT_POS_TYPE:
-            $result = $db_code_link->view_component_pos_type_id($code_id);
-            break;
-        case db_cl::REF_TYPE:
-            $result = $db_code_link->ref_type_id($code_id);
-            break;
-        case db_cl::SOURCE_TYPE:
-            $result = $db_code_link->source_type_id($code_id);
-            break;
-        case db_cl::SHARE_TYPE:
-            $result = $db_code_link->share_type_id($code_id);
-            break;
-        case db_cl::PROTECTION_TYPE:
-            $result = $db_code_link->protection_type_id($code_id);
-            break;
-        case db_cl::LANGUAGE:
-            $result = $db_code_link->language_id($code_id);
-            break;
-        case db_cl::LANGUAGE_FORM:
-            $result = $db_code_link->language_form_id($code_id);
-            break;
-        case db_cl::JOB_TYPE:
-            $result = $db_code_link->job_type_id($code_id);
-            break;
-        case db_cl::LOG_ACTION:
-            $result = $db_code_link->log_action_id($code_id);
-            break;
-        case db_cl::LOG_TABLE:
-            $result = $db_code_link->log_table_id($code_id);
-            break;
-        case db_cl::LOG_FIELD:
-            $result = $db_code_link->log_field_id($code_id);
-            break;
-    }
-    return $result;
-}
-
 /**
  * get the user specific name of a code linked database row
  * e.g. cl_name(db_cl::)
@@ -575,10 +492,10 @@ function cl_name(string $type, int $id): string
             $result = $db_code_link->view_type_name($id);
             break;
         case db_cl::VIEW_COMPONENT_TYPE:
-            $result = $db_code_link->view_component_type_name($id);
+            $result = $db_code_link->component_type_name($id);
             break;
         case db_cl::VIEW_COMPONENT_POS_TYPE:
-            $result = $db_code_link->view_component_pos_type_name($id);
+            $result = $db_code_link->component_pos_type_name($id);
             break;
         case db_cl::REF_TYPE:
             $result = $db_code_link->ref_type_name($id);
@@ -656,10 +573,10 @@ function get_type(string $type, string $code_id): type_object
             $result = $db_code_link->view_type($db_code_link->view_type_id($code_id));
             break;
         case db_cl::VIEW_COMPONENT_TYPE:
-            $result = $db_code_link->view_component_type($db_code_link->view_component_type_id($code_id));
+            $result = $db_code_link->component_type($db_code_link->component_type_id($code_id));
             break;
         case db_cl::VIEW_COMPONENT_POS_TYPE:
-            $result = $db_code_link->view_component_pos_type($db_code_link->view_component_pos_type_id($code_id));
+            $result = $db_code_link->component_pos_type($db_code_link->component_pos_type_id($code_id));
             break;
         // db_cl::REF_TYPE is excluded here because it returns an extended object
         // db_cl::SOURCE_TYPE is excluded here because it returns an extended object

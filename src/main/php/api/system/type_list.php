@@ -2,7 +2,7 @@
 
 /*
 
-    user_type_List_min.php - the api object to transfer a list of user setings to the frontend that changes very rarely
+    user_type_list_min.php - the api object to transfer a list of user settings to the frontend that changes very rarely
     ----------------------
 
 
@@ -30,13 +30,22 @@
 
 */
 
-namespace api;
+namespace api\system;
 
-use html\_type_list_dsp;
-use verb;
-use view;
+include_once API_VERB_PATH . 'verb.php';
+include_once API_VIEW_PATH . 'view.php';
+include_once API_SANDBOX_PATH . 'list_object.php';
+include_once WEB_SANDBOX_PATH . 'list.php';
 
-class type_list_api extends list_api implements \JsonSerializable
+use api\api;
+use api\sandbox\type_object as type_api;
+use api\sandbox\list_object as list_api;
+use JsonSerializable;
+use html\user\user_type_list as type_list_dsp;
+use cfg\verb;
+use cfg\view;
+
+class type_list extends list_api implements JsonSerializable
 {
 
     // memory vs speed optimize vars
@@ -53,7 +62,7 @@ class type_list_api extends list_api implements \JsonSerializable
     }
 
     /*
-     * get and set overwrite
+     * set and get overwrite
      */
 
     /**
@@ -82,7 +91,7 @@ class type_list_api extends list_api implements \JsonSerializable
                 );
                 $result[$id] = $api_obj;
             }
-            $this->lst = $result;
+            $this->set_lst($result);
         }
         $this->set_lst_dirty();
         return true;
@@ -104,20 +113,20 @@ class type_list_api extends list_api implements \JsonSerializable
      */
 
     /**
-     * @returns _type_list_dsp the cast object with the HTML code generating functions
+     * @returns type_list_dsp the cast object with the HTML code generating functions
      */
-    function dsp_obj(): _type_list_dsp
+    function dsp_obj(): type_list_dsp
     {
         // cast the single list objects
         $lst_dsp = array();
-        foreach ($this->lst as $val) {
+        foreach ($this->lst() as $val) {
             if ($val != null) {
                 $val_dsp = $val->dsp_obj();
                 $lst_dsp[] = $val_dsp;
             }
         }
 
-        return new _type_list_dsp($lst_dsp);
+        return new type_list_dsp($lst_dsp);
     }
 
 
@@ -131,8 +140,10 @@ class type_list_api extends list_api implements \JsonSerializable
     function jsonSerialize(): array
     {
         $vars = [];
-        foreach ($this->lst as $lst) {
-            $vars[] = json_decode(json_encode($lst));
+        foreach ($this->lst() as $typ) {
+            $typ_vars = get_object_vars($typ);
+            $typ_vars[api::FLD_ID] = $typ->id();
+            $vars[] = $typ_vars;
         }
         return $vars;
     }
@@ -144,7 +155,7 @@ class type_list_api extends list_api implements \JsonSerializable
     {
         $result = array();
         if ($this->code_lst_dirty) {
-            foreach ($this->lst as $type) {
+            foreach ($this->lst() as $type) {
                 if (!in_array($type->code_id(), $result)) {
                     $result[] = $type->code_id();
                 }
@@ -163,8 +174,9 @@ class type_list_api extends list_api implements \JsonSerializable
     private function lst_has_api_items(): bool
     {
         $result = false;
-        if (count($this->lst) > 0) {
-            if ($this->lst[0]::class == type_api::class) {
+        if (count($this->lst()) > 0) {
+            $typ_obj = $this->lst()[0];
+            if ($typ_obj::class == type_api::class) {
                 $result = true;
             }
         }
@@ -177,21 +189,21 @@ class type_list_api extends list_api implements \JsonSerializable
      */
 
     /**
-     * add a value to the list
-     * @returns bool true if the value has been added
+     * add a type to the list
+     * @returns bool true if the type has been added
      */
     function add(type_api $type): bool
     {
         $result = false;
-        if ($type->id() == 0) {
-            if (!in_array($type->code_id(), $this->code_id_lst())) {
-                $this->lst[] = $type;
+        if ($type->id == 0) {
+            if (!in_array($type->code_id, $this->code_id_lst())) {
+                $this->add_obj($type);
                 $this->set_lst_dirty();
                 $result = true;
             }
         } else {
-            if (!in_array($type->id(), $this->id_lst())) {
-                $this->lst[$type->id()] = $type;
+            if (!in_array($type->id, $this->id_lst())) {
+                $this->lst()[$type->id] = $type;
                 $this->set_lst_dirty();
                 $result = true;
             }

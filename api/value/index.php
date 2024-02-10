@@ -5,7 +5,7 @@
   api/value/index.php - the value API controller: send a value to the frontend
   -------------------
   
-  This file is part of zukunft.com - calc with values
+  This file is part of zukunft.com - calc with words
 
   zukunft.com is free software: you can redistribute it and/or modify it
   under the terms of the GNU General Public License as
@@ -29,13 +29,24 @@
   
 */
 
-use api\value_api;
+use cfg\value\value;
 use controller\controller;
+use cfg\user;
+use api\value\value as value_api;
 
 // standard zukunft header for callable php files to allow debugging and lib loading
-const ROOT_PATH = __DIR__ . '/../../';
-include_once ROOT_PATH . 'src/main/php/zu_lib.php';
-$debug = $_GET[controller::URL_VAR_DEBUG] ?? 0;
+global $debug;
+$debug = $_GET['debug'] ?? 0;
+const ROOT_PATH = __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR;
+const PHP_PATH = ROOT_PATH . 'src' . DIRECTORY_SEPARATOR . 'main' . DIRECTORY_SEPARATOR . 'php' . DIRECTORY_SEPARATOR;
+include_once PHP_PATH . 'zu_lib.php';
+
+include_once API_PATH . 'api.php';
+include_once API_PATH . 'controller.php';
+include_once API_PATH . 'api_message.php';
+include_once MODEL_USER_PATH . 'user.php';
+include_once MODEL_VALUE_PATH . 'value.php';
+include_once API_VALUE_PATH . 'value.php';
 
 // open database
 $db_con = prg_start("api/value", "", false);
@@ -53,7 +64,10 @@ $msg .= $usr->get();
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
 if ($usr->id() > 0) {
 
-    if ($val_id > 0) {
+    if (is_numeric($val_id)) {
+        $val_id = (int)$val_id;
+    }
+    if ($val_id != 0 and $val_id != '') {
         $val = new value($usr);
         $val->load_by_id($val_id);
         $val->load_objects();

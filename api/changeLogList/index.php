@@ -5,7 +5,7 @@
   api/log/index.php - the change log API controller: send a list of user changes to the frontend
   -----------------
   
-  This file is part of zukunft.com - calc with values
+  This file is part of zukunft.com - calc with words
 
   zukunft.com is free software: you can redistribute it and/or modify it
   under the terms of the GNU General Public License as
@@ -29,13 +29,26 @@
   
 */
 
-use api\term_list_api;
 use controller\controller;
+use cfg\user;
+use cfg\log\change_log_list;
+use cfg\word;
+use api\phrase\term_list as term_list_api;
 
 // standard zukunft header for callable php files to allow debugging and lib loading
-const ROOT_PATH = __DIR__ . '/../../';
-include_once ROOT_PATH . 'src/main/php/zu_lib.php';
-$debug = $_GET[controller::URL_VAR_DEBUG] ?? 0;
+global $debug;
+$debug = $_GET['debug'] ?? 0;
+const ROOT_PATH = __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR;
+const PHP_PATH = ROOT_PATH . 'src' . DIRECTORY_SEPARATOR . 'main' . DIRECTORY_SEPARATOR . 'php' . DIRECTORY_SEPARATOR;
+include_once PHP_PATH . 'zu_lib.php';
+
+include_once API_PATH . 'api.php';
+include_once API_PATH . 'controller.php';
+include_once API_PATH . 'api_message.php';
+include_once MODEL_USER_PATH . 'user.php';
+include_once MODEL_LOG_PATH . 'change_log_list.php';
+include_once MODEL_WORD_PATH . 'word.php';
+include_once API_PHRASE_PATH . 'term_list.php';
 
 // open database
 $db_con = prg_start("api/log", "", false);
@@ -58,7 +71,7 @@ if ($usr->id() > 0) {
         $wrd = new word($usr);
         $wrd->load_by_id($wrd_id);
         $lst = new change_log_list();
-        $lst->load_by_fld_of_wrd($wrd, $wrd_fld);
+        $lst->load_by_fld_of_wrd($wrd, $usr, $wrd_fld);
         $result = $lst->api_obj();
     } else {
         $msg = 'word id missing';

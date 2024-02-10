@@ -8,7 +8,7 @@
     use GET to retrieve a JSON that can be imported into another zukunft.com pod
     use PUT to import data from a JSON in the zukunft.com exchange format
 
-    This file is part of zukunft.com - calc with values
+    This file is part of zukunft.com - calc with words
 
     zukunft.com is free software: you can redistribute it and/or modify it
     under the terms of the GNU General Public License as
@@ -32,13 +32,24 @@
 
 */
 
-use api\phrase_list_api;
 use controller\controller;
+use cfg\user;
+use cfg\word;
+use api\phrase\phrase_list as phrase_list_api;
 
 // standard zukunft header for callable php files to allow debugging and lib loading
-const ROOT_PATH = __DIR__ . '/../../';
-include_once ROOT_PATH . 'src/main/php/zu_lib.php';
-$debug = $_GET[controller::URL_VAR_DEBUG] ?? 0;
+global $debug;
+$debug = $_GET['debug'] ?? 0;
+const ROOT_PATH = __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR;
+const PHP_PATH = ROOT_PATH . 'src' . DIRECTORY_SEPARATOR . 'main' . DIRECTORY_SEPARATOR . 'php' . DIRECTORY_SEPARATOR;
+include_once PHP_PATH . 'zu_lib.php';
+
+include_once API_PATH . 'api.php';
+include_once API_PATH . 'controller.php';
+include_once API_PATH . 'api_message.php';
+include_once MODEL_USER_PATH . 'user.php';
+include_once MODEL_WORD_PATH . 'word.php';
+include_once API_PHRASE_PATH . 'phrase_list.php';
 
 // open database
 $db_con = prg_start("api/json", "", false);

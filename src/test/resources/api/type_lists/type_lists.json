@@ -1,1463 +1,2882 @@
-[
-  {
-    "pod": "zukunft.com",
-    "type": "type_lists",
-    "user_id": 2,
-    "user": "zukunft.com system test",
-    "version": "0.0.3",
-    "type_lists": {
-      "user_profiles": [
-        {
-          "id": 1,
-          "code_id": "normal",
-          "name": "normal user",
-          "comment": ""
-        },
-        {
-          "id": 2,
-          "code_id": "admin",
-          "name": "admin",
-          "comment": "Administrator that can add and change verbs and sees the code_id"
-        },
-        {
-          "id": 3,
-          "code_id": "dev",
-          "name": "developer",
-          "comment": "Can see all errors and change the status of the errors, but cannot access the production system"
-        },
-        {
-          "id": 4,
-          "code_id": "test",
-          "name": "system test",
-          "comment": "for integration tests that should never be shown to the user but is used to check if integration test data is completely removed after the tests"
-        },
-        {
-          "id": 5,
-          "code_id": "system",
-          "name": "system",
-          "comment": "User to log internal tasks not directly initiated by an user like system testing and cleanup"
-        }
-      ],
-      "phrase_types": [
-        {
-          "id": 1,
-          "code_id": "default",
-          "name": "standard",
-          "comment": "for words that have need no special behaviour"
-        },
-        {
-          "id": 2,
-          "code_id": "time",
-          "name": "time",
-          "comment": "A time word defines the time period for which a value is valid and values with a time can be used to display time series."
-        },
-        {
-          "id": 3,
-          "code_id": "measure",
-          "name": "measure type",
-          "comment": "a measure word such as meter, kilogram, ..."
-        },
-        {
-          "id": 4,
-          "code_id": "time_jump",
-          "name": "time jump",
-          "comment": "these terms describes a change of a timestamp term"
-        },
-        {
-          "id": 5,
-          "code_id": "",
-          "name": "calc",
-          "comment": "a calculated word in R; e.g. this year returns always a different term"
-        },
-        {
-          "id": 6,
-          "code_id": "percent",
-          "name": "format percent",
-          "comment": "terms that forces the result to be formatted in percent"
-        },
-        {
-          "id": 7,
-          "code_id": "scaling",
-          "name": "scaling",
-          "comment": "a scaling word such as millions, one, ..."
-        },
-        {
-          "id": 8,
-          "code_id": "scaling_hidden",
-          "name": "hidden scaling",
-          "comment": "\"one\" is needed as a scaling word for correct calculations, but it is not useful to display it"
-        },
-        {
-          "id": 9,
-          "code_id": "view",
-          "name": "view \/ layer",
-          "comment": "word to separate the number layers and to change the view.\\r\\nE.g. -as reported- are exactly the numbers as they come from the external source\\r\\n-detailed- are the most granular splitting of the -as reported- numbers\\r\\n-projection- show the changes and includes the estimates to make a forecast\\r\\n"
-        },
-        {
-          "id": 10,
-          "code_id": "formula_link",
-          "name": "formula link",
-          "comment": "A term with the same name as a formula, because some values can be calculated and can nevertheless be overwritten"
-        },
-        {
-          "id": 11,
-          "code_id": "type_other",
-          "name": "differentiator filler",
-          "comment": "these terms are used to fill up a differentiator list, so most likely the term linked will be named \"other\""
-        },
-        {
-          "id": 12,
-          "code_id": "this",
-          "name": "this",
-          "comment": "not sure, why this is needed"
-        },
-        {
-          "id": 13,
-          "code_id": "next",
-          "name": "next",
-          "comment": "not sure, why this is needed"
-        },
-        {
-          "id": 14,
-          "code_id": "previous",
-          "name": "prior",
-          "comment": "not sure, why this is needed"
-        },
-        {
-          "id": 15,
-          "code_id": "scaling_percent",
-          "name": "scaling word percent",
-          "comment": "all words that represent percent"
-        },
-        {
-          "id": 16,
-          "code_id": "scaled_measure",
-          "name": "scaled measure",
-          "comment": "a combination of scaling and measure e.g. 100ml"
-        },
-        {
-          "id": 17,
-          "code_id": "constant",
-          "name": "math constant",
-          "comment": "A mathematical constant is a key number whose value is fixed by an unambiguous definition"
-        },
-        {
-          "id": 18,
-          "code_id": "measure_divisor",
-          "name": "measure divisor",
-          "comment": "a measure divisor like per year, per kg, ..."
-        },
-        {
-          "id": 19,
-          "code_id": "latest",
-          "name": "latest",
-          "comment": "to select the latest value by a time jump type e.g. latest year"
-        },
-        {
-          "id": 20,
-          "code_id": "key",
-          "name": "key",
-          "comment": "force faster search and if two keys are connected with the verb is all child values are expected to be equal"
-        },
-        {
-          "id": 21,
-          "code_id": "information",
-          "name": "information",
-          "comment": "this phrase is used mainly for information purpose and for the selection the program tries to another search without this phrase"
-        }
-      ],
-      "formula_types": [
-        {
-          "id": 1,
-          "code_id": "default",
-          "name": "calc",
-          "comment": "a normal calculation formula"
-        },
-        {
-          "id": 2,
-          "code_id": "time_next",
-          "name": "next",
-          "comment": "time jump forward: replaces a time term with the next time term based on the verb follower. E.g. \"2017\" \"next\" would lead to use \"2018\""
-        },
-        {
-          "id": 3,
-          "code_id": "time_prior",
-          "name": "prior",
-          "comment": "time jump backward: replaces a time term with the previous time term based on the verb follower. E.g. \"2017\" \"next\" would lead to use \"2016\""
-        },
-        {
-          "id": 4,
-          "code_id": "time_this",
-          "name": "this",
-          "comment": "selects the assumed time term"
-        },
-        {
-          "id": 5,
-          "code_id": "reversible",
-          "name": "reversible",
-          "comment": "a formula that can ba included also in the reversed version e.g. \"minute = second \/ 60\" and \"second = minute * 60\""
-        }
-      ],
-      "formula_link_types": [
-        {
-          "id": 1,
-          "code_id": "default",
-          "name": "default",
-          "comment": "default"
-        },
-        {
-          "id": 2,
-          "code_id": "time_period_based",
-          "name": "time period based",
-          "comment": "increase needs to know for which time period the increase should be calculated"
-        }
-      ],
-      "formula_element_types": [
-        {
-          "id": 1,
-          "code_id": "word",
-          "name": "word",
-          "comment": "a reference to a word used to select values using \"and\""
-        },
-        {
-          "id": 2,
-          "code_id": "verb",
-          "name": "verb",
-          "comment": "a reference to a predicate"
-        },
-        {
-          "id": 3,
-          "code_id": "formula",
-          "name": "formula",
-          "comment": "to select the results of another formula using the given context"
-        },
-        {
-          "id": 4,
-          "code_id": "triple",
-          "name": "triple",
-          "comment": "a reference to two predicate linked words used to select values using \"and\""
-        }
-      ],
-      "view_types": [
-        {
-          "id": 1,
-          "code_id": "default",
-          "name": "standard",
-          "comment": "the base display mask without additional functionalities"
-        },
-        {
-          "id": 2,
-          "code_id": "entry",
-          "name": "entry view",
-          "comment": "these masks are used for the zukunft.com entry page. If a totally new user opens zukunft.com the first time, he will see a random mask of this type."
-        },
-        {
-          "id": 3,
-          "code_id": "mask_default",
-          "name": "edit",
-          "comment": "a edit mask that is used to change data"
-        },
-        {
-          "id": 4,
-          "code_id": "presentation",
-          "name": "presentation",
-          "comment": "with auto forward"
-        },
-        {
-          "id": 5,
-          "code_id": "word_default",
-          "name": "word default",
-          "comment": "a default mask for new words"
-        },
-        {
-          "id": 6,
-          "code_id": "detail_view",
-          "name": "details",
-          "comment": "to show the more details than the standard view"
-        }
-      ],
-      "view_component_types": [
-        {
-          "id": 1,
-          "code_id": "word_select",
-          "name": "word selector",
-          "comment": ""
-        },
-        {
-          "id": 2,
-          "code_id": "view_select",
-          "name": "view selector",
-          "comment": "to select an existing mask e.g. to set the default view"
-        },
-        {
-          "id": 3,
-          "code_id": "text",
-          "name": "text",
-          "comment": "simply to display a variable text"
-        },
-        {
-          "id": 4,
-          "code_id": "fixed",
-          "name": "fixed word",
-          "comment": "just display a word as a text"
-        },
-        {
-          "id": 5,
-          "code_id": "link",
-          "name": "linked word",
-          "comment": "display a word and offer a link"
-        },
-        {
-          "id": 6,
-          "code_id": "formula_results",
-          "name": "formula results",
-          "comment": "show the results of a formula"
-        },
-        {
-          "id": 7,
-          "code_id": "word_list_up",
-          "name": "word list up",
-          "comment": "Show a list of words related with a specified word link type; e.g. For company list all ABB and others, because they are linked with is a"
-        },
-        {
-          "id": 8,
-          "code_id": "word_name",
-          "name": "word name",
-          "comment": "show the word name and give the user the possibility to change the word name"
-        },
-        {
-          "id": 9,
-          "code_id": "word_list_down",
-          "name": "word list down",
-          "comment": "Show a list of words related with a specified word link type; e.g. For company list all ABB and others, because they are linked with is a"
-        },
-        {
-          "id": 10,
-          "code_id": "values_all",
-          "name": "all relations",
-          "comment": "show the complete list of all relations"
-        },
-        {
-          "id": 11,
-          "code_id": "values_related",
-          "name": "values related to",
-          "comment": "display all values that are related to a defined term"
-        },
-        {
-          "id": 12,
-          "code_id": "formula_list",
-          "name": "formulas",
-          "comment": "show all related formulas"
-        },
-        {
-          "id": 13,
-          "code_id": "word_value_list",
-          "name": "word value list",
-          "comment": "A list of words with some key values e.g. a company list with the PE ratio"
-        },
-        {
-          "id": 14,
-          "code_id": "xml_export",
-          "name": "XML export",
-          "comment": "offer to configure and start the XML export of a phrase and all related words, numbers and formulas"
-        },
-        {
-          "id": 15,
-          "code_id": "csv_export",
-          "name": "CSV export",
-          "comment": "to define the main phrase, the column and row for the CSV export"
-        },
-        {
-          "id": 16,
-          "code_id": "system_field",
-          "name": "system field",
-          "comment": "the internal component to display a system and allow the user to change the order"
-        }
-      ],
-      "view_component_position_types": [
-        {
-          "id": 1,
-          "code_id": "below",
-          "name": "below",
-          "comment": "below the previous entry"
-        },
-        {
-          "id": 2,
-          "code_id": "side",
-          "name": "side",
-          "comment": "is right of the previous entry (or left for right to left languages)"
-        }
-      ],
-      "ref_types": [
-        {
-          "id": 1,
-          "code_id": "wikipedia",
-          "name": "wikipedia",
-          "comment": "wikipedia"
-        },
-        {
-          "id": 2,
-          "code_id": "wikidata",
-          "name": "wikidata",
-          "comment": "wikidata"
-        },
-        {
-          "id": 3,
-          "code_id": "conceptnet",
-          "name": "conceptnet",
-          "comment": "conceptnet"
-        }
-      ],
-      "source_types": [
-        {
-          "id": 1,
-          "code_id": "xml",
-          "name": "XML",
-          "comment": ""
-        },
-        {
-          "id": 2,
-          "code_id": "xbrl",
-          "name": "XBRL",
-          "comment": ""
-        },
-        {
-          "id": 3,
-          "code_id": "csv",
-          "name": "CSV",
-          "comment": ""
-        },
-        {
-          "id": 4,
-          "code_id": "pdf",
-          "name": "PDF",
-          "comment": ""
-        }
-      ],
-      "share_types": [
-        {
-          "id": 1,
-          "code_id": "public",
-          "name": "public",
-          "comment": "value can be seen and used by everyone (default)"
-        },
-        {
-          "id": 2,
-          "code_id": "personal",
-          "name": "personal",
-          "comment": "value can be seen by everyone, but is linked to the user"
-        },
-        {
-          "id": 3,
-          "code_id": "group",
-          "name": "group",
-          "comment": "only a closed group of users can seen and use the values"
-        },
-        {
-          "id": 4,
-          "code_id": "private",
-          "name": "private",
-          "comment": "only the user itself can see und use the value"
-        }
-      ],
-      "protection_types": [
-        {
-          "id": 1,
-          "code_id": "no_protection",
-          "name": "no protection",
-          "comment": "anyone can take the ownership"
-        },
-        {
-          "id": 2,
-          "code_id": "user_protection",
-          "name": "user",
-          "comment": "only users with a login and a confirmed email can take over the ownership"
-        },
-        {
-          "id": 3,
-          "code_id": "admin_protection",
-          "name": "admin",
-          "comment": "only user with admin permission can take the ownership"
-        },
-        {
-          "id": 4,
-          "code_id": "no_change",
-          "name": "no change",
-          "comment": "no change of the ownership is allowed"
-        }
-      ],
-      "languages": [
-        {
-          "id": 1,
-          "code_id": "en",
-          "name": "English",
-          "comment": "the system language, so each word must be unique for all users in this language"
-        },
-        {
-          "id": 2,
-          "code_id": "en_uk",
-          "name": "UK English",
-          "comment": "the users can use this (and the other) languages to create its own namespace. So one user may use \"Zurich\" in UK English for \"Kanton Zurich\" and another user may use \"Zurich\" in UK English for \"Zurich AG\"."
-        },
-        {
-          "id": 3,
-          "code_id": "de",
-          "name": "German",
-          "comment": "a normal translation to German"
-        }
-      ],
-      "language_forms": [
-        {
-          "id": 1,
-          "code_id": "plural",
-          "name": "plural",
-          "comment": ""
-        }
-      ],
-      "sys_log_stati": [
-        {
-          "id": 1,
-          "code_id": "new",
-          "name": "new",
-          "comment": "the error has just being logged and no one has yet looked at it"
-        },
-        {
-          "id": 2,
-          "code_id": "assigned",
-          "name": "assigned",
-          "comment": "A developer is looking at the error."
-        },
-        {
-          "id": 3,
-          "code_id": "resolved",
-          "name": "resolved",
-          "comment": "the error is supposed to be corrected"
-        },
-        {
-          "id": 4,
-          "code_id": "closed",
-          "name": "closed",
-          "comment": "a second person (other than the developer) has confirmed that the problem is solved."
-        }
-      ],
-      "job_types": [
-        {
-          "id": 1,
-          "code_id": "value_update",
-          "name": "update value",
-          "comment": "if a value is updated all the depending formula values should be calculated again"
-        },
-        {
-          "id": 2,
-          "code_id": "value_add",
-          "name": "add value",
-          "comment": "1. check if used in formulas and if yes, create new formula results\\r\\n2. calculate the new formula results"
-        },
-        {
-          "id": 3,
-          "code_id": "value_del",
-          "name": "exclude a value",
-          "comment": "check if used for a formula result and if yes either remove the formula result or update it"
-        },
-        {
-          "id": 4,
-          "code_id": "formula_update",
-          "name": "update formula",
-          "comment": ""
-        },
-        {
-          "id": 5,
-          "code_id": "formula_add",
-          "name": "add formula",
-          "comment": ""
-        },
-        {
-          "id": 6,
-          "code_id": "formula_del",
-          "name": "exclude formula",
-          "comment": ""
-        },
-        {
-          "id": 7,
-          "code_id": "formula_link",
-          "name": "link formula",
-          "comment": ""
-        },
-        {
-          "id": 8,
-          "code_id": "formula_unlink",
-          "name": "unlink a formula",
-          "comment": ""
-        },
-        {
-          "id": 9,
-          "code_id": "triple",
-          "name": "link a word",
-          "comment": ""
-        },
-        {
-          "id": 10,
-          "code_id": "word_unlink",
-          "name": "unlink word",
-          "comment": ""
-        },
-        {
-          "id": 11,
-          "code_id": "base_import",
-          "name": "initial import",
-          "comment": "import the base configuration by a system user on initial setup"
-        }
-      ],
-      "change_log_actions": [
-        {
-          "id": 1,
-          "code_id": "add",
-          "name": "add",
-          "comment": ""
-        },
-        {
-          "id": 2,
-          "code_id": "del",
-          "name": "del",
-          "comment": ""
-        },
-        {
-          "id": 3,
-          "code_id": "update",
-          "name": "update",
-          "comment": ""
-        }
-      ],
-      "change_log_tables": [
-        {
-          "id": 1,
-          "code_id": "users",
-          "name": "users",
-          "comment": ""
-        },
-        {
-          "id": 2,
-          "code_id": "values",
-          "name": "values",
-          "comment": ""
-        },
-        {
-          "id": 3,
-          "code_id": "user_values",
-          "name": "user_values",
-          "comment": ""
-        },
-        {
-          "id": 4,
-          "code_id": "value_links",
-          "name": "value_links",
-          "comment": ""
-        },
-        {
-          "id": 5,
-          "code_id": "words",
-          "name": "words",
-          "comment": ""
-        },
-        {
-          "id": 6,
-          "code_id": "user_words",
-          "name": "user_words",
-          "comment": ""
-        },
-        {
-          "id": 7,
-          "code_id": "triples",
-          "name": "triples",
-          "comment": ""
-        },
-        {
-          "id": 8,
-          "code_id": "user_triples",
-          "name": "user_triples",
-          "comment": ""
-        },
-        {
-          "id": 9,
-          "code_id": "verbs",
-          "name": "verbs",
-          "comment": ""
-        },
-        {
-          "id": 10,
-          "code_id": "formulas",
-          "name": "formulas",
-          "comment": ""
-        },
-        {
-          "id": 11,
-          "code_id": "user_formulas",
-          "name": "user_formulas",
-          "comment": ""
-        },
-        {
-          "id": 12,
-          "code_id": "formula_links",
-          "name": "formula_links",
-          "comment": ""
-        },
-        {
-          "id": 13,
-          "code_id": "user_formula_links",
-          "name": "user_formula_links",
-          "comment": ""
-        },
-        {
-          "id": 14,
-          "code_id": "views",
-          "name": "views",
-          "comment": ""
-        },
-        {
-          "id": 15,
-          "code_id": "user_views",
-          "name": "user_views",
-          "comment": ""
-        },
-        {
-          "id": 16,
-          "code_id": "view_component_links",
-          "name": "view_component_links",
-          "comment": ""
-        },
-        {
-          "id": 17,
-          "code_id": "user_view_component_links",
-          "name": "user_view_component_links",
-          "comment": ""
-        },
-        {
-          "id": 18,
-          "code_id": "view_components",
-          "name": "view_components",
-          "comment": ""
-        },
-        {
-          "id": 19,
-          "code_id": "user_view_components",
-          "name": "user_view_components",
-          "comment": ""
-        },
-        {
-          "id": 20,
-          "code_id": "sources",
-          "name": "sources",
-          "comment": ""
-        },
-        {
-          "id": 21,
-          "code_id": "user_sources",
-          "name": "user_sources",
-          "comment": ""
-        },
-        {
-          "id": 22,
-          "code_id": "refs",
-          "name": "refs",
-          "comment": ""
-        }
-      ],
-      "change_log_fields": [
-        {
-          "id": 1,
-          "code_id": "2word_value",
-          "name": "2word_value",
-          "comment": ""
-        },
-        {
-          "id": 2,
-          "code_id": "2source_id",
-          "name": "2source_id",
-          "comment": ""
-        },
-        {
-          "id": 3,
-          "code_id": "2share_type_id",
-          "name": "2share_type_id",
-          "comment": ""
-        },
-        {
-          "id": 4,
-          "code_id": "2protect_id",
-          "name": "2protect_id",
-          "comment": ""
-        },
-        {
-          "id": 5,
-          "code_id": "2excluded",
-          "name": "2excluded",
-          "comment": ""
-        },
-        {
-          "id": 6,
-          "code_id": "3word_value",
-          "name": "3word_value",
-          "comment": ""
-        },
-        {
-          "id": 7,
-          "code_id": "3protect_id",
-          "name": "3protect_id",
-          "comment": ""
-        },
-        {
-          "id": 8,
-          "code_id": "3share_type_id",
-          "name": "3share_type_id",
-          "comment": ""
-        },
-        {
-          "id": 9,
-          "code_id": "5word_name",
-          "name": "5word_name",
-          "comment": ""
-        },
-        {
-          "id": 10,
-          "code_id": "5description",
-          "name": "5description",
-          "comment": ""
-        },
-        {
-          "id": 11,
-          "code_id": "5word_type_id",
-          "name": "5word_type_id",
-          "comment": ""
-        },
-        {
-          "id": 12,
-          "code_id": "5plural",
-          "name": "5plural",
-          "comment": ""
-        },
-        {
-          "id": 13,
-          "code_id": "5excluded",
-          "name": "5excluded",
-          "comment": ""
-        },
-        {
-          "id": 14,
-          "code_id": "6word_type_id",
-          "name": "6word_type_id",
-          "comment": ""
-        },
-        {
-          "id": 15,
-          "code_id": "6plural",
-          "name": "6plural",
-          "comment": ""
-        },
-        {
-          "id": 16,
-          "code_id": "6description",
-          "name": "6description",
-          "comment": ""
-        },
-        {
-          "id": 17,
-          "code_id": "7triple_name",
-          "name": "7triple_name",
-          "comment": ""
-        },
-        {
-          "id": 18,
-          "code_id": "7name_given",
-          "name": "7name_given",
-          "comment": ""
-        },
-        {
-          "id": 19,
-          "code_id": "7name_generated",
-          "name": "7name_generated",
-          "comment": ""
-        },
-        {
-          "id": 20,
-          "code_id": "7excluded",
-          "name": "7excluded",
-          "comment": ""
-        },
-        {
-          "id": 21,
-          "code_id": "8triple_name",
-          "name": "8triple_name",
-          "comment": ""
-        },
-        {
-          "id": 22,
-          "code_id": "9verb_name",
-          "name": "9verb_name",
-          "comment": ""
-        },
-        {
-          "id": 23,
-          "code_id": "9code_id",
-          "name": "9code_id",
-          "comment": ""
-        },
-        {
-          "id": 24,
-          "code_id": "9description",
-          "name": "9description",
-          "comment": ""
-        },
-        {
-          "id": 25,
-          "code_id": "9name_plural",
-          "name": "9name_plural",
-          "comment": ""
-        },
-        {
-          "id": 26,
-          "code_id": "9name_reverse",
-          "name": "9name_reverse",
-          "comment": ""
-        },
-        {
-          "id": 27,
-          "code_id": "9name_plural_reverse",
-          "name": "9name_plural_reverse",
-          "comment": ""
-        },
-        {
-          "id": 28,
-          "code_id": "9formula_name",
-          "name": "9formula_name",
-          "comment": ""
-        },
-        {
-          "id": 29,
-          "code_id": "10formula_name",
-          "name": "10formula_name",
-          "comment": ""
-        },
-        {
-          "id": 30,
-          "code_id": "10formula_type_id",
-          "name": "10formula_type_id",
-          "comment": ""
-        },
-        {
-          "id": 31,
-          "code_id": "10resolved_text",
-          "name": "10resolved_text",
-          "comment": ""
-        },
-        {
-          "id": 32,
-          "code_id": "10formula_text",
-          "name": "10formula_text",
-          "comment": ""
-        },
-        {
-          "id": 33,
-          "code_id": "10description",
-          "name": "10description",
-          "comment": ""
-        },
-        {
-          "id": 34,
-          "code_id": "10all_values_needed",
-          "name": "10all_values_needed",
-          "comment": ""
-        },
-        {
-          "id": 35,
-          "code_id": "11description",
-          "name": "11description",
-          "comment": ""
-        },
-        {
-          "id": 36,
-          "code_id": "11formula_type_id",
-          "name": "11formula_type_id",
-          "comment": ""
-        },
-        {
-          "id": 37,
-          "code_id": "11resolved_text",
-          "name": "11resolved_text",
-          "comment": ""
-        },
-        {
-          "id": 38,
-          "code_id": "11formula_text",
-          "name": "11formula_text",
-          "comment": ""
-        },
-        {
-          "id": 39,
-          "code_id": "11all_values_needed",
-          "name": "11all_values_needed",
-          "comment": ""
-        },
-        {
-          "id": 40,
-          "code_id": "12excluded",
-          "name": "12excluded",
-          "comment": ""
-        },
-        {
-          "id": 41,
-          "code_id": "14view_name",
-          "name": "14view_name",
-          "comment": ""
-        },
-        {
-          "id": 42,
-          "code_id": "14description",
-          "name": "14description",
-          "comment": ""
-        },
-        {
-          "id": 43,
-          "code_id": "14code_id",
-          "name": "14code_id",
-          "comment": ""
-        },
-        {
-          "id": 44,
-          "code_id": "14view_type_id",
-          "name": "14view_type_id",
-          "comment": ""
-        },
-        {
-          "id": 45,
-          "code_id": "15description",
-          "name": "15description",
-          "comment": ""
-        },
-        {
-          "id": 46,
-          "code_id": "15view_type_id",
-          "name": "15view_type_id",
-          "comment": ""
-        },
-        {
-          "id": 47,
-          "code_id": "16order_nbr",
-          "name": "16order_nbr",
-          "comment": ""
-        },
-        {
-          "id": 48,
-          "code_id": "16excluded",
-          "name": "16excluded",
-          "comment": ""
-        },
-        {
-          "id": 49,
-          "code_id": "17order_nbr",
-          "name": "17order_nbr",
-          "comment": ""
-        },
-        {
-          "id": 50,
-          "code_id": "18view_component_name",
-          "name": "18view_component_name",
-          "comment": ""
-        },
-        {
-          "id": 51,
-          "code_id": "18description",
-          "name": "18description",
-          "comment": ""
-        },
-        {
-          "id": 52,
-          "code_id": "18view_component_type_id",
-          "name": "18view_component_type_id",
-          "comment": ""
-        },
-        {
-          "id": 53,
-          "code_id": "19description",
-          "name": "19description",
-          "comment": ""
-        },
-        {
-          "id": 54,
-          "code_id": "19view_component_type_id",
-          "name": "19view_component_type_id",
-          "comment": ""
-        },
-        {
-          "id": 55,
-          "code_id": "20source_name",
-          "name": "20source_name",
-          "comment": ""
-        },
-        {
-          "id": 56,
-          "code_id": "20description",
-          "name": "20description",
-          "comment": ""
-        },
-        {
-          "id": 57,
-          "code_id": "20source_type_id",
-          "name": "20source_type_id",
-          "comment": ""
-        },
-        {
-          "id": 58,
-          "code_id": "20url",
-          "name": "20url",
-          "comment": ""
-        },
-        {
-          "id": 59,
-          "code_id": "21description",
-          "name": "21description",
-          "comment": ""
-        },
-        {
-          "id": 60,
-          "code_id": "21url",
-          "name": "21url",
-          "comment": ""
-        }
-      ],
-      "verbs": [
-        {
-          "id": 1,
-          "code_id": "not_set",
-          "name": "not set",
-          "comment": "placeholder verb to enable foreign key checks in the database and for the selection"
-        },
-        {
-          "id": 2,
-          "code_id": "is",
-          "name": "is a",
-          "comment": "the main child to parent relation e.g. Zurich is a Canton. The reverse is valid and usually plural is used e.g. Cantons are Zurich, Bern, ..."
-        },
-        {
-          "id": 3,
-          "code_id": "contains",
-          "name": "is part of",
-          "comment": "if several similar term create different views to the same sum; E.g. Cash Flow Paper, Balance Sheet and Income statement are Financial Statements. Or Sectors and Regions are different splittings"
-        },
-        {
-          "id": 4,
-          "code_id": "",
-          "name": "with",
-          "comment": "similar to 'is part of' but where the left phrase is expected to be several times the right phrase e.g. for comparing same by same: 1 hour with full load is the same as 2 hours with half load"
-        },
-        {
-          "id": 5,
-          "code_id": "",
-          "name": "has a",
-          "comment": ""
-        },
-        {
-          "id": 6,
-          "code_id": "",
-          "name": "is time jump for",
-          "comment": "is the default time jump for"
-        },
-        {
-          "id": 7,
-          "code_id": "",
-          "name": "is term jump for",
-          "comment": "is the default term jump for"
-        },
-        {
-          "id": 8,
-          "code_id": "",
-          "name": "term type needed",
-          "comment": "the formula needs the linked term type"
-        },
-        {
-          "id": 9,
-          "code_id": "follow",
-          "name": "is follower of",
-          "comment": "is follower of"
-        },
-        {
-          "id": 10,
-          "code_id": "",
-          "name": "uses",
-          "comment": ""
-        },
-        {
-          "id": 11,
-          "code_id": "",
-          "name": "issue",
-          "comment": ""
-        },
-        {
-          "id": 12,
-          "code_id": "",
-          "name": "is measure type for",
-          "comment": "is the default measure type for"
-        },
-        {
-          "id": 13,
-          "code_id": "",
-          "name": "is an acronym for",
-          "comment": "is an acronym for"
-        },
-        {
-          "id": 14,
-          "code_id": "can_contain",
-          "name": "can be used as a differentiator for",
-          "comment": "similar to contains, but in a table view the row will not be shown if there is no corresponding value"
-        },
-        {
-          "id": 15,
-          "code_id": "",
-          "name": "influences",
-          "comment": ""
-        },
-        {
-          "id": 16,
-          "code_id": "",
-          "name": "is alias of",
-          "comment": ""
-        },
-        {
-          "id": 17,
-          "code_id": "can_be",
-          "name": "can be",
-          "comment": ""
-        },
-        {
-          "id": 18,
-          "code_id": "can_use",
-          "name": "can use",
-          "comment": "use indicates that a new result is created e.g. a turbine can use water or wind or any type of liquid or gas to convert energy"
-        },
-        {
-          "id": 19,
-          "code_id": "scaled",
-          "name": "scaled by",
-          "comment": "to define the usual scaling e.g. for watt hours usually the scaling kilo (kWh) is used"
-        },
-        {
-          "id": 20,
-          "code_id": "",
-          "name": "per",
-          "comment": "to define the usual quotient e.g. meter per second is normally used not seconds per meter, that why the reverse name is empty"
-        }
-      ],
-      "system_views": [
-        {
-          "id": 1,
-          "code_id": "word",
-          "name": "Word",
-          "comment": "the default view for words"
-        },
-        {
-          "id": 2,
-          "code_id": "entry_view",
-          "name": "Start view",
-          "comment": "A dynamic start mask that shows a interesting fact"
-        },
-        {
-          "id": 3,
-          "code_id": "word_add",
-          "name": "Add New Word",
-          "comment": ""
-        },
-        {
-          "id": 4,
-          "code_id": "word_edit",
-          "name": "Change Word",
-          "comment": ""
-        },
-        {
-          "id": 5,
-          "code_id": "word_del",
-          "name": "Delete Word",
-          "comment": "Exclude or delete a word"
-        },
-        {
-          "id": 6,
-          "code_id": "word_find",
-          "name": "Search",
-          "comment": "The search page for all words and formulas"
-        },
-        {
-          "id": 7,
-          "code_id": "value",
-          "name": "Display Number",
-          "comment": ""
-        },
-        {
-          "id": 8,
-          "code_id": "value_add",
-          "name": "Add New Number",
-          "comment": ""
-        },
-        {
-          "id": 9,
-          "code_id": "value_edit",
-          "name": "Change Number",
-          "comment": ""
-        },
-        {
-          "id": 10,
-          "code_id": "value_del",
-          "name": "Delete Number",
-          "comment": ""
-        },
-        {
-          "id": 11,
-          "code_id": "formula_add",
-          "name": "Add New Formula",
-          "comment": ""
-        },
-        {
-          "id": 12,
-          "code_id": "formula_edit",
-          "name": "Change Formula",
-          "comment": ""
-        },
-        {
-          "id": 13,
-          "code_id": "formula_del",
-          "name": "Delete Formula",
-          "comment": "To confirm the exclusion or deleting of a formula"
-        },
-        {
-          "id": 14,
-          "code_id": "formula_explain",
-          "name": "Explain Formula Result",
-          "comment": "Explain the formula result"
-        },
-        {
-          "id": 15,
-          "code_id": "formula_test",
-          "name": "Formula test",
-          "comment": "To debug the formula"
-        },
-        {
-          "id": 16,
-          "code_id": "source_add",
-          "name": "Add New Source",
-          "comment": ""
-        },
-        {
-          "id": 17,
-          "code_id": "source_edit",
-          "name": "Change Source",
-          "comment": ""
-        },
-        {
-          "id": 18,
-          "code_id": "source_del",
-          "name": "Delete Source",
-          "comment": "Delete an external data source"
-        },
-        {
-          "id": 19,
-          "code_id": "verbs",
-          "name": "Verb List",
-          "comment": "List all available ways how to link two words"
-        },
-        {
-          "id": 20,
-          "code_id": "verb_add",
-          "name": "Add New Verb",
-          "comment": ""
-        },
-        {
-          "id": 21,
-          "code_id": "verb_edit",
-          "name": "Change Verb",
-          "comment": "Rename a tern link type"
-        },
-        {
-          "id": 22,
-          "code_id": "verb_del",
-          "name": "Delete verb",
-          "comment": "Exclude or delete a verb"
-        },
-        {
-          "id": 23,
-          "code_id": "triple_add",
-          "name": "Add New Triple",
-          "comment": ""
-        },
-        {
-          "id": 24,
-          "code_id": "triple_edit",
-          "name": "Change Triple",
-          "comment": "Rename a triple"
-        },
-        {
-          "id": 25,
-          "code_id": "triple_del",
-          "name": "Delete triple",
-          "comment": "Exclude or delete a triple"
-        },
-        {
-          "id": 26,
-          "code_id": "user",
-          "name": "User Settings",
-          "comment": "to change the user settings"
-        },
-        {
-          "id": 27,
-          "code_id": "error_log",
-          "name": "Error Log",
-          "comment": "simple confirm page for a new error that has been logged in the database"
-        },
-        {
-          "id": 28,
-          "code_id": "error_update",
-          "name": "System Error List",
-          "comment": "List the system errors and allow the user to change the status"
-        },
-        {
-          "id": 29,
-          "code_id": "import",
-          "name": "Import",
-          "comment": "Select a file to import data"
-        },
-        {
-          "id": 30,
-          "code_id": "view_add",
-          "name": "Add View",
-          "comment": ""
-        },
-        {
-          "id": 31,
-          "code_id": "view_edit",
-          "name": "Change View",
-          "comment": "Rename a view"
-        },
-        {
-          "id": 32,
-          "code_id": "view_del",
-          "name": "Delete View",
-          "comment": "Exclude or delete a view"
-        },
-        {
-          "id": 33,
-          "code_id": "view_entry_add",
-          "name": "Add View Component",
-          "comment": ""
-        },
-        {
-          "id": 34,
-          "code_id": "view_entry_edit",
-          "name": "Change View Component",
-          "comment": "Adjust a view component"
-        },
-        {
-          "id": 35,
-          "code_id": "view_entry_del",
-          "name": "Delete View Component",
-          "comment": "Exclude or delete a view component"
-        }
-      ]
-    }
+{
+  "pod": "zukunft.com",
+  "type": "type_lists",
+  "user_id": 2,
+  "user": "zukunft.com system test",
+  "version": "0.0.3",
+  "type_lists": {
+    "user_profiles": [
+      {
+        "name": "normal user",
+        "code_id": "normal",
+        "comment": "",
+        "id": 1
+      },
+      {
+        "name": "admin",
+        "code_id": "admin",
+        "comment": "Administrator that can add and change verbs and sees the code_id",
+        "id": 2
+      },
+      {
+        "name": "developer",
+        "code_id": "dev",
+        "comment": "Can see all errors and change the status of the errors, but cannot access the production system",
+        "id": 3
+      },
+      {
+        "name": "system test",
+        "code_id": "test",
+        "comment": "for integration tests that should never be shown to the user but is used to check if integration test data is completely removed after the tests",
+        "id": 4
+      },
+      {
+        "name": "system",
+        "code_id": "system",
+        "comment": "User to log internal tasks not directly initiated by an user like system testing and cleanup",
+        "id": 5
+      }
+    ],
+    "phrase_types": [
+      {
+        "name": "standard",
+        "code_id": "default",
+        "comment": "for words that have need no special behaviour",
+        "id": 1
+      },
+      {
+        "name": "time",
+        "code_id": "time",
+        "comment": "A time word defines the time period for which a value is valid and values with a time can be used to display time series.",
+        "id": 2
+      },
+      {
+        "name": "measure type",
+        "code_id": "measure",
+        "comment": "a measure word such as meter, kilogram, ...",
+        "id": 3
+      },
+      {
+        "name": "time jump",
+        "code_id": "time_jump",
+        "comment": "these terms describes a change of a timestamp term",
+        "id": 4
+      },
+      {
+        "name": "calc",
+        "code_id": "",
+        "comment": "a calculated word in R; e.g. this year returns always a different term",
+        "id": 5
+      },
+      {
+        "name": "format percent",
+        "code_id": "percent",
+        "comment": "terms that forces the result to be formatted in percent",
+        "id": 6
+      },
+      {
+        "name": "scaling",
+        "code_id": "scaling",
+        "comment": "a scaling word such as millions, one, ...",
+        "id": 7
+      },
+      {
+        "name": "hidden scaling",
+        "code_id": "scaling_hidden",
+        "comment": "\"one\" is needed as a scaling word for correct calculations, but it is not useful to display it",
+        "id": 8
+      },
+      {
+        "name": "view \/ layer",
+        "code_id": "view",
+        "comment": "word to separate the number layers and to change the view.\\r\\nE.g. -as reported- are exactly the numbers as they come from the external source\\r\\n-detailed- are the most granular splitting of the -as reported- numbers\\r\\n-projection- show the changes and includes the estimates to make a forecast\\r\\n",
+        "id": 9
+      },
+      {
+        "name": "formula link",
+        "code_id": "formula_link",
+        "comment": "A term with the same name as a formula, because some values can be calculated and can nevertheless be overwritten",
+        "id": 10
+      },
+      {
+        "name": "differentiator filler",
+        "code_id": "type_other",
+        "comment": "these terms are used to fill up a differentiator list, so most likely the term linked will be named \"other\"",
+        "id": 11
+      },
+      {
+        "name": "this",
+        "code_id": "this",
+        "comment": "not sure, why this is needed",
+        "id": 12
+      },
+      {
+        "name": "next",
+        "code_id": "next",
+        "comment": "not sure, why this is needed",
+        "id": 13
+      },
+      {
+        "name": "prior",
+        "code_id": "previous",
+        "comment": "not sure, why this is needed",
+        "id": 14
+      },
+      {
+        "name": "scaling word percent",
+        "code_id": "scaling_percent",
+        "comment": "all words that represent percent",
+        "id": 15
+      },
+      {
+        "name": "scaled measure",
+        "code_id": "scaled_measure",
+        "comment": "a combination of scaling and measure e.g. 100ml",
+        "id": 16
+      },
+      {
+        "name": "math constant",
+        "code_id": "constant",
+        "comment": "A mathematical constant is a key number whose value is fixed by an unambiguous definition",
+        "id": 17
+      },
+      {
+        "name": "measure divisor",
+        "code_id": "measure_divisor",
+        "comment": "a measure divisor like per year, per kg, ...",
+        "id": 18
+      },
+      {
+        "name": "latest",
+        "code_id": "latest",
+        "comment": "to select the latest value by a time jump type e.g. latest year",
+        "id": 19
+      },
+      {
+        "name": "key",
+        "code_id": "key",
+        "comment": "force faster search and if two keys are connected with the verb is all child values are expected to be equal",
+        "id": 20
+      },
+      {
+        "name": "information",
+        "code_id": "information",
+        "comment": "this phrase is used mainly for information purpose and for the selection the program tries to another search without this phrase",
+        "id": 21
+      },
+      {
+        "name": "hidden triple",
+        "code_id": "hidden_triple",
+        "comment": "this triple should not be included in selection list because the triple is identical with the from word and is only added to assign behavior to the word",
+        "id": 22
+      },
+      {
+        "name": "hidden system",
+        "code_id": "hidden_system",
+        "comment": "these words and triple are used e.g. for the system configuration and should not be included in standard selection list because the values are only internal and are shown in separate predefined views",
+        "id": 23
+      },
+      {
+        "name": "group and select",
+        "code_id": "group",
+        "comment": "words used to group and select other words to shorten the selection",
+        "id": 24
+      }
+    ],
+    "formula_types": [
+      {
+        "name": "calc",
+        "code_id": "default",
+        "comment": "a normal calculation formula",
+        "id": 1
+      },
+      {
+        "name": "next",
+        "code_id": "time_next",
+        "comment": "time jump forward: replaces a time term with the next time term based on the verb follower. E.g. \"2017\" \"next\" would lead to use \"2018\"",
+        "id": 2
+      },
+      {
+        "name": "prior",
+        "code_id": "time_prior",
+        "comment": "time jump backward: replaces a time term with the previous time term based on the verb follower. E.g. \"2017\" \"next\" would lead to use \"2016\"",
+        "id": 3
+      },
+      {
+        "name": "this",
+        "code_id": "time_this",
+        "comment": "selects the assumed time term",
+        "id": 4
+      },
+      {
+        "name": "reversible",
+        "code_id": "reversible",
+        "comment": "a formula that can ba included also in the reversed version e.g. \"minute = second \/ 60\" and \"second = minute * 60\"",
+        "id": 5
+      }
+    ],
+    "formula_link_types": [
+      {
+        "name": "default",
+        "code_id": "default",
+        "comment": "default",
+        "id": 1
+      },
+      {
+        "name": "time period based",
+        "code_id": "time_period_based",
+        "comment": "increase needs to know for which time period the increase should be calculated",
+        "id": 2
+      }
+    ],
+    "formula_element_types": [
+      {
+        "name": "word",
+        "code_id": "word",
+        "comment": "a reference to a word used to select values using \"and\"",
+        "id": 1
+      },
+      {
+        "name": "verb",
+        "code_id": "verb",
+        "comment": "a reference to a predicate",
+        "id": 2
+      },
+      {
+        "name": "formula",
+        "code_id": "formula",
+        "comment": "to select the results of another formula using the given context",
+        "id": 3
+      },
+      {
+        "name": "triple",
+        "code_id": "triple",
+        "comment": "a reference to two predicate linked words used to select values using \"and\"",
+        "id": 4
+      }
+    ],
+    "view_types": [
+      {
+        "name": "standard",
+        "code_id": "default",
+        "comment": "the base display mask without additional functionalities",
+        "id": 1
+      },
+      {
+        "name": "entry view",
+        "code_id": "entry",
+        "comment": "these masks are used for the zukunft.com entry page. If a totally new user opens zukunft.com the first time, he will see a random mask of this type.",
+        "id": 2
+      },
+      {
+        "name": "edit",
+        "code_id": "mask_default",
+        "comment": "a edit mask that is used to change data",
+        "id": 3
+      },
+      {
+        "name": "presentation",
+        "code_id": "presentation",
+        "comment": "with auto forward",
+        "id": 4
+      },
+      {
+        "name": "word default",
+        "code_id": "word_default",
+        "comment": "a default mask for new words",
+        "id": 5
+      },
+      {
+        "name": "details",
+        "code_id": "detail_view",
+        "comment": "to show the more details than the standard view",
+        "id": 6
+      },
+      {
+        "name": "system",
+        "code_id": "system",
+        "comment": "views used by the system that should only be adjusted by an admin",
+        "id": 7
+      }
+    ],
+    "component_types": [
+      {
+        "name": "word selector",
+        "code_id": "word_select",
+        "comment": "",
+        "id": 1
+      },
+      {
+        "name": "view selector",
+        "code_id": "view_select",
+        "comment": "to select an existing mask e.g. to set the default view",
+        "id": 2
+      },
+      {
+        "name": "text",
+        "code_id": "text",
+        "comment": "simply to display a variable text",
+        "id": 3
+      },
+      {
+        "name": "fixed word",
+        "code_id": "fixed",
+        "comment": "just display a word as a text",
+        "id": 4
+      },
+      {
+        "name": "linked word",
+        "code_id": "link",
+        "comment": "display a word and offer a link",
+        "id": 5
+      },
+      {
+        "name": "formula results",
+        "code_id": "formula_results",
+        "comment": "show the results of a formula",
+        "id": 6
+      },
+      {
+        "name": "word list up",
+        "code_id": "word_list_up",
+        "comment": "Show a list of words related with a specified verb e.g. for the triple <Canton of Zurich> show the word <canton>, because they are linked with verb <is a>",
+        "id": 7
+      },
+      {
+        "name": "word name",
+        "code_id": "word_name",
+        "comment": "show the word name and give the user the possibility to change the word name",
+        "id": 8
+      },
+      {
+        "name": "word list down",
+        "code_id": "word_list_down",
+        "comment": "Show a list of words related with a specified verb e.g. for word <canton> list <Canton of Zurich> and others, because they are linked with verb <is a>",
+        "id": 9
+      },
+      {
+        "name": "all relations",
+        "code_id": "values_all",
+        "comment": "show the complete list of all relations",
+        "id": 10
+      },
+      {
+        "name": "values related to",
+        "code_id": "values_related",
+        "comment": "display all values that are related to a defined term",
+        "id": 11
+      },
+      {
+        "name": "formulas",
+        "code_id": "formula_list",
+        "comment": "show all related formulas",
+        "id": 12
+      },
+      {
+        "name": "word value list",
+        "code_id": "word_value_list",
+        "comment": "A list of words with some key values e.g. a company list with the PE ratio",
+        "id": 13
+      },
+      {
+        "name": "XML export",
+        "code_id": "xml_export",
+        "comment": "offer to configure and start the XML export of a phrase and all related words, numbers and formulas",
+        "id": 14
+      },
+      {
+        "name": "CSV export",
+        "code_id": "csv_export",
+        "comment": "to define the main phrase, the column and row for the CSV export",
+        "id": 15
+      },
+      {
+        "name": "JSON Export",
+        "code_id": "json_export",
+        "comment": "To start or configure the JSON export",
+        "id": 16
+      },
+      {
+        "name": "system form title",
+        "code_id": "system_form_title",
+        "comment": "a form title only allowed for system views where the user can only change the order",
+        "id": 17
+      },
+      {
+        "name": "system form hidden back stack",
+        "code_id": "system_form_back_stack",
+        "comment": "the hidden form field with the back stack only allowed for system views where the user can only change the order",
+        "id": 18
+      },
+      {
+        "name": "system form confirm status",
+        "code_id": "system_form_confirm_status",
+        "comment": "the hidden form field for the user confirm status only allowed for system views where the user can only change the order",
+        "id": 19
+      },
+      {
+        "name": "form field name",
+        "code_id": "system_form_field_name",
+        "comment": "the form field for the name of a word or formula",
+        "id": 20
+      },
+      {
+        "name": "form field description",
+        "code_id": "system_form_field_description",
+        "comment": "the form field for the description of a word or formula",
+        "id": 21
+      },
+      {
+        "name": "form select phrase",
+        "code_id": "system_form_select_phrase",
+        "comment": "the form field to select a phrase",
+        "id": 22
+      },
+      {
+        "name": "form select verb",
+        "code_id": "system_form_select_verb",
+        "comment": "the form field to select a verb",
+        "id": 23
+      },
+      {
+        "name": "form field share type",
+        "code_id": "system_form_select_share",
+        "comment": "the share type field in a form",
+        "id": 24
+      },
+      {
+        "name": "form field protection type",
+        "code_id": "system_form_select_protection",
+        "comment": "the protection type field in a form",
+        "id": 25
+      },
+      {
+        "name": "button cancel",
+        "code_id": "system_button_cancel",
+        "comment": "a button of a form to cancel the form action",
+        "id": 26
+      },
+      {
+        "name": "button save",
+        "code_id": "system_button_save",
+        "comment": "a button of a form to save the changes to the database",
+        "id": 27
+      },
+      {
+        "name": "button delete",
+        "code_id": "system_button_del",
+        "comment": "a button of a form to delete or exclude a word, triple, verb, value, formula view or component",
+        "id": 28
+      },
+      {
+        "name": "form end",
+        "code_id": "form_end",
+        "comment": "just to indicate that a form ends",
+        "id": 29
+      },
+      {
+        "name": "row start",
+        "code_id": "row_start",
+        "comment": "combine the next elements to one row",
+        "id": 30
+      },
+      {
+        "name": "row right",
+        "code_id": "row_right",
+        "comment": "combine the next elements to one row and align to the right",
+        "id": 31
+      },
+      {
+        "name": "row end",
+        "code_id": "row_end",
+        "comment": "just to indicate that a row ends",
+        "id": 32
+      }
+    ],
+    "component_position_types": [
+      {
+        "name": "below",
+        "code_id": "below",
+        "comment": "below the previous entry",
+        "id": 1
+      },
+      {
+        "name": "side",
+        "code_id": "side",
+        "comment": "is right of the previous entry (or left for right to left languages)",
+        "id": 2
+      }
+    ],
+    "ref_types": [
+      {
+        "name": "wikipedia",
+        "code_id": "wikipedia",
+        "comment": "wikipedia",
+        "url": "https:\/\/en.wikipedia.org\/wiki\/",
+        "id": 1
+      },
+      {
+        "name": "wikidata",
+        "code_id": "wikidata",
+        "comment": "wikidata",
+        "url": "https:\/\/www.wikidata.org\/wiki\/",
+        "id": 2
+      },
+      {
+        "name": "conceptnet",
+        "code_id": "conceptnet",
+        "comment": "conceptnet",
+        "url": "http:\/\/api.conceptnet.io\/",
+        "id": 3
+      }
+    ],
+    "source_types": [
+      {
+        "name": "XML",
+        "code_id": "xml",
+        "comment": "",
+        "id": 1
+      },
+      {
+        "name": "XBRL",
+        "code_id": "xbrl",
+        "comment": "",
+        "id": 2
+      },
+      {
+        "name": "CSV",
+        "code_id": "csv",
+        "comment": "",
+        "id": 3
+      },
+      {
+        "name": "PDF",
+        "code_id": "pdf",
+        "comment": "",
+        "id": 4
+      },
+      {
+        "name": "API",
+        "code_id": "api",
+        "comment": "",
+        "id": 5
+      }
+    ],
+    "share_types": [
+      {
+        "name": "public",
+        "code_id": "public",
+        "comment": "value can be seen and used by everyone (default)",
+        "id": 1
+      },
+      {
+        "name": "personal",
+        "code_id": "personal",
+        "comment": "value can be seen by everyone, but is linked to the user",
+        "id": 2
+      },
+      {
+        "name": "group",
+        "code_id": "group",
+        "comment": "only a closed group of users can seen and use the values",
+        "id": 3
+      },
+      {
+        "name": "private",
+        "code_id": "private",
+        "comment": "only the user itself can see und use the value",
+        "id": 4
+      }
+    ],
+    "protection_types": [
+      {
+        "name": "no protection",
+        "code_id": "no_protection",
+        "comment": "anyone can take the ownership",
+        "id": 1
+      },
+      {
+        "name": "user",
+        "code_id": "user_protection",
+        "comment": "only users with a login and a confirmed email can take over the ownership",
+        "id": 2
+      },
+      {
+        "name": "admin",
+        "code_id": "admin_protection",
+        "comment": "only user with admin permission can take the ownership",
+        "id": 3
+      },
+      {
+        "name": "no change",
+        "code_id": "no_change",
+        "comment": "no change of the ownership is allowed",
+        "id": 4
+      }
+    ],
+    "languages": [
+      {
+        "name": "English",
+        "code_id": "en",
+        "comment": "the system language, so each word must be unique for all users in this language",
+        "id": 1
+      },
+      {
+        "name": "UK English",
+        "code_id": "en_uk",
+        "comment": "the users can use this (and the other) languages to create its own namespace. So one user may use \"Zurich\" in UK English for \"Kanton Zurich\" and another user may use \"Zurich\" in UK English for \"Zurich AG\".",
+        "id": 2
+      },
+      {
+        "name": "German",
+        "code_id": "de",
+        "comment": "a normal translation to German",
+        "id": 3
+      }
+    ],
+    "language_forms": [
+      {
+        "name": "plural",
+        "code_id": "plural",
+        "comment": "",
+        "id": 1
+      }
+    ],
+    "sys_log_stati": [
+      {
+        "name": "new",
+        "code_id": "new",
+        "comment": "the error has just being logged and no one has yet looked at it",
+        "id": 1
+      },
+      {
+        "name": "assigned",
+        "code_id": "assigned",
+        "comment": "A developer is looking at the error.",
+        "id": 2
+      },
+      {
+        "name": "resolved",
+        "code_id": "resolved",
+        "comment": "the error is supposed to be corrected",
+        "id": 3
+      },
+      {
+        "name": "closed",
+        "code_id": "closed",
+        "comment": "a second person (other than the developer) has confirmed that the problem is solved.",
+        "id": 4
+      }
+    ],
+    "job_types": [
+      {
+        "name": "update value",
+        "code_id": "value_update",
+        "comment": "if a value is updated all the depending results should be calculated again",
+        "id": 1
+      },
+      {
+        "name": "add value",
+        "code_id": "value_add",
+        "comment": "1. check if used in formulas and if yes, create new formula results\\r\\n2. calculate the new formula results",
+        "id": 2
+      },
+      {
+        "name": "exclude a value",
+        "code_id": "value_del",
+        "comment": "check if used for a formula result and if yes either remove the formula result or update it",
+        "id": 3
+      },
+      {
+        "name": "update formula",
+        "code_id": "formula_update",
+        "comment": "",
+        "id": 4
+      },
+      {
+        "name": "add formula",
+        "code_id": "formula_add",
+        "comment": "",
+        "id": 5
+      },
+      {
+        "name": "exclude formula",
+        "code_id": "formula_del",
+        "comment": "",
+        "id": 6
+      },
+      {
+        "name": "link formula",
+        "code_id": "formula_link",
+        "comment": "",
+        "id": 7
+      },
+      {
+        "name": "unlink a formula",
+        "code_id": "formula_unlink",
+        "comment": "",
+        "id": 8
+      },
+      {
+        "name": "link a word",
+        "code_id": "triple",
+        "comment": "",
+        "id": 9
+      },
+      {
+        "name": "unlink word",
+        "code_id": "word_unlink",
+        "comment": "",
+        "id": 10
+      },
+      {
+        "name": "initial import",
+        "code_id": "base_import",
+        "comment": "import the base configuration by a system user on initial setup",
+        "id": 11
+      },
+      {
+        "name": "move to prime",
+        "code_id": "phrase_to_prime",
+        "comment": "move an often used phrase to the prime phrases by creating a clone with a low id and create new links and switch over and remove the old",
+        "id": 12
+      },
+      {
+        "name": "move from prime",
+        "code_id": "phrase_from_prime",
+        "comment": "move a less often used phrase to the non prime phrases by creating a clone with a higher id and create new links and switch over and remove the old",
+        "id": 13
+      },
+      {
+        "name": "create table",
+        "code_id": "table_create",
+        "comment": "create a new table for values and results related to one phrase",
+        "id": 14
+      },
+      {
+        "name": "clone table",
+        "code_id": "table_clone",
+        "comment": "copy the values and results related to one phrase to another pod",
+        "id": 15
+      },
+      {
+        "name": "switch table",
+        "code_id": "table_switch",
+        "comment": "copy the values and results related to one phrase to another pod",
+        "id": 16
+      },
+      {
+        "name": "sync table",
+        "code_id": "table_sync",
+        "comment": "force to sync a cloned phrase table with the original pod",
+        "id": 17
+      },
+      {
+        "name": "remove clone",
+        "code_id": "table_remove",
+        "comment": "remove a cloned phrase table that is not used very often",
+        "id": 18
+      },
+      {
+        "name": "delete table",
+        "code_id": "table_delete",
+        "comment": "remove a phrase table to replace it with a better fitting table",
+        "id": 19
+      }
+    ],
+    "change_log_actions": [
+      {
+        "name": "add",
+        "code_id": "add",
+        "comment": "",
+        "id": 1
+      },
+      {
+        "name": "del",
+        "code_id": "del",
+        "comment": "",
+        "id": 2
+      },
+      {
+        "name": "update",
+        "code_id": "update",
+        "comment": "",
+        "id": 3
+      }
+    ],
+    "change_log_tables": [
+      {
+        "name": "users",
+        "code_id": "users",
+        "comment": "",
+        "id": 1
+      },
+      {
+        "name": "values",
+        "code_id": "values",
+        "comment": "",
+        "id": 2
+      },
+      {
+        "name": "user_values",
+        "code_id": "user_values",
+        "comment": "",
+        "id": 3
+      },
+      {
+        "name": "value_links",
+        "code_id": "value_links",
+        "comment": "",
+        "id": 4
+      },
+      {
+        "name": "words",
+        "code_id": "words",
+        "comment": "",
+        "id": 5
+      },
+      {
+        "name": "user_words",
+        "code_id": "user_words",
+        "comment": "",
+        "id": 6
+      },
+      {
+        "name": "triples",
+        "code_id": "triples",
+        "comment": "",
+        "id": 7
+      },
+      {
+        "name": "user_triples",
+        "code_id": "user_triples",
+        "comment": "",
+        "id": 8
+      },
+      {
+        "name": "verbs",
+        "code_id": "verbs",
+        "comment": "",
+        "id": 9
+      },
+      {
+        "name": "formulas",
+        "code_id": "formulas",
+        "comment": "",
+        "id": 10
+      },
+      {
+        "name": "user_formulas",
+        "code_id": "user_formulas",
+        "comment": "",
+        "id": 11
+      },
+      {
+        "name": "formula_links",
+        "code_id": "formula_links",
+        "comment": "",
+        "id": 12
+      },
+      {
+        "name": "user_formula_links",
+        "code_id": "user_formula_links",
+        "comment": "",
+        "id": 13
+      },
+      {
+        "name": "views",
+        "code_id": "views",
+        "comment": "",
+        "id": 14
+      },
+      {
+        "name": "user_views",
+        "code_id": "user_views",
+        "comment": "",
+        "id": 15
+      },
+      {
+        "name": "component_links",
+        "code_id": "component_links",
+        "comment": "",
+        "id": 16
+      },
+      {
+        "name": "user_component_links",
+        "code_id": "user_component_links",
+        "comment": "",
+        "id": 17
+      },
+      {
+        "name": "components",
+        "code_id": "components",
+        "comment": "",
+        "id": 18
+      },
+      {
+        "name": "user_components",
+        "code_id": "user_components",
+        "comment": "",
+        "id": 19
+      },
+      {
+        "name": "sources",
+        "code_id": "sources",
+        "comment": "",
+        "id": 20
+      },
+      {
+        "name": "user_sources",
+        "code_id": "user_sources",
+        "comment": "",
+        "id": 21
+      },
+      {
+        "name": "refs",
+        "code_id": "refs",
+        "comment": "",
+        "id": 22
+      },
+      {
+        "name": "user_refs",
+        "code_id": "user_refs",
+        "comment": "",
+        "id": 23
+      }
+    ],
+    "change_log_fields": [
+      {
+        "name": "2numeric_value",
+        "code_id": "2numeric_value",
+        "comment": "",
+        "id": 1
+      },
+      {
+        "name": "2source_id",
+        "code_id": "2source_id",
+        "comment": "",
+        "id": 2
+      },
+      {
+        "name": "2share_type_id",
+        "code_id": "2share_type_id",
+        "comment": "",
+        "id": 3
+      },
+      {
+        "name": "2protect_id",
+        "code_id": "2protect_id",
+        "comment": "",
+        "id": 4
+      },
+      {
+        "name": "2excluded",
+        "code_id": "2excluded",
+        "comment": "",
+        "id": 5
+      },
+      {
+        "name": "3numeric_value",
+        "code_id": "3numeric_value",
+        "comment": "",
+        "id": 6
+      },
+      {
+        "name": "3protect_id",
+        "code_id": "3protect_id",
+        "comment": "",
+        "id": 7
+      },
+      {
+        "name": "3share_type_id",
+        "code_id": "3share_type_id",
+        "comment": "",
+        "id": 8
+      },
+      {
+        "name": "5word_name",
+        "code_id": "5word_name",
+        "comment": "",
+        "id": 9
+      },
+      {
+        "name": "5description",
+        "code_id": "5description",
+        "comment": "",
+        "id": 10
+      },
+      {
+        "name": "5phrase_type_id",
+        "code_id": "5phrase_type_id",
+        "comment": "",
+        "id": 11
+      },
+      {
+        "name": "5plural",
+        "code_id": "5plural",
+        "comment": "",
+        "id": 12
+      },
+      {
+        "name": "5excluded",
+        "code_id": "5excluded",
+        "comment": "",
+        "id": 13
+      },
+      {
+        "name": "6phrase_type_id",
+        "code_id": "6phrase_type_id",
+        "comment": "",
+        "id": 14
+      },
+      {
+        "name": "6plural",
+        "code_id": "6plural",
+        "comment": "",
+        "id": 15
+      },
+      {
+        "name": "6description",
+        "code_id": "6description",
+        "comment": "",
+        "id": 16
+      },
+      {
+        "name": "7triple_name",
+        "code_id": "7triple_name",
+        "comment": "",
+        "id": 17
+      },
+      {
+        "name": "7name_given",
+        "code_id": "7name_given",
+        "comment": "",
+        "id": 18
+      },
+      {
+        "name": "7name_generated",
+        "code_id": "7name_generated",
+        "comment": "",
+        "id": 19
+      },
+      {
+        "name": "7excluded",
+        "code_id": "7excluded",
+        "comment": "",
+        "id": 20
+      },
+      {
+        "name": "8triple_name",
+        "code_id": "8triple_name",
+        "comment": "",
+        "id": 21
+      },
+      {
+        "name": "9verb_name",
+        "code_id": "9verb_name",
+        "comment": "",
+        "id": 22
+      },
+      {
+        "name": "9code_id",
+        "code_id": "9code_id",
+        "comment": "",
+        "id": 23
+      },
+      {
+        "name": "9description",
+        "code_id": "9description",
+        "comment": "",
+        "id": 24
+      },
+      {
+        "name": "9name_plural",
+        "code_id": "9name_plural",
+        "comment": "",
+        "id": 25
+      },
+      {
+        "name": "9name_reverse",
+        "code_id": "9name_reverse",
+        "comment": "",
+        "id": 26
+      },
+      {
+        "name": "9name_plural_reverse",
+        "code_id": "9name_plural_reverse",
+        "comment": "",
+        "id": 27
+      },
+      {
+        "name": "9formula_name",
+        "code_id": "9formula_name",
+        "comment": "",
+        "id": 28
+      },
+      {
+        "name": "10formula_name",
+        "code_id": "10formula_name",
+        "comment": "",
+        "id": 29
+      },
+      {
+        "name": "10formula_type_id",
+        "code_id": "10formula_type_id",
+        "comment": "",
+        "id": 30
+      },
+      {
+        "name": "10resolved_text",
+        "code_id": "10resolved_text",
+        "comment": "",
+        "id": 31
+      },
+      {
+        "name": "10formula_text",
+        "code_id": "10formula_text",
+        "comment": "",
+        "id": 32
+      },
+      {
+        "name": "10description",
+        "code_id": "10description",
+        "comment": "",
+        "id": 33
+      },
+      {
+        "name": "10all_values_needed",
+        "code_id": "10all_values_needed",
+        "comment": "",
+        "id": 34
+      },
+      {
+        "name": "11description",
+        "code_id": "11description",
+        "comment": "",
+        "id": 35
+      },
+      {
+        "name": "11formula_type_id",
+        "code_id": "11formula_type_id",
+        "comment": "",
+        "id": 36
+      },
+      {
+        "name": "11resolved_text",
+        "code_id": "11resolved_text",
+        "comment": "",
+        "id": 37
+      },
+      {
+        "name": "11formula_text",
+        "code_id": "11formula_text",
+        "comment": "",
+        "id": 38
+      },
+      {
+        "name": "11all_values_needed",
+        "code_id": "11all_values_needed",
+        "comment": "",
+        "id": 39
+      },
+      {
+        "name": "12excluded",
+        "code_id": "12excluded",
+        "comment": "",
+        "id": 40
+      },
+      {
+        "name": "14view_name",
+        "code_id": "14view_name",
+        "comment": "",
+        "id": 41
+      },
+      {
+        "name": "14description",
+        "code_id": "14description",
+        "comment": "",
+        "id": 42
+      },
+      {
+        "name": "14code_id",
+        "code_id": "14code_id",
+        "comment": "",
+        "id": 43
+      },
+      {
+        "name": "14view_type_id",
+        "code_id": "14view_type_id",
+        "comment": "",
+        "id": 44
+      },
+      {
+        "name": "15description",
+        "code_id": "15description",
+        "comment": "",
+        "id": 45
+      },
+      {
+        "name": "15view_type_id",
+        "code_id": "15view_type_id",
+        "comment": "",
+        "id": 46
+      },
+      {
+        "name": "16order_nbr",
+        "code_id": "16order_nbr",
+        "comment": "",
+        "id": 47
+      },
+      {
+        "name": "16excluded",
+        "code_id": "16excluded",
+        "comment": "",
+        "id": 48
+      },
+      {
+        "name": "17order_nbr",
+        "code_id": "17order_nbr",
+        "comment": "",
+        "id": 49
+      },
+      {
+        "name": "18component_name",
+        "code_id": "18component_name",
+        "comment": "",
+        "id": 50
+      },
+      {
+        "name": "18description",
+        "code_id": "18description",
+        "comment": "",
+        "id": 51
+      },
+      {
+        "name": "18component_type_id",
+        "code_id": "18component_type_id",
+        "comment": "",
+        "id": 52
+      },
+      {
+        "name": "19description",
+        "code_id": "19description",
+        "comment": "",
+        "id": 53
+      },
+      {
+        "name": "19component_type_id",
+        "code_id": "19component_type_id",
+        "comment": "",
+        "id": 54
+      },
+      {
+        "name": "20source_name",
+        "code_id": "20source_name",
+        "comment": "",
+        "id": 55
+      },
+      {
+        "name": "20description",
+        "code_id": "20description",
+        "comment": "",
+        "id": 56
+      },
+      {
+        "name": "20source_type_id",
+        "code_id": "20source_type_id",
+        "comment": "",
+        "id": 57
+      },
+      {
+        "name": "20url",
+        "code_id": "20url",
+        "comment": "",
+        "id": 58
+      },
+      {
+        "name": "21description",
+        "code_id": "21description",
+        "comment": "",
+        "id": 59
+      },
+      {
+        "name": "21url",
+        "code_id": "21url",
+        "comment": "",
+        "id": 60
+      },
+      {
+        "name": "1code_id",
+        "code_id": "1code_id",
+        "comment": "",
+        "id": 61
+      },
+      {
+        "name": "1ip_address",
+        "code_id": "1ip_address",
+        "comment": "",
+        "id": 62
+      },
+      {
+        "name": "1email",
+        "code_id": "1email",
+        "comment": "",
+        "id": 63
+      },
+      {
+        "name": "1first_name",
+        "code_id": "1first_name",
+        "comment": "",
+        "id": 64
+      },
+      {
+        "name": "1last_name",
+        "code_id": "1last_name",
+        "comment": "",
+        "id": 65
+      },
+      {
+        "name": "1last_word_id",
+        "code_id": "1last_word_id",
+        "comment": "",
+        "id": 66
+      },
+      {
+        "name": "1source_id",
+        "code_id": "1source_id",
+        "comment": "",
+        "id": 67
+      },
+      {
+        "name": "1user_profile_id",
+        "code_id": "1user_profile_id",
+        "comment": "",
+        "id": 68
+      },
+      {
+        "name": "1activation_key",
+        "code_id": "1activation_key",
+        "comment": "",
+        "id": 69
+      },
+      {
+        "name": "1activation_key_timeout",
+        "code_id": "1activation_key_timeout",
+        "comment": "",
+        "id": 70
+      },
+      {
+        "name": "1NOW() AS db_now",
+        "code_id": "1NOW() AS db_now",
+        "comment": "",
+        "id": 71
+      },
+      {
+        "name": "5values",
+        "code_id": "5values",
+        "comment": "",
+        "id": 72
+      },
+      {
+        "name": "5view_id",
+        "code_id": "5view_id",
+        "comment": "",
+        "id": 73
+      },
+      {
+        "name": "5share_type_id",
+        "code_id": "5share_type_id",
+        "comment": "",
+        "id": 74
+      },
+      {
+        "name": "5protect_id",
+        "code_id": "5protect_id",
+        "comment": "",
+        "id": 75
+      },
+      {
+        "name": "6word_name",
+        "code_id": "6word_name",
+        "comment": "",
+        "id": 76
+      },
+      {
+        "name": "6values",
+        "code_id": "6values",
+        "comment": "",
+        "id": 77
+      },
+      {
+        "name": "6view_id",
+        "code_id": "6view_id",
+        "comment": "",
+        "id": 78
+      },
+      {
+        "name": "6excluded",
+        "code_id": "6excluded",
+        "comment": "",
+        "id": 79
+      },
+      {
+        "name": "6share_type_id",
+        "code_id": "6share_type_id",
+        "comment": "",
+        "id": 80
+      },
+      {
+        "name": "6protect_id",
+        "code_id": "6protect_id",
+        "comment": "",
+        "id": 81
+      },
+      {
+        "name": "9words",
+        "code_id": "9words",
+        "comment": "",
+        "id": 82
+      },
+      {
+        "name": "7description",
+        "code_id": "7description",
+        "comment": "",
+        "id": 83
+      },
+      {
+        "name": "7phrase_type_id",
+        "code_id": "7phrase_type_id",
+        "comment": "",
+        "id": 84
+      },
+      {
+        "name": "7values",
+        "code_id": "7values",
+        "comment": "",
+        "id": 85
+      },
+      {
+        "name": "7share_type_id",
+        "code_id": "7share_type_id",
+        "comment": "",
+        "id": 86
+      },
+      {
+        "name": "7protect_id",
+        "code_id": "7protect_id",
+        "comment": "",
+        "id": 87
+      },
+      {
+        "name": "8name_given",
+        "code_id": "8name_given",
+        "comment": "",
+        "id": 88
+      },
+      {
+        "name": "8name_generated",
+        "code_id": "8name_generated",
+        "comment": "",
+        "id": 89
+      },
+      {
+        "name": "8description",
+        "code_id": "8description",
+        "comment": "",
+        "id": 90
+      },
+      {
+        "name": "8phrase_type_id",
+        "code_id": "8phrase_type_id",
+        "comment": "",
+        "id": 91
+      },
+      {
+        "name": "8values",
+        "code_id": "8values",
+        "comment": "",
+        "id": 92
+      },
+      {
+        "name": "8excluded",
+        "code_id": "8excluded",
+        "comment": "",
+        "id": 93
+      },
+      {
+        "name": "8share_type_id",
+        "code_id": "8share_type_id",
+        "comment": "",
+        "id": 94
+      },
+      {
+        "name": "8protect_id",
+        "code_id": "8protect_id",
+        "comment": "",
+        "id": 95
+      },
+      {
+        "name": "2last_update",
+        "code_id": "2last_update",
+        "comment": "",
+        "id": 96
+      },
+      {
+        "name": "3source_id",
+        "code_id": "3source_id",
+        "comment": "",
+        "id": 97
+      },
+      {
+        "name": "3last_update",
+        "code_id": "3last_update",
+        "comment": "",
+        "id": 98
+      },
+      {
+        "name": "3excluded",
+        "code_id": "3excluded",
+        "comment": "",
+        "id": 99
+      },
+      {
+        "name": "4user_id",
+        "code_id": "4user_id",
+        "comment": "",
+        "id": 100
+      },
+      {
+        "name": "4group_id",
+        "code_id": "4group_id",
+        "comment": "",
+        "id": 101
+      },
+      {
+        "name": "4phrase_id",
+        "code_id": "4phrase_id",
+        "comment": "",
+        "id": 102
+      },
+      {
+        "name": "4weight",
+        "code_id": "4weight",
+        "comment": "",
+        "id": 103
+      },
+      {
+        "name": "4link_type_id",
+        "code_id": "4link_type_id",
+        "comment": "",
+        "id": 104
+      },
+      {
+        "name": "4condition_formula_id",
+        "code_id": "4condition_formula_id",
+        "comment": "",
+        "id": 105
+      },
+      {
+        "name": "10last_update",
+        "code_id": "10last_update",
+        "comment": "",
+        "id": 106
+      },
+      {
+        "name": "10excluded",
+        "code_id": "10excluded",
+        "comment": "",
+        "id": 107
+      },
+      {
+        "name": "10share_type_id",
+        "code_id": "10share_type_id",
+        "comment": "",
+        "id": 108
+      },
+      {
+        "name": "10protect_id",
+        "code_id": "10protect_id",
+        "comment": "",
+        "id": 109
+      },
+      {
+        "name": "11formula_name",
+        "code_id": "11formula_name",
+        "comment": "",
+        "id": 110
+      },
+      {
+        "name": "11last_update",
+        "code_id": "11last_update",
+        "comment": "",
+        "id": 111
+      },
+      {
+        "name": "11excluded",
+        "code_id": "11excluded",
+        "comment": "",
+        "id": 112
+      },
+      {
+        "name": "11share_type_id",
+        "code_id": "11share_type_id",
+        "comment": "",
+        "id": 113
+      },
+      {
+        "name": "11protect_id",
+        "code_id": "11protect_id",
+        "comment": "",
+        "id": 114
+      },
+      {
+        "name": "12link_type_id",
+        "code_id": "12link_type_id",
+        "comment": "",
+        "id": 115
+      },
+      {
+        "name": "12share_type_id",
+        "code_id": "12share_type_id",
+        "comment": "",
+        "id": 116
+      },
+      {
+        "name": "12protect_id",
+        "code_id": "12protect_id",
+        "comment": "",
+        "id": 117
+      },
+      {
+        "name": "13link_type_id",
+        "code_id": "13link_type_id",
+        "comment": "",
+        "id": 118
+      },
+      {
+        "name": "13excluded",
+        "code_id": "13excluded",
+        "comment": "",
+        "id": 119
+      },
+      {
+        "name": "13share_type_id",
+        "code_id": "13share_type_id",
+        "comment": "",
+        "id": 120
+      },
+      {
+        "name": "13protect_id",
+        "code_id": "13protect_id",
+        "comment": "",
+        "id": 121
+      },
+      {
+        "name": "14excluded",
+        "code_id": "14excluded",
+        "comment": "",
+        "id": 122
+      },
+      {
+        "name": "14share_type_id",
+        "code_id": "14share_type_id",
+        "comment": "",
+        "id": 123
+      },
+      {
+        "name": "14protect_id",
+        "code_id": "14protect_id",
+        "comment": "",
+        "id": 124
+      },
+      {
+        "name": "15excluded",
+        "code_id": "15excluded",
+        "comment": "",
+        "id": 125
+      },
+      {
+        "name": "15share_type_id",
+        "code_id": "15share_type_id",
+        "comment": "",
+        "id": 126
+      },
+      {
+        "name": "15protect_id",
+        "code_id": "15protect_id",
+        "comment": "",
+        "id": 127
+      },
+      {
+        "name": "16position_type",
+        "code_id": "16position_type",
+        "comment": "",
+        "id": 128
+      },
+      {
+        "name": "16share_type_id",
+        "code_id": "16share_type_id",
+        "comment": "",
+        "id": 129
+      },
+      {
+        "name": "16protect_id",
+        "code_id": "16protect_id",
+        "comment": "",
+        "id": 130
+      },
+      {
+        "name": "17position_type",
+        "code_id": "17position_type",
+        "comment": "",
+        "id": 131
+      },
+      {
+        "name": "17excluded",
+        "code_id": "17excluded",
+        "comment": "",
+        "id": 132
+      },
+      {
+        "name": "17share_type_id",
+        "code_id": "17share_type_id",
+        "comment": "",
+        "id": 133
+      },
+      {
+        "name": "17protect_id",
+        "code_id": "17protect_id",
+        "comment": "",
+        "id": 134
+      },
+      {
+        "name": "18word_id_row",
+        "code_id": "18word_id_row",
+        "comment": "",
+        "id": 135
+      },
+      {
+        "name": "18link_type_id",
+        "code_id": "18link_type_id",
+        "comment": "",
+        "id": 136
+      },
+      {
+        "name": "18formula_id",
+        "code_id": "18formula_id",
+        "comment": "",
+        "id": 137
+      },
+      {
+        "name": "18word_id_col",
+        "code_id": "18word_id_col",
+        "comment": "",
+        "id": 138
+      },
+      {
+        "name": "18word_id_col2",
+        "code_id": "18word_id_col2",
+        "comment": "",
+        "id": 139
+      },
+      {
+        "name": "18excluded",
+        "code_id": "18excluded",
+        "comment": "",
+        "id": 140
+      },
+      {
+        "name": "18share_type_id",
+        "code_id": "18share_type_id",
+        "comment": "",
+        "id": 141
+      },
+      {
+        "name": "18protect_id",
+        "code_id": "18protect_id",
+        "comment": "",
+        "id": 142
+      },
+      {
+        "name": "19component_name",
+        "code_id": "19component_name",
+        "comment": "",
+        "id": 143
+      },
+      {
+        "name": "19word_id_row",
+        "code_id": "19word_id_row",
+        "comment": "",
+        "id": 144
+      },
+      {
+        "name": "19link_type_id",
+        "code_id": "19link_type_id",
+        "comment": "",
+        "id": 145
+      },
+      {
+        "name": "19formula_id",
+        "code_id": "19formula_id",
+        "comment": "",
+        "id": 146
+      },
+      {
+        "name": "19word_id_col",
+        "code_id": "19word_id_col",
+        "comment": "",
+        "id": 147
+      },
+      {
+        "name": "19word_id_col2",
+        "code_id": "19word_id_col2",
+        "comment": "",
+        "id": 148
+      },
+      {
+        "name": "19excluded",
+        "code_id": "19excluded",
+        "comment": "",
+        "id": 149
+      },
+      {
+        "name": "19share_type_id",
+        "code_id": "19share_type_id",
+        "comment": "",
+        "id": 150
+      },
+      {
+        "name": "19protect_id",
+        "code_id": "19protect_id",
+        "comment": "",
+        "id": 151
+      },
+      {
+        "name": "22phrase_id",
+        "code_id": "22phrase_id",
+        "comment": "",
+        "id": 152
+      },
+      {
+        "name": "22external_key",
+        "code_id": "22external_key",
+        "comment": "",
+        "id": 153
+      },
+      {
+        "name": "22ref_type_id",
+        "code_id": "22ref_type_id",
+        "comment": "",
+        "id": 154
+      },
+      {
+        "name": "22url",
+        "code_id": "22url",
+        "comment": "",
+        "id": 155
+      },
+      {
+        "name": "22description",
+        "code_id": "22description",
+        "comment": "",
+        "id": 156
+      },
+      {
+        "name": "22excluded",
+        "code_id": "22excluded",
+        "comment": "",
+        "id": 157
+      },
+      {
+        "name": "23phrase_id",
+        "code_id": "23phrase_id",
+        "comment": "",
+        "id": 158
+      },
+      {
+        "name": "23external_key",
+        "code_id": "23external_key",
+        "comment": "",
+        "id": 159
+      },
+      {
+        "name": "23ref_type_id",
+        "code_id": "23ref_type_id",
+        "comment": "",
+        "id": 160
+      },
+      {
+        "name": "23url",
+        "code_id": "23url",
+        "comment": "",
+        "id": 161
+      },
+      {
+        "name": "23description",
+        "code_id": "23description",
+        "comment": "",
+        "id": 162
+      },
+      {
+        "name": "23excluded",
+        "code_id": "23excluded",
+        "comment": "",
+        "id": 163
+      },
+      {
+        "name": "20excluded",
+        "code_id": "20excluded",
+        "comment": "",
+        "id": 164
+      },
+      {
+        "name": "21source_name",
+        "code_id": "21source_name",
+        "comment": "",
+        "id": 165
+      },
+      {
+        "name": "21source_type_id",
+        "code_id": "21source_type_id",
+        "comment": "",
+        "id": 166
+      },
+      {
+        "name": "21excluded",
+        "code_id": "21excluded",
+        "comment": "",
+        "id": 167
+      },
+      {
+        "name": "18code_id",
+        "code_id": "18code_id",
+        "comment": "",
+        "id": 168
+      },
+      {
+        "name": "18ui_msg_code_id",
+        "code_id": "18ui_msg_code_id",
+        "comment": "",
+        "id": 169
+      },
+      {
+        "name": "22source_id",
+        "code_id": "22source_id",
+        "comment": "",
+        "id": 170
+      }
+    ],
+    "verbs": [
+      {
+        "name": "not set",
+        "code_id": "not_set",
+        "comment": "",
+        "plural": null,
+        "reverse": null,
+        "rev_plural": null,
+        "frm_name": null,
+        "description": "placeholder verb to enable foreign key checks in the database and for the selection",
+        "usage": 0,
+        "id": 1
+      },
+      {
+        "name": "is a",
+        "code_id": "is",
+        "comment": "",
+        "plural": "are",
+        "reverse": "are",
+        "rev_plural": "are",
+        "frm_name": null,
+        "description": "the main child to parent relation e.g. Zurich is a Canton. The reverse is valid and usually plural is used e.g. Cantons are Zurich, Bern, ...",
+        "usage": 0,
+        "id": 2
+      },
+      {
+        "name": "is part of",
+        "code_id": "contains",
+        "comment": "",
+        "plural": "is part of",
+        "reverse": "contains",
+        "rev_plural": "contains",
+        "frm_name": null,
+        "description": "if several similar term create different views to the same sum; E.g. Cash Flow Paper, Balance Sheet and Income statement are Financial Statements. Or Sectors and Regions are different splittings",
+        "usage": 0,
+        "id": 3
+      },
+      {
+        "name": "with",
+        "code_id": "",
+        "comment": "",
+        "plural": "with",
+        "reverse": null,
+        "rev_plural": null,
+        "frm_name": null,
+        "description": "similar to 'is part of' but where the left phrase is expected to be several times the right phrase e.g. for comparing same by same: 1 hour with full load is the same as 2 hours with half load",
+        "usage": 0,
+        "id": 4
+      },
+      {
+        "name": "has a",
+        "code_id": "",
+        "comment": "",
+        "plural": "has",
+        "reverse": "is used for",
+        "rev_plural": "is used for",
+        "frm_name": null,
+        "description": null,
+        "usage": 0,
+        "id": 5
+      },
+      {
+        "name": "is time jump for",
+        "code_id": "",
+        "comment": "",
+        "plural": "are the time jump for",
+        "reverse": "has the default time jump",
+        "rev_plural": "have the default time jump",
+        "frm_name": "time jump",
+        "description": "is the default time jump for",
+        "usage": 0,
+        "id": 6
+      },
+      {
+        "name": "is term jump for",
+        "code_id": "",
+        "comment": "",
+        "plural": null,
+        "reverse": null,
+        "rev_plural": null,
+        "frm_name": null,
+        "description": "is the default term jump for",
+        "usage": 0,
+        "id": 7
+      },
+      {
+        "name": "term type needed",
+        "code_id": "",
+        "comment": "",
+        "plural": null,
+        "reverse": null,
+        "rev_plural": null,
+        "frm_name": null,
+        "description": "the formula needs the linked term type",
+        "usage": 0,
+        "id": 8
+      },
+      {
+        "name": "is follower of",
+        "code_id": "follow",
+        "comment": "",
+        "plural": "is follower of",
+        "reverse": "is followed by",
+        "rev_plural": "is followed by",
+        "frm_name": "follower",
+        "description": "is follower of",
+        "usage": 0,
+        "id": 9
+      },
+      {
+        "name": "uses",
+        "code_id": "",
+        "comment": "",
+        "plural": "uses",
+        "reverse": "is used by",
+        "rev_plural": "are used by",
+        "frm_name": null,
+        "description": "real use e.g. wind energy is used by a wind turbine",
+        "usage": 0,
+        "id": 10
+      },
+      {
+        "name": "issue",
+        "code_id": "",
+        "comment": "",
+        "plural": "issues",
+        "reverse": "is issued by",
+        "rev_plural": "are issued by",
+        "frm_name": null,
+        "description": null,
+        "usage": 0,
+        "id": 11
+      },
+      {
+        "name": "is measure type for",
+        "code_id": "",
+        "comment": "",
+        "plural": "are measure type for",
+        "reverse": "has the measure type",
+        "rev_plural": "have the measure type",
+        "frm_name": null,
+        "description": "is the default measure type for",
+        "usage": 0,
+        "id": 12
+      },
+      {
+        "name": "is an acronym for",
+        "code_id": "",
+        "comment": "",
+        "plural": "are an acronyms for",
+        "reverse": "is an acronym of",
+        "rev_plural": "are an acronyms of",
+        "frm_name": null,
+        "description": "is an acronym for",
+        "usage": 0,
+        "id": 13
+      },
+      {
+        "name": "can be used as a differentiator for",
+        "code_id": "can_contain",
+        "comment": "",
+        "plural": "can be used as a differentiator for",
+        "reverse": "can be differentiated by",
+        "rev_plural": "can be differentiated by",
+        "frm_name": "differentiator",
+        "description": "similar to contains, but in a table view the row will not be shown if there is no corresponding value",
+        "usage": 0,
+        "id": 14
+      },
+      {
+        "name": "influences",
+        "code_id": "",
+        "comment": "",
+        "plural": "influences",
+        "reverse": "is influenced by",
+        "rev_plural": "is influenced by",
+        "frm_name": null,
+        "description": null,
+        "usage": 0,
+        "id": 15
+      },
+      {
+        "name": "is alias of",
+        "code_id": "",
+        "comment": "",
+        "plural": "is alias of",
+        "reverse": "is alias of",
+        "rev_plural": "is alias of",
+        "frm_name": null,
+        "description": null,
+        "usage": 0,
+        "id": 16
+      },
+      {
+        "name": "can be",
+        "code_id": "can_be",
+        "comment": "",
+        "plural": "can be",
+        "reverse": "can be",
+        "rev_plural": "can be",
+        "frm_name": null,
+        "description": null,
+        "usage": 0,
+        "id": 17
+      },
+      {
+        "name": "can use",
+        "code_id": "can_use",
+        "comment": "",
+        "plural": "can use",
+        "reverse": "can be used by",
+        "rev_plural": "can be used by",
+        "frm_name": null,
+        "description": "use indicates that a new result is created e.g. a turbine can use water or wind or any type of liquid or gas to convert energy",
+        "usage": 0,
+        "id": 18
+      },
+      {
+        "name": "scaled by",
+        "code_id": "scaled",
+        "comment": "",
+        "plural": "scaled by",
+        "reverse": "is scaling for",
+        "rev_plural": "are scaling for",
+        "frm_name": null,
+        "description": "to define the usual scaling e.g. for watt hours usually the scaling kilo (kWh) is used",
+        "usage": 0,
+        "id": 19
+      },
+      {
+        "name": "per",
+        "code_id": "",
+        "comment": "",
+        "plural": "per",
+        "reverse": null,
+        "rev_plural": null,
+        "frm_name": null,
+        "description": "to define the usual quotient e.g. meter per second is normally used not seconds per meter, that why the reverse name is empty",
+        "usage": 0,
+        "id": 20
+      },
+      {
+        "name": "is selector for",
+        "code_id": "selector",
+        "comment": "",
+        "plural": "are selectors for",
+        "reverse": "is grouped by",
+        "rev_plural": "are grouped by",
+        "frm_name": null,
+        "description": "used to group a selection list to make it shorter",
+        "usage": 0,
+        "id": 21
+      }
+    ],
+    "system_views": [
+      {
+        "id": 1,
+        "name": "Word",
+        "description": "the default view for words",
+        "code_id": "word",
+        "components": [
+          {
+            "id": 1,
+            "name": "Word",
+            "description": "simply show the word name",
+            "type_id": 8,
+            "link_id": 1,
+            "position": 1
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "name": "Start view",
+        "description": "A dynamic start mask that shows a interesting fact",
+        "type_id": 2,
+        "code_id": "entry_view",
+        "components": [
+          {
+            "id": 1,
+            "name": "Word",
+            "description": "simply show the word name",
+            "type_id": 8,
+            "link_id": 2,
+            "position": 1
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "name": "Add New Word",
+        "type_id": 7,
+        "code_id": "word_add",
+        "components": [
+          {
+            "id": 2,
+            "name": "system form title word add",
+            "description": "show the language specific title for the system form to add a new word",
+            "type_id": 17,
+            "link_id": 3,
+            "position": 1
+          },
+          {
+            "id": 7,
+            "name": "system form hidden back stack",
+            "description": "field that contains the stack for the undo actions",
+            "type_id": 18,
+            "link_id": 4,
+            "position": 2
+          },
+          {
+            "id": 8,
+            "name": "system form hidden confirm status",
+            "description": "switch on that the form saving needs an extra confirm by the user",
+            "type_id": 19,
+            "link_id": 5,
+            "position": 3
+          },
+          {
+            "id": 9,
+            "name": "system form field name",
+            "description": "the name field in a form",
+            "type_id": 20,
+            "link_id": 6,
+            "position": 4
+          },
+          {
+            "id": 10,
+            "name": "system form field description",
+            "description": "the description field in a form",
+            "type_id": 21,
+            "link_id": 7,
+            "position": 5
+          },
+          {
+            "id": 14,
+            "name": "system form select share type",
+            "description": "selector for the share type",
+            "type_id": 24,
+            "link_id": 8,
+            "position": 6
+          },
+          {
+            "id": 15,
+            "name": "system form select protection type",
+            "description": "selector for the protection type",
+            "type_id": 25,
+            "link_id": 9,
+            "position": 7
+          },
+          {
+            "id": 16,
+            "name": "system form button cancel",
+            "description": "button to cancel the form action and go back to the previous view",
+            "type_id": 26,
+            "link_id": 10,
+            "position": 8
+          },
+          {
+            "id": 17,
+            "name": "system form button save",
+            "description": "button to save the form field into the database",
+            "type_id": 27,
+            "link_id": 11,
+            "position": 9
+          },
+          {
+            "id": 19,
+            "name": "system form end",
+            "type_id": 29,
+            "link_id": 12,
+            "position": 10
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "name": "Change Word",
+        "description": "Change name, description or settings of a word",
+        "type_id": 7,
+        "code_id": "word_edit",
+        "components": [
+          {
+            "id": 3,
+            "name": "system form title word edit",
+            "description": "show the language specific title for the system form to change a word",
+            "type_id": 17,
+            "link_id": 13,
+            "position": 1
+          },
+          {
+            "id": 7,
+            "name": "system form hidden back stack",
+            "description": "field that contains the stack for the undo actions",
+            "type_id": 18,
+            "link_id": 14,
+            "position": 2
+          },
+          {
+            "id": 8,
+            "name": "system form hidden confirm status",
+            "description": "switch on that the form saving needs an extra confirm by the user",
+            "type_id": 19,
+            "link_id": 15,
+            "position": 3
+          },
+          {
+            "id": 9,
+            "name": "system form field name",
+            "description": "the name field in a form",
+            "type_id": 20,
+            "link_id": 16,
+            "position": 4
+          },
+          {
+            "id": 10,
+            "name": "system form field description",
+            "description": "the description field in a form",
+            "type_id": 21,
+            "link_id": 17,
+            "position": 5
+          },
+          {
+            "id": 16,
+            "name": "system form button cancel",
+            "description": "button to cancel the form action and go back to the previous view",
+            "type_id": 26,
+            "link_id": 18,
+            "position": 6
+          },
+          {
+            "id": 17,
+            "name": "system form button save",
+            "description": "button to save the form field into the database",
+            "type_id": 27,
+            "link_id": 19,
+            "position": 7
+          },
+          {
+            "id": 19,
+            "name": "system form end",
+            "type_id": 29,
+            "link_id": 20,
+            "position": 8
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "name": "Delete Word",
+        "description": "Exclude or delete a word",
+        "type_id": 7,
+        "code_id": "word_del",
+        "components": [
+          {
+            "id": 4,
+            "name": "system form title word del",
+            "description": "show the language specific title for the system form to delete or exclude a word",
+            "type_id": 17,
+            "link_id": 21,
+            "position": 1
+          },
+          {
+            "id": 7,
+            "name": "system form hidden back stack",
+            "description": "field that contains the stack for the undo actions",
+            "type_id": 18,
+            "link_id": 22,
+            "position": 2
+          },
+          {
+            "id": 8,
+            "name": "system form hidden confirm status",
+            "description": "switch on that the form saving needs an extra confirm by the user",
+            "type_id": 19,
+            "link_id": 23,
+            "position": 3
+          },
+          {
+            "id": 16,
+            "name": "system form button cancel",
+            "description": "button to cancel the form action and go back to the previous view",
+            "type_id": 26,
+            "link_id": 24,
+            "position": 4
+          },
+          {
+            "id": 18,
+            "name": "system form button del",
+            "description": "button to delete or exclude a word, triple, verb, value, formula, view or component",
+            "type_id": 28,
+            "link_id": 25,
+            "position": 5
+          },
+          {
+            "id": 19,
+            "name": "system form end",
+            "type_id": 29,
+            "link_id": 26,
+            "position": 6
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "name": "System View Add Triple",
+        "type_id": 7,
+        "code_id": "triple_add",
+        "components": [
+          {
+            "id": 5,
+            "name": "system form title triple add",
+            "description": "show the language specific title for the system form to add a new triple",
+            "type_id": 17,
+            "link_id": 27,
+            "position": 1
+          },
+          {
+            "id": 7,
+            "name": "system form hidden back stack",
+            "description": "field that contains the stack for the undo actions",
+            "type_id": 18,
+            "link_id": 28,
+            "position": 2
+          },
+          {
+            "id": 8,
+            "name": "system form hidden confirm status",
+            "description": "switch on that the form saving needs an extra confirm by the user",
+            "type_id": 19,
+            "link_id": 29,
+            "position": 3
+          },
+          {
+            "id": 9,
+            "name": "system form field name",
+            "description": "the name field in a form",
+            "type_id": 20,
+            "link_id": 30,
+            "position": 4
+          },
+          {
+            "id": 10,
+            "name": "system form field description",
+            "description": "the description field in a form",
+            "type_id": 21,
+            "link_id": 31,
+            "position": 5
+          },
+          {
+            "id": 20,
+            "name": "system formatter row start",
+            "type_id": 30,
+            "link_id": 32,
+            "position": 6
+          },
+          {
+            "id": 11,
+            "name": "system form triple phrase from",
+            "description": "selector for the from phrase of a triple",
+            "type_id": 22,
+            "link_id": 33,
+            "position": 7
+          },
+          {
+            "id": 13,
+            "name": "system form triple verb",
+            "description": "selector for the verb of a triple",
+            "type_id": 23,
+            "link_id": 34,
+            "position": 8
+          },
+          {
+            "id": 12,
+            "name": "system form triple phrase to",
+            "description": "selector for the to phrase of a triple",
+            "type_id": 22,
+            "link_id": 35,
+            "position": 9
+          },
+          {
+            "id": 22,
+            "name": "system formatter row end",
+            "type_id": 32,
+            "link_id": 36,
+            "position": 10
+          },
+          {
+            "id": 20,
+            "name": "system formatter row start",
+            "type_id": 30,
+            "link_id": 37,
+            "position": 11
+          },
+          {
+            "id": 14,
+            "name": "system form select share type",
+            "description": "selector for the share type",
+            "type_id": 24,
+            "link_id": 38,
+            "position": 12
+          },
+          {
+            "id": 15,
+            "name": "system form select protection type",
+            "description": "selector for the protection type",
+            "type_id": 25,
+            "link_id": 39,
+            "position": 13
+          },
+          {
+            "id": 22,
+            "name": "system formatter row end",
+            "type_id": 32,
+            "link_id": 40,
+            "position": 14
+          },
+          {
+            "id": 21,
+            "name": "system formatter row right",
+            "type_id": 31,
+            "link_id": 41,
+            "position": 15
+          },
+          {
+            "id": 16,
+            "name": "system form button cancel",
+            "description": "button to cancel the form action and go back to the previous view",
+            "type_id": 26,
+            "link_id": 42,
+            "position": 16
+          },
+          {
+            "id": 17,
+            "name": "system form button save",
+            "description": "button to save the form field into the database",
+            "type_id": 27,
+            "link_id": 43,
+            "position": 17
+          },
+          {
+            "id": 22,
+            "name": "system formatter row end",
+            "type_id": 32,
+            "link_id": 44,
+            "position": 18
+          },
+          {
+            "id": 19,
+            "name": "system form end",
+            "type_id": 29,
+            "link_id": 45,
+            "position": 19
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "name": "Search",
+        "description": "The search page for all words and formulas",
+        "code_id": "word_find",
+        "components": []
+      },
+      {
+        "id": 8,
+        "name": "Display Number",
+        "code_id": "value",
+        "components": []
+      },
+      {
+        "id": 9,
+        "name": "Add New Number",
+        "code_id": "value_add",
+        "components": []
+      },
+      {
+        "id": 10,
+        "name": "Change Number",
+        "code_id": "value_edit",
+        "components": []
+      },
+      {
+        "id": 11,
+        "name": "Delete Number",
+        "code_id": "value_del",
+        "components": []
+      },
+      {
+        "id": 12,
+        "name": "Add New Formula",
+        "code_id": "formula_add",
+        "components": []
+      },
+      {
+        "id": 13,
+        "name": "Change Formula",
+        "code_id": "formula_edit",
+        "components": []
+      },
+      {
+        "id": 14,
+        "name": "Delete Formula",
+        "description": "To confirm the exclusion or deleting of a formula",
+        "code_id": "formula_del",
+        "components": []
+      },
+      {
+        "id": 15,
+        "name": "Explain Formula Result",
+        "description": "Explain the formula result",
+        "code_id": "formula_explain",
+        "components": []
+      },
+      {
+        "id": 16,
+        "name": "Formula test",
+        "description": "To debug the formula",
+        "code_id": "formula_test",
+        "components": []
+      },
+      {
+        "id": 17,
+        "name": "Add New Source",
+        "code_id": "source_add",
+        "components": []
+      },
+      {
+        "id": 18,
+        "name": "Change Source",
+        "code_id": "source_edit",
+        "components": []
+      },
+      {
+        "id": 19,
+        "name": "Delete Source",
+        "description": "Delete an external data source",
+        "code_id": "source_del",
+        "components": []
+      },
+      {
+        "id": 20,
+        "name": "Verb List",
+        "description": "List all available ways how to link two words",
+        "code_id": "verbs",
+        "components": []
+      },
+      {
+        "id": 21,
+        "name": "Add New Verb",
+        "code_id": "verb_add",
+        "components": []
+      },
+      {
+        "id": 22,
+        "name": "Change Verb",
+        "description": "Rename a tern link type",
+        "code_id": "verb_edit",
+        "components": []
+      },
+      {
+        "id": 23,
+        "name": "Delete verb",
+        "description": "Exclude or delete a verb",
+        "code_id": "verb_del",
+        "components": []
+      },
+      {
+        "id": 24,
+        "name": "Add New Triple",
+        "code_id": "triple_add",
+        "components": []
+      },
+      {
+        "id": 25,
+        "name": "Change Triple",
+        "description": "Rename a triple",
+        "code_id": "triple_edit",
+        "components": []
+      },
+      {
+        "id": 26,
+        "name": "Delete triple",
+        "description": "Exclude or delete a triple",
+        "code_id": "triple_del",
+        "components": []
+      },
+      {
+        "id": 27,
+        "name": "User Settings",
+        "description": "to change the user settings",
+        "code_id": "user",
+        "components": []
+      },
+      {
+        "id": 28,
+        "name": "Error Log",
+        "description": "simple confirm page for a new error that has been logged in the database",
+        "code_id": "error_log",
+        "components": []
+      },
+      {
+        "id": 29,
+        "name": "System Error List",
+        "description": "List the system errors and allow the user to change the status",
+        "code_id": "error_update",
+        "components": []
+      },
+      {
+        "id": 30,
+        "name": "Import",
+        "description": "Select a file to import data",
+        "code_id": "import",
+        "components": []
+      },
+      {
+        "id": 31,
+        "name": "Add View",
+        "code_id": "view_add",
+        "components": []
+      },
+      {
+        "id": 32,
+        "name": "Change View",
+        "description": "Rename a view",
+        "code_id": "view_edit",
+        "components": []
+      },
+      {
+        "id": 33,
+        "name": "Delete View",
+        "description": "Exclude or delete a view",
+        "code_id": "view_del",
+        "components": []
+      },
+      {
+        "id": 34,
+        "name": "Add View Component",
+        "code_id": "component_add",
+        "components": [
+          {
+            "id": 6,
+            "name": "system form title component add",
+            "description": "show the language specific title for the system form to add a new component",
+            "type_id": 17,
+            "link_id": 46,
+            "position": 1
+          },
+          {
+            "id": 7,
+            "name": "system form hidden back stack",
+            "description": "field that contains the stack for the undo actions",
+            "type_id": 18,
+            "link_id": 47,
+            "position": 2
+          },
+          {
+            "id": 8,
+            "name": "system form hidden confirm status",
+            "description": "switch on that the form saving needs an extra confirm by the user",
+            "type_id": 19,
+            "link_id": 48,
+            "position": 3
+          },
+          {
+            "id": 9,
+            "name": "system form field name",
+            "description": "the name field in a form",
+            "type_id": 20,
+            "link_id": 49,
+            "position": 4
+          },
+          {
+            "id": 10,
+            "name": "system form field description",
+            "description": "the description field in a form",
+            "type_id": 21,
+            "link_id": 50,
+            "position": 5
+          },
+          {
+            "id": 16,
+            "name": "system form button cancel",
+            "description": "button to cancel the form action and go back to the previous view",
+            "type_id": 26,
+            "link_id": 51,
+            "position": 6
+          },
+          {
+            "id": 17,
+            "name": "system form button save",
+            "description": "button to save the form field into the database",
+            "type_id": 27,
+            "link_id": 52,
+            "position": 7
+          }
+        ]
+      },
+      {
+        "id": 35,
+        "name": "Change View Component",
+        "description": "Adjust a view component",
+        "code_id": "component_edit",
+        "components": []
+      },
+      {
+        "id": 36,
+        "name": "Delete View Component",
+        "description": "Exclude or delete a view component",
+        "code_id": "component_del",
+        "components": []
+      }
+    ]
   }
-]
+}

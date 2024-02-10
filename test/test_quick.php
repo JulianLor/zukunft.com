@@ -31,19 +31,27 @@
 
 */
 
+use cfg\user;
+use test\test_unit_read_db;
+use test\write\triple_test;
+use test\write\value_test;
+use test\write\word_test;
+
 // standard zukunft header for callable php files to allow debugging and lib loading
 global $debug;
 $debug = $_GET['debug'] ?? 0;
 
 // load the main functions
-const ROOT_PATH = __DIR__ . '/../';
-include_once ROOT_PATH . 'src/main/php/zu_lib.php';
+const ROOT_PATH = __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR;
+const PHP_PATH = ROOT_PATH . 'src' . DIRECTORY_SEPARATOR . 'main' . DIRECTORY_SEPARATOR . 'php' . DIRECTORY_SEPARATOR;
+const PHP_TEST_PATH = ROOT_PATH . 'src' . DIRECTORY_SEPARATOR . 'test' . DIRECTORY_SEPARATOR . 'php' . DIRECTORY_SEPARATOR;
+include_once PHP_PATH . 'zu_lib.php';
 
 // open database and display header
 $db_con = prg_start("test_quick");
 
 // load the testing base functions
-include_once '../src/test/php/utils/test_base.php';
+include_once PHP_TEST_PATH . 'utils/test_base.php';
 
 // load the session user parameters
 $start_usr = new user;
@@ -56,7 +64,8 @@ if ($start_usr->id() > 0) {
         // prepare testing
         $usr = $start_usr;
         $t = new test_unit_read_db();
-        $t->init_unit_db_tests();
+        // TODO activate Prio 2
+        //$t->init_unit_db_tests();
 
         // run the unit tests without database connection (is so fast, that it can be tested always)
         $t->run_unit();
@@ -64,6 +73,11 @@ if ($start_usr->id() > 0) {
         // reload the setting lists after using dummy list for the unit tests
         $db_con->close();
         $db_con = prg_restart("reload cache after unit testing");
+
+        // create the testing users
+        $t->set_users();
+        global $usr;
+        $usr = $t->usr1;
 
         // switch to the test user
         $usr = new user;
@@ -85,16 +99,21 @@ if ($start_usr->id() > 0) {
         if ($usr->id() > 0) {
 
             // create the testing users
-            $t->set_users();
+            //$t->set_users();
 
             // cleanup also before testing to remove any leftovers
-            $t->cleanup_check();
+            //$t->cleanup_check();
 
             // -----------------------------------------------
             // start testing the selected system functionality
             // -----------------------------------------------
 
-            load_usr_data();
+            (new word_test())->create_test_words($t);
+            (new triple_test())->create_test_triples($t);
+            (new value_test())->create_test_values($t);
+
+            /*
+            $t->usr1->load_usr_data();
             $t->run_unit_db_tests($t);
 
             run_system_test($t);
@@ -103,6 +122,7 @@ if ($start_usr->id() > 0) {
             // test the api write functionality
             $t->test_api_write_no_rest_all();
             $t->test_api_write_all();
+            */
 
             /*
             create_test_words($t);
@@ -112,8 +132,8 @@ if ($start_usr->id() > 0) {
             create_test_formulas($t);
             create_test_formula_links($t);
             create_test_views($t);
-            create_test_view_components($t);
-            create_test_view_component_links($t);
+            create_test_components($t);
+            create_test_component_links($t);
             create_test_values($t);
 
             run_db_link_test($t);
@@ -141,16 +161,16 @@ if ($start_usr->id() > 0) {
             run_formula_link_test($t);
             run_formula_link_list_test($t);
             run_formula_trigger_test($t);
-            run_formula_value_test($t);
-            run_formula_value_list_test($t);
+            run_result_test($t);
+            run_result_list_test($t);
             run_formula_element_test($t);
             run_formula_element_list_test($t);
             run_formula_element_group_test($t);
             run_batch_job_test($t);
             run_batch_job_list_test($t);
             run_view_test($t);
-            run_view_component_test($t);
-            run_view_component_link_test($t);
+            run_component_test($t);
+            run_component_link_test($t);
             run_display_test($t);
             run_export_test($t);
             //run_permission_test ($t);

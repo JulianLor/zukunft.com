@@ -30,6 +30,13 @@
 */
 
 // standard zukunft header for callable php files to allow debugging and lib loading
+use controller\controller;
+use html\view\view as view_dsp;
+use html\word\word as word_dsp;
+use cfg\user;
+use cfg\view;
+use cfg\word;
+
 $debug = $_GET['debug'] ?? 0;
 const ROOT_PATH = __DIR__ . '/../';
 include_once ROOT_PATH . 'src/main/php/zu_lib.php';
@@ -47,19 +54,22 @@ $result .= $usr->get();
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
 if ($usr->id() > 0) {
 
-    load_usr_data();
+    $html = new \html\html_base();
+
+    $usr->load_usr_data();
 
     // in view edit views the view cannot be changed
-    $dsp = new view_dsp_old($usr);
+    $msk = new view($usr);
     //$dsp->set_id(cl(SQL_VIEW_FORMULA_EXPLAIN));
-    $back = $_GET['back']; // the original calling page that should be shown after the change if finished
-    $result .= $dsp->dsp_navbar_no_view($back);
+    $back = $_GET[controller::API_BACK]; // the original calling page that should be shown after the change if finished
+    $msk_dsp = new view_dsp($msk->api_json());
+    $result .= $msk_dsp->dsp_navbar_no_view($back);
     $view_id = 0;
     $word_id = $back;
 
     // get the view id used utils now and the word id
-    if (isset($_GET['id'])) {
-        $view_id = $_GET['id'];
+    if (isset($_GET[controller::URL_VAR_ID])) {
+        $view_id = $_GET[controller::URL_VAR_ID];
     }
     if (isset($_GET['word'])) {
         $word_id = $_GET['word'];
@@ -69,18 +79,19 @@ if ($usr->id() > 0) {
     $wrd = new word($usr);
     if ($word_id > 0) {
         $wrd->load_by_id($word_id);
-        $result .= dsp_text_h2('Select the display format for "' . $wrd->name() . '"');
+        $result .= $html->dsp_text_h2('Select the display format for "' . $wrd->name() . '"');
     } else {
-        $result .= dsp_text_h2('The word is missing for which the display format should be changed. If you can explain how to reproduce this error message, please report the steps on https://github.com/zukunft/zukunft.com/issues.');
+        $result .= $html->dsp_text_h2('The word is missing for which the display format should be changed. If you can explain how to reproduce this error message, please report the steps on https://github.com/zukunft/zukunft.com/issues.');
     }
 
     // allow to change to type
-    $dsp = new view($usr);
-    $dsp->set_id($view_id);
-    $result .= $dsp->selector_page($word_id, $back);
+    $msk = new view_dsp();
+    $msk->set_id($view_id);
+    $result .= $msk->selector_page($word_id, $back);
 
     // show the changes
-    $result .= $wrd->dsp_obj()->log_view($back);
+    $wrd_html = new word_dsp($wrd->api_json());
+    $result .= $wrd_html->log_view($back);
 }
 
 echo $result;

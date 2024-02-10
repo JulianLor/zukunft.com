@@ -37,28 +37,70 @@
 
 */
 
-use api\batch_job_api;
-use api\formula_api;
-use api\language_api;
-use api\language_form_api;
-use api\phrase_type_api;
-use api\ref_api;
-use api\source_api;
-use api\system_log_api;
-use api\triple_api;
-use api\type_api;
-use api\user_api;
-use api\verb_api;
-use api\view_api;
-use api\view_cmp_api;
-use api\word_api;
+namespace test;
+
+include_once MODEL_LOG_PATH . 'change_log.php';
+include_once MODEL_LOG_PATH . 'change_log_field.php';
+include_once MODEL_LOG_PATH . 'change_log_list.php';
+include_once MODEL_SYSTEM_PATH . 'batch_job.php';
+include_once EXPORT_PATH . 'export.php';
+include_once API_SYSTEM_PATH . 'type_object.php';
+include_once API_PHRASE_PATH . 'phrase_type.php';
+include_once API_LANGUAGE_PATH . 'language.php';
+include_once API_LANGUAGE_PATH . 'language_form.php';
+
+use api\api_message;
+use api\component\component as component_api;
+use api\formula\formula as formula_api;
+use api\language\language as language_api;
+use api\language\language_form as language_form_api;
+use api\log\system_log as system_log_api;
+use api\phrase\phrase_type as phrase_type_api;
+use api\ref\ref as ref_api;
+use api\ref\source as source_api;
+use api\system\batch_job as batch_job_api;
+use api\system\type_object as type_api;
+use api\verb\verb as verb_api;
+use api\view\view as view_api;
+use api\word\word as word_api;
+use cfg\batch_job;
+use cfg\component\component;
+use cfg\component\component_list;
+use cfg\db\sql_db;
+use cfg\export\export;
+use cfg\formula;
+use cfg\formula_list;
 use cfg\language;
 use cfg\language_form;
+use cfg\library;
+use cfg\log\change_log;
+use cfg\log\change_log_field;
+use cfg\log\change_log_list;
+use cfg\log\system_log;
+use cfg\log\system_log_list;
+use cfg\phrase_list;
 use cfg\phrase_type;
+use cfg\ref;
+use cfg\source;
+use cfg\term_list;
+use cfg\triple;
+use cfg\trm_ids;
+use cfg\type_lists;
 use cfg\type_object;
+use cfg\user;
+use cfg\user_message;
+use cfg\value\value;
+use cfg\verb;
+use cfg\view;
+use cfg\word;
+use cfg\word_list;
 use controller\controller;
+use DateTime;
+use Exception;
+use html\phrase\phrase as phrase_dsp;
+use html\word\word as word_dsp;
 
-class test_api extends test_new_obj
+class test_api extends create_test_objects
 {
     // path
     const TEST_ROOT_PATH = '/home/timon/git/zukunft.com/';
@@ -90,36 +132,70 @@ class test_api extends test_new_obj
         $this->assert_api_get_by_text(verb::class, verb_api::TN_READ);
         $this->assert_api_get(triple::class);
         //$this->assert_api_get_by_text(triple::class, triple_api::TN_READ);
-        $this->assert_api_get(value::class);
+        //$this->assert_api_get(phrase::class);
+        $this->assert_api_get(value::class, 5);
         $this->assert_api_get(formula::class);
         $this->assert_api_get_by_text(formula::class, formula_api::TN_READ);
         $this->assert_api_get(view::class);
         $this->assert_api_get_by_text(view::class, view_api::TN_READ);
-        $this->assert_api_get(view_cmp::class);
-        $this->assert_api_get_by_text(view_cmp::class, view_cmp_api::TN_READ);
-        $this->assert_api_get(source::class);
+        $this->assert_api_get(component::class);
+        $this->assert_api_get_by_text(component::class, component_api::TN_READ);
+        $this->assert_api_get(source::class, 3);
         $this->assert_api_get_by_text(source::class, source_api::TN_READ_API);
-        $this->assert_api_get(ref::class);
+        $this->assert_api_get(ref::class, 4);
         $this->assert_api_get(batch_job::class);
         $this->assert_api_get(phrase_type::class);
         $this->assert_api_get(language::class);
         $this->assert_api_get(language_form::class);
 
         $this->assert_api_get_list(type_lists::class);
-        $this->assert_api_get_list(phrase_list::class);
-        $this->assert_api_get_list(term_list::class, [1, -1]);
+        $this->assert_api_get_list(word_list::class, [1, 2, 3]);
+        $this->assert_api_get_list(word_list::class, word_api::TN_READ, controller::URL_VAR_PATTERN);
+        $this->assert_api_get_list(phrase_list::class, [1, 2, 3, -1, -2]);
+        $this->assert_api_get_list(phrase_list::class, word_api::TN_READ, controller::URL_VAR_PATTERN);
+        $this->assert_api_get_list(term_list::class, [1, -1, 2, -2]);
         $this->assert_api_get_list(formula_list::class, [1]);
+        $this->assert_api_get_list(component_list::class, 3, 'view_id');
         $this->assert_api_chg_list(
             change_log_list::class,
             controller::URL_VAR_WORD_ID, 1,
             controller::URL_VAR_WORD_FLD, change_log_field::FLD_WORD_NAME);
         $this->assert_api_get_list(
             system_log_list::class,
-            [1, 2],
+            [1, 2], 'ids',
             'system_log_list_api',
             true);
         // $this->assert_rest(new word($usr, word_api::TN_READ));
 
+
+        // load the frontend objects via api call
+        $test_name = 'api id and name call of a word';
+        $wrd_zh = new word_dsp();
+        $wrd_zh->load_by_name(word_api::TN_ZH);
+        $wrd_zh->load_by_id($wrd_zh->id());
+        $this->assert($test_name, $wrd_zh->name(), word_api::TN_ZH);
+
+        $test_name = 'api id and name call of a phrase';
+        $phr_zh = new phrase_dsp();
+        $phr_zh->load_by_name(word_api::TN_ZH);
+        $phr_zh->load_by_id($phr_zh->id());
+        $this->assert($test_name, $phr_zh->name(), word_api::TN_ZH);
+
+    }
+
+    /**
+     * get the api message and forward it to the ui
+     * @return void
+     */
+    function run_ui_test(): void
+    {
+        $this->assert_view(controller::DSP_WORD, $this->usr1, new word($this->usr1), 1);
+        $this->assert_view(controller::DSP_WORD_ADD, $this->usr1, new word($this->usr1));
+        $this->assert_view(controller::DSP_WORD_EDIT, $this->usr1, new word($this->usr1), 1);
+        $this->assert_view(controller::DSP_WORD_DEL, $this->usr1, new word($this->usr1), 1);
+        $this->assert_view(controller::DSP_TRIPLE_ADD, $this->usr1, new triple($this->usr1));
+        //$this->assert_view(controller::DSP_COMPONENT_ADD, $this->usr1, new component($this->usr1), 1);
+        // TODO add the frontend reaction tests e.g. call the view.php script with the reaction to add a word
     }
 
     /**
@@ -182,7 +258,8 @@ class test_api extends test_new_obj
             //$this->assert_api_post(source::class);
             $this->assert_api_del($class, $id);
         } else {
-            log_err($class . ' cannot be added via PU API call with ' . dsp_array($add_data));
+            $lib = new library();
+            log_err($class . ' cannot be added via PU API call with ' . $lib->dsp_array($add_data));
         }
     }
 
@@ -212,17 +289,17 @@ class test_api extends test_new_obj
      * access method is used
      *
      * define ISIN as a key
-     * -> streetnumber is move to new table, but not company
+     * -> street number is move to new table, but not company
      *
      */
 
     /**
      * check if the main parts of the openapi definition matches the code
      *
-     * @param testing $t
+     * @param test_cleanup $t
      * @return void
      */
-    function run_openapi_test(testing $t): void
+    function run_openapi_test(test_cleanup $t): void
     {
 
         // init
@@ -268,19 +345,48 @@ class test_api extends test_new_obj
     }
 
 
+    /**
+     * check if the HTML frontend object can be set based on the api json message
+     * @param object $usr_obj the user sandbox object that should be tested
+     */
+    function assert_api_to_dsp(object $usr_obj, object $dsp_obj): bool
+    {
+        $class = $this->class_to_api($usr_obj::class);
+        $api_obj = $usr_obj->api_obj(false);
+        $api_json_msg = json_decode($api_obj->get_json(), true);
+        $dsp_obj = $this->dsp_obj($usr_obj, $dsp_obj, false);
+        $msg_to_backend = $dsp_obj->api_array();
+        // remove the empty fields to compare the "api save" message with the "api show" message
+        // the "api show" message ($api_json_msg) should not contain empty fields
+        // because they are irrelevant for the user and this reduces traffic
+        // the "api save" message ($msg_to_backend) should contain empty fields
+        // to allow the user to remove e.g. a description and less save traffic is expected
+        // TODO add a test that e.g. the description can be removed via api
+        $msg_to_backend = array_filter($msg_to_backend, fn($value) => !is_null($value) && $value !== '');
+        return $this->assert_api_compare($class, $api_json_msg, $msg_to_backend);
+    }
+
+
     /*
      * assert api
      */
 
     /**
+     * check if the created api json message matches the api json message from the test resources
+     * the unit test should be done for all api objects
      * @param object $usr_obj the user sandbox object that should be tested
      */
     function assert_api(object $usr_obj, string $filename = '', bool $contains = false): bool
     {
         $class = $usr_obj::class;
         $class = $this->class_to_api($class);
-        $api_obj = $usr_obj->api_obj();
-        $actual = json_decode(json_encode($api_obj), true);
+        if ($usr_obj::class == system_log_list::class
+            or $usr_obj::class == type_lists::class) {
+            $api_obj = $usr_obj->api_obj($this->usr1, false);
+        } else {
+            $api_obj = $usr_obj->api_obj(false);
+        }
+        $actual = json_decode($api_obj->get_json(), true);
         return $this->assert_api_compare($class, $actual, null, $filename, $contains);
     }
 
@@ -527,7 +633,7 @@ class test_api extends test_new_obj
         $class = $usr_obj::class;
         $class = $this->class_to_api($class);
         $api_obj = $usr_obj->api_obj();
-        $api_msg = new api_message($db_con, $class);
+        $api_msg = new api_message($db_con, $class, $this->usr1);
         $api_msg->add_body($api_obj);
         $actual = json_decode(json_encode($api_msg), true);
         return $this->assert_api_compare($class, $actual, null, $filename, $contains);
@@ -546,6 +652,7 @@ class test_api extends test_new_obj
     function assert_api_get(string $class, int $id = 1, ?array $expected = null, bool $ignore_id = false): bool
     {
         // naming exception (to be removed?)
+        $lib = new library();
         $class = $this->class_to_api($class);
         $url = $this->class_to_url($class);
         $data = array(controller::URL_VAR_ID => $id);
@@ -559,7 +666,7 @@ class test_api extends test_new_obj
             log_err('GET api call for ' . $class . ' returned an empty result');
         }
         $filename = '';
-        if ($class == value::class) {
+        if ($class == value::class or $class == $lib->class_to_name(value::class)) {
             $filename = "value_non_std";
         }
         return $this->assert_api_compare($class, $actual, $expected, $filename, false, $ignore_id);
@@ -588,20 +695,40 @@ class test_api extends test_new_obj
      * for testing the local deployments needs to be updated using an external script
      *
      * @param string $class the class name of the object to test
-     * @param array $ids the database ids of the db rows that should be used for testing
+     * @param array|string $ids the database ids of the db rows that should be used for testing
+     * @param string $id_fld the field name for the object id e.g. word_id
      * @param string $filename to overwrite the class based filename to get the standard expected result
      * @param bool $contains set to true if the actual message is expected to contain more than the expected message
      * @return bool true if the json has no relevant differences
      */
     function assert_api_get_list(
-        string $class,
-        array  $ids = [1, 2],
-        string $filename = '',
-        bool   $contains = false): bool
+        string       $class,
+        array|string $ids = [1, 2],
+        string       $id_fld = 'ids',
+        string       $filename = '',
+        bool         $contains = false): bool
     {
-        $url = HOST_TESTING . controller::URL_API_PATH . camelize($class);
-        $data = array("ids" => implode(",", $ids));
+        $lib = new library();
+        $class = $lib->class_to_name($class);
+        $url = HOST_TESTING . controller::URL_API_PATH . $lib->camelize_ex_1($class);
+        if (is_array($ids)) {
+            $data = array($id_fld => implode(",", $ids));
+        } else {
+            $data = array($id_fld => $ids);
+        }
         $actual = json_decode($this->api_call("GET", $url, $data), true);
+
+        // TODO remove
+        if ($class == $lib->class_to_name(term_list::class)) {
+            $lst = new term_list($this->usr1);
+            $lst->load_by_ids((new trm_ids($ids)));
+            $result = $lst->api_obj();
+        }
+
+        if ($filename == '' AND $id_fld != 'ids') {
+            $filename = $class . '_by_' . $id_fld;
+        }
+
         return $this->assert_api_compare($class, $actual, null, $filename, $contains);
     }
 
@@ -618,7 +745,9 @@ class test_api extends test_new_obj
      */
     function assert_api_chg_list(string $class, string $id_fld = '', int $id = 1, string $fld_name = '', string $fld_value = ''): bool
     {
-        $url = HOST_TESTING . controller::URL_API_PATH . camelize($class);
+        $lib = new library();
+        $class = $lib->class_to_name($class);
+        $url = HOST_TESTING . controller::URL_API_PATH . $lib->camelize_ex_1($class);
         if ($fld_name != '') {
             $data = array($id_fld => $id, $fld_name => $fld_value);
         } else {
@@ -647,14 +776,16 @@ class test_api extends test_new_obj
      */
     function assert_api_compare(
         string $class,
-        array  $actual,
+        ?array $actual,
         ?array $expected = null,
         string $filename = '',
         bool   $contains = false,
         bool   $ignore_id = false): bool
     {
+        $lib = new library();
+        $class_for_file = $this->class_without_namespace($class);
         if ($expected == null) {
-            $expected = json_decode($this->api_json_expected($class, $filename), true);
+            $expected = json_decode($this->api_json_expected($class_for_file, $filename), true);
         }
 
         // remove the change time
@@ -669,9 +800,9 @@ class test_api extends test_new_obj
         $json_actual = json_encode($actual);
         $json_expected = json_encode($expected);
         if ($contains) {
-            return $this->assert($class . ' API GET', json_contains($expected, $actual), true);
+            return $this->assert($class . ' API GET', $lib->json_contains($expected, $actual), true);
         } else {
-            return $this->assert($class . ' API GET', json_is_similar($expected, $actual), true);
+            return $this->assert_json($class . ' API GET', $expected, $actual);
         }
     }
 
@@ -682,7 +813,7 @@ class test_api extends test_new_obj
      * @param string $file to overwrite the class based filename
      * @return string with the expected json message
      */
-    private function api_json_expected(string $class, string $file = ''): string
+    function api_json_expected(string $class, string $file = ''): string
     {
         if ($file == '') {
             $file = $class;
@@ -697,9 +828,10 @@ class test_api extends test_new_obj
      */
     private function class_to_api(string $class): string
     {
+        $lib = new library();
         $result = $class;
-        if ($class == view_cmp::class) {
-            $result = view_cmp_api::API_NAME;
+        if ($class == component::class) {
+            $result = component_api::API_NAME;
         }
         if ($class == ref::class) {
             $result = ref_api::API_NAME;
@@ -719,7 +851,7 @@ class test_api extends test_new_obj
         if ($class == language_form::class) {
             $result = language_form_api::API_NAME;
         }
-        return $result;
+        return $lib->class_to_name($result);
     }
 
     /**

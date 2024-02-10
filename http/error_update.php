@@ -30,18 +30,31 @@
 
 */
 
+use controller\controller;
+use html\html_base;
+use html\view\view as view_dsp;
+use cfg\log\system_log;
+use cfg\system_log_list;
+use cfg\user;
+use cfg\user_profile;
+use cfg\view;
+
 $debug = $_GET['debug'] ?? 0;
 const ROOT_PATH = __DIR__ . '/../';
 include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 
 $db_con = prg_start("error_update");
+$html = new html_base();
+
+global $system_views;
+global $user_profiles;
 
 $result = ''; // reset the html code var
 
 // get the parameters
-$log_id = $_GET['id'];
+$log_id = $_GET[controller::URL_VAR_ID];
 $status_id = $_GET['status'];
-$back = $_GET['back'];
+$back = $_GET[controller::API_BACK];
 
 // load the session user parameters
 $usr = new user;
@@ -50,13 +63,14 @@ $result .= $usr->get();
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
 if ($usr->id() > 0) {
 
-    load_usr_data();
+    $usr->load_usr_data();
 
-    $dsp = new view_dsp_old($usr);
-    $dsp->set_id(cl(db_cl::VIEW, view::ERR_UPD));
-    $result .= $dsp->dsp_navbar($back);
+    $msk = new view($usr);
+    $msk->set_id($system_views->id(controller::DSP_ERR_UPD));
+    $msk_dsp = new view_dsp($msk->api_json());
+    $result .= $msk_dsp->dsp_navbar($back);
 
-    if ($usr->id() > 0 and $usr->profile_id == cl(db_cl::USER_PROFILE, user_profile::ADMIN)) {
+    if ($usr->id() > 0 and $usr->profile_id == $user_profiles->id(user_profile::ADMIN)) {
         // update the error if requested
         if ($log_id > 0 and $status_id > 0) {
             $err_entry = new system_log;
@@ -77,19 +91,19 @@ if ($usr->id() > 0) {
         if ($err_lst->load()) {
             $errors_all = $err_lst->dsp_obj()->get_html();
         }
-        //$errors_all .= zuu_dsp_errors  ($usr->id(), $usr->profile_id, "all", $back);
+        //$errors_all .= dsp_errors  ($usr->id(), $usr->profile_id, "all", $back);
         if ($errors_all <> "") {
-            $result .= dsp_text_h3("Program issues that other user have found, that have not yet been solved.");
+            $result .= $html->dsp_text_h3("Program issues that other user have found, that have not yet been solved.");
             $result .= $errors_all;
         } else {
-            $result .= dsp_text_h3("There are no open errors left.");
+            $result .= $html->dsp_text_h3("There are no open errors left.");
         }
 
         if ($_SESSION['logged']) {
             $result .= '<br><br><a href="/http/logout.php">logout</a>';
         }
     } else {
-        $result .= dsp_text_h3("You are not permitted to update the error status. If you want to get the permission, please request it at admin@zukunft.com..");
+        $result .= $html->dsp_text_h3("You are not permitted to update the error status. If you want to get the permission, please request it at admin@zukunft.com..");
     }
 }
 

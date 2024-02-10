@@ -30,17 +30,35 @@
 
 */
 
+use cfg\component\component;
+use cfg\component_link;
+use cfg\db\sql_db;
+use cfg\formula;
+use cfg\formula_link;
+use cfg\triple;
+use cfg\user;
+use cfg\user_profile;
+use cfg\value\value;
+use cfg\view;
+use cfg\word;
+use controller\controller;
+use html\html_base;
+use html\view\view as view_dsp;
+
 $debug = $_GET['debug'] ?? 0;
 const ROOT_PATH = __DIR__ . '/../';
 include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 
 $db_con = prg_start("user");
+$html = new html_base();
+
+global $user_profiles;
 
 $result = ''; // reset the html code var
 
 // get the parameters
-$id = $_GET['id'];
-$back = $_GET['back'];
+$id = $_GET[controller::URL_VAR_ID];
+$back = $_GET[controller::API_BACK];
 $undo_val = $_GET['undo_value'];
 $undo_wrd = $_GET['undo_word'];
 $undo_lnk = $_GET['undo_triple'];
@@ -61,11 +79,11 @@ $dsp_usr_old = $usr->dsp_user();
 if ($usr->id() > 0) {
     log_debug($usr->id());
 
-    load_usr_data();
+    $usr->load_usr_data();
 
     // prepare the display
-    $dsp = new view_dsp_old($usr);
-    $dsp->load_by_code_id(view::USER);
+    $msk = new view($usr);
+    $msk->load_by_code_id(controller::DSP_USER);
 
     // do user change
     $result .= $usr->upd_pars($_GET);
@@ -107,75 +125,76 @@ if ($usr->id() > 0) {
 
     // undo user changes for formulas
     if ($undo_dsp > 0) {
-        $dsp = new view($usr);
-        $dsp->set_id($undo_dsp);
-        $dsp->del_usr_cfg();
+        $msk = new view($usr);
+        $msk->set_id($undo_dsp);
+        $msk->del_usr_cfg();
     }
 
     // undo user changes for formulas
     if ($undo_cmp > 0) {
-        $cmp = new view_cmp($usr);
+        $cmp = new component($usr);
         $cmp->set_id($undo_cmp);
         $cmp->del_usr_cfg();
     }
 
     // undo user changes for formulas
     if ($undo_cmp_lnk > 0) {
-        $cmp_lnk = new view_cmp_link($usr);
+        $cmp_lnk = new component_link($usr);
         $cmp_lnk->set_id($undo_cmp_lnk);
         $cmp_lnk->del_usr_cfg();
     }
 
-    $result .= $dsp->dsp_navbar($back);
+    $msk_dsp = new view_dsp($msk->api_json());
+    $result .= $msk_dsp->dsp_navbar($back);
     $result .= $dsp_usr->form_edit($back);
 
     // allow to import data
     if ($usr->can_import()) {
-        $result .= dsp_text_h2('<br>Data import<br>');
-        $result .= dsp_text_h3('<br>Import <a href="/http/import.php">JSON</a><br>');
-        $result .= dsp_text_h3('<br>');
+        $result .= $html->dsp_text_h2('<br>Data import<br>');
+        $result .= $html->dsp_text_h3('<br>Import <a href="/http/import.php">JSON</a><br>');
+        $result .= $html->dsp_text_h3('<br>');
     }
 
     // allow admins to test the system consistence
     if ($usr->is_admin()) {
-        $result .= dsp_text_h2('<br>System testing<br>');
-        $result .= dsp_text_h3('<br>Perform all unit <a href="/test/test.php">tests</a><br>');
-        $result .= dsp_text_h3('<br>Perform critical unit and integration <a href="/test/test_quick.php">tests</a><br>');
-        $result .= dsp_text_h3('<br>Force <a href="/test/test_base_config.php">reloading</a> the base configuration e.g. to check that the units definition are still OK.<br>');
-        $result .= dsp_text_h3('<br>');
+        $result .= $html->dsp_text_h2('<br>System testing<br>');
+        $result .= $html->dsp_text_h3('<br>Perform all unit <a href="/test/test.php">tests</a><br>');
+        $result .= $html->dsp_text_h3('<br>Perform critical unit and integration <a href="/test/test_quick.php">tests</a><br>');
+        $result .= $html->dsp_text_h3('<br>Force <a href="/test/test_base_config.php">reloading</a> the base configuration e.g. to check that the units definition are still OK.<br>');
+        $result .= $html->dsp_text_h3('<br>');
     }
 
     // display the user sandbox if there is something in
     $sandbox = $dsp_usr_old->dsp_sandbox($back);
     if (trim($sandbox) <> "") {
-        $result .= dsp_text_h2("Your changes, which are not standard");
+        $result .= $html->dsp_text_h2("Your changes, which are not standard");
         $result .= $sandbox;
-        $result .= dsp_text_h3('<br>');
+        $result .= $html->dsp_text_h3('<br>');
     }
 
     // display the user changes 
-    $changes = $dsp_usr_old->dsp_changes(0, SQL_ROW_LIMIT, 1, $back);
+    $changes = $dsp_usr_old->dsp_changes(0, sql_db::ROW_LIMIT, 1, $back);
     if (trim($changes) <> "") {
-        $result .= dsp_text_h2("Your latest changes");
+        $result .= $html->dsp_text_h2("Your latest changes");
         $result .= $changes;
-        $result .= dsp_text_h3('<br>');
+        $result .= $html->dsp_text_h3('<br>');
     }
 
     // display the program issues that the user has found if there are some
-    $errors = $dsp_usr_old->dsp_errors("", SQL_ROW_LIMIT, 1, $back);
+    $errors = $dsp_usr_old->dsp_errors("", sql_db::ROW_LIMIT, 1, $back);
     if (trim($errors) <> "") {
-        $result .= dsp_text_h2("Program issues that you found, that have not yet been solved.");
+        $result .= $html->dsp_text_h2("Program issues that you found, that have not yet been solved.");
         $result .= $errors;
-        $result .= dsp_text_h3('<br>');
+        $result .= $html->dsp_text_h3('<br>');
     }
 
     // display all program issues if the user is an admin
-    if ($usr->profile_id == cl(db_cl::USER_PROFILE, user_profile::ADMIN)) {
-        $errors_all = $dsp_usr_old->dsp_errors("other", SQL_ROW_LIMIT, 1, $back);
+    if ($usr->profile_id == $user_profiles->id(user_profile::ADMIN)) {
+        $errors_all = $dsp_usr_old->dsp_errors("other", sql_db::ROW_LIMIT, 1, $back);
         if (trim($errors_all) <> "") {
-            $result .= dsp_text_h2("Program issues that other user have found, that have not yet been solved.");
+            $result .= $html->dsp_text_h2("Program issues that other user have found, that have not yet been solved.");
             $result .= $errors_all;
-            $result .= dsp_text_h3('<br>');
+            $result .= $html->dsp_text_h3('<br>');
         }
     }
 

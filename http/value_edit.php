@@ -30,12 +30,20 @@
 */
 
 // standard zukunft header for callable php files to allow debugging and lib loading
+use controller\controller;
+use html\html_base;
+use html\view\view as view_dsp;
+use cfg\user;
+use cfg\value;
+use cfg\view;
+
 $debug = $_GET['debug'] ?? 0;
 const ROOT_PATH = __DIR__ . '/../';
 include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 
 // open database
 $db_con = prg_start("value_edit");
+$html = new html_base();
 
 $result = ''; // reset the html code var
 $msg = ''; // to collect all messages that should be shown to the user immediately
@@ -47,16 +55,16 @@ $result .= $usr->get();
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
 if ($usr->id() > 0) {
 
-    load_usr_data();
+    $usr->load_usr_data();
 
     // prepare the display
-    $dsp = new view_dsp_old($usr);
-    $dsp->load_by_code_id(view::VALUE_EDIT);
-    $back = $_GET['back'];     // the word id from which this value change has been called (maybe later any page)
+    $msk = new view($usr);
+    $msk->load_by_code_id(controller::DSP_VALUE_EDIT);
+    $back = $_GET[controller::API_BACK];     // the word id from which this value change has been called (maybe later any page)
 
     // create the value object to store the parameters so that if the edit form is shown again it is already filled
     $val = new value($usr);
-    $val->load_by_id($_GET['id']); // to load any missing parameters of the edit view like the group and phrases from the database
+    $val->load_by_id($_GET[controller::URL_VAR_ID]); // to load any missing parameters of the edit view like the group and phrases from the database
 
     if ($val->id() <= 0) {
         $result .= log_err("Value id missing for value_edit called from " . $back, "value_edit.php");
@@ -125,8 +133,9 @@ if ($usr->id() > 0) {
         // if nothing yet done display the edit view (and any message on the top)
         if ($result == '') {
             // show the value and the linked words to edit the value (again after removing or adding a word)
-            $result .= $dsp->dsp_navbar($back);
-            $result .= dsp_err($msg);
+            $msk_dsp = new view_dsp($msk->api_json());
+            $result .= $msk_dsp->dsp_navbar($back);
+            $result .= $html->dsp_err($msg);
 
             $result .= $val->dsp_edit($type_ids, $back);
         }

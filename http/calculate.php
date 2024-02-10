@@ -32,6 +32,12 @@
 
 */
 
+use cfg\formula_list;
+use cfg\library;
+use cfg\result_list;
+use cfg\db\sql_db;
+use cfg\user;
+
 $debug = $_GET['debug'] ?? 0;
 const ROOT_PATH = __DIR__ . '/../';
 include_once ROOT_PATH . 'src/main/php/zu_lib.php';
@@ -46,9 +52,10 @@ $usr_id = $_GET['user']; // to force another user view for testing the formula c
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
 if ($usr->id() > 0) {
 
-    load_usr_data();
+    $usr->load_usr_data();
+    $lib = new library();
 
-    $back = $_GET['back']; // the original calling page that should be shown after the change if finished
+    $back = $_GET[controller::API_BACK]; // the original calling page that should be shown after the change if finished
 
     // start displaying while calculating
     $calc_pos = 0;
@@ -66,26 +73,26 @@ if ($usr->id() > 0) {
         // load the formulas to calculate
         $frm_lst = new formula_list($usr);
         $frm_lst->load_all($block_size, $page);
-        echo "Calculate " . dsp_count($frm_lst->lst()) . " formulas<br>";
+        echo "Calculate " . $lib->dsp_count($frm_lst->lst()) . " formulas<br>";
 
         foreach ($frm_lst as $frm_request) {
 
             // build the calculation queue
-            $calc_fv_lst = new formula_value_list($usr);
-            $calc_lst = $calc_fv_lst->frm_upd_lst($frm_request, $back);
-            log_debug("calculate queue is build (number of values to check: " . dsp_count($calc_lst->lst()) . ")");
+            $calc_res_lst = new result_list($usr);
+            $calc_lst = $calc_res_lst->frm_upd_lst($frm_request, $back);
+            log_debug("calculate queue is build (number of values to check: " . $lib->dsp_count($calc_lst->lst()) . ")");
 
             // execute the queue
             foreach ($calc_lst->lst() as $r) {
 
                 // calculate one formula result
                 $frm = clone $r->frm;
-                $fv_lst = $frm->calc($r->wrd_lst);
+                $res_lst = $frm->calc($r->wrd_lst);
 
                 // show the user the progress every two seconds
                 if ($last_msg_time + UI_MIN_RESPONSE_TIME < time()) {
                     $calc_pct = ($calc_pos / sizeof($calc_lst->lst())) * 100;
-                    echo "" . round($calc_pct, 2) . "% calculated (" . $r->frm->name . " for " . $r->wrd_lst->name_linked() . " = " . $fv_lst->names() . ")<br>";
+                    echo "" . round($calc_pct, 2) . "% calculated (" . $r->frm->name . " for " . $r->wrd_lst->name_linked() . " = " . $res_lst->names() . ")<br>";
                     ob_flush();
                     flush();
                     $last_msg_time = time();

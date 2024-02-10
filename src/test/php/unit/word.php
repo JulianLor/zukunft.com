@@ -30,13 +30,24 @@
 
 */
 
-use api\word_api;
+namespace test;
+
+include_once DB_PATH . 'sql_db.php';
+include_once MODEL_WORD_PATH . 'word.php';
+include_once API_WORD_PATH . 'word.php';
+include_once WEB_WORD_PATH . 'word.php';
+
+use api\formula\formula as formula_api;
+use cfg\db\sql_db;
 use cfg\phrase_type;
+use cfg\word;
+use api\word\word as word_api;
+use html\word\word as word_dsp;
 
 class word_unit_tests
 {
 
-    function run(testing $t): void
+    function run(test_cleanup $t): void
     {
 
         global $usr;
@@ -54,26 +65,21 @@ class word_unit_tests
         $t->subheader('SQL user sandbox statement tests');
 
         $wrd = new word($usr);
-        $t->assert_load_sql_id($db_con, $wrd);
-        $t->assert_load_sql_name($db_con, $wrd);
+        $t->assert_sql_by_id($db_con, $wrd);
+        $t->assert_sql_by_name($db_con, $wrd);
+        $this->assert_sql_formula_name($t, $db_con, $wrd);
 
 
-        $t->subheader('SQL statement tests');
+        $t->subheader('SQL load default statement tests');
 
         // sql to load the word by id
         $wrd = new word($usr);
         $wrd->set_id(2);
-        $t->assert_load_standard_sql($db_con, $wrd);
-        $t->assert_not_changed_sql($db_con, $wrd);
-
-        // get the most often used view
-        $db_con->db_type = sql_db::POSTGRES;
-        $qp = $wrd->view_sql($db_con);
-        $t->assert_qp($qp, $db_con->db_type);
-
-        $db_con->db_type = sql_db::MYSQL;
-        $qp = $wrd->view_sql($db_con);
-        $t->assert_qp($qp, $db_con->db_type);
+        $t->assert_sql_standard($db_con, $wrd);
+        $t->assert_sql_not_changed($db_con, $wrd);
+        $t->assert_sql_user_changes($db_con, $wrd);
+        $t->assert_sql_changing_users($db_con, $wrd);
+        $this->assert_sql_view($t, $db_con, $wrd);
 
 
         $t->subheader('API unit tests');
@@ -89,8 +95,60 @@ class word_unit_tests
 
         $t->subheader('Im- and Export tests');
 
-        $t->assert_json(new word($usr), $json_file);
+        $t->assert_json_file(new word($usr), $json_file);
 
+
+        $t->subheader('HTML frontend unit tests');
+
+        $wrd = $t->dummy_word();
+        $t->assert_api_to_dsp($wrd, new word_dsp());
+
+    }
+
+    /**
+     * check the load SQL statements creation to get the word corresponding to the formula name
+     *
+     * @param test_cleanup $t the testing object with the error counter
+     * @param sql_db $db_con does not need to be connected to a real database
+     * @param word $wrd the user sandbox object e.g. a word
+     * @return void true if all tests are fine
+     */
+    private function assert_sql_formula_name(test_cleanup $t, sql_db $db_con, word $wrd): void
+    {
+        // check the Postgres query syntax
+        $db_con->db_type = sql_db::POSTGRES;
+        $qp = $wrd->load_sql_by_formula_name($db_con->sql_creator(), formula_api::TN_READ);
+        $result = $t->assert_qp($qp, $db_con->db_type);
+
+        // ... and check the MySQL query syntax
+        if ($result) {
+            $db_con->db_type = sql_db::MYSQL;
+            $qp = $wrd->load_sql_by_formula_name($db_con->sql_creator(), formula_api::TN_READ);
+            $t->assert_qp($qp, $db_con->db_type);
+        }
+    }
+
+    /**
+     * check the load SQL statements creation to get the view
+     *
+     * @param test_cleanup $t the testing object with the error counter
+     * @param sql_db $db_con does not need to be connected to a real database
+     * @param word $wrd the user sandbox object e.g. a word
+     * @return void true if all tests are fine
+     */
+    private function assert_sql_view(test_cleanup $t, sql_db $db_con, word $wrd): void
+    {
+        // check the Postgres query syntax
+        $db_con->db_type = sql_db::POSTGRES;
+        $qp = $wrd->view_sql($db_con);
+        $result = $t->assert_qp($qp, $db_con->db_type);
+
+        // ... and check the MySQL query syntax
+        if ($result) {
+            $db_con->db_type = sql_db::MYSQL;
+            $qp = $wrd->view_sql($db_con);
+            $t->assert_qp($qp, $db_con->db_type);
+        }
     }
 
 }

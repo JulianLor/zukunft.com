@@ -29,70 +29,50 @@
 
 */
 
-namespace api;
+namespace api\phrase;
 
-use cfg\phrase_type;
-use html\phrase_dsp;
-use html\triple_dsp;
-use html\verb_dsp;
-use html\word_dsp;
+include_once API_SANDBOX_PATH . 'combine_named.php';
+include_once API_WORD_PATH . 'word.php';
+include_once API_WORD_PATH . 'triple.php';
+include_once WEB_WORD_PATH . 'word.php';
+include_once WEB_WORD_PATH . 'triple.php';
+include_once WEB_PHRASE_PATH . 'phrase.php';
 
-class phrase_api extends user_sandbox_named_api
+use api\api;
+use api\sandbox\combine_named as combine_named_api;
+use api\sandbox\combine_object as combine_object_api;
+use api\word\triple as triple_api;
+use api\word\word as word_api;
+use html\word\word as word_dsp;
+use html\word\triple as triple_dsp;
+use html\phrase\phrase as phrase_dsp;
+use JsonSerializable;
+
+class phrase extends combine_named_api implements JsonSerializable
 {
 
-    // phrase names for stand-alone unit tests that are added with the system initial data load
-    // TN_* is the name of the phrase used for testing
-    // TD_* is the tooltip/description of the phrase
-    const TN_ZH_CITY_NAME = 'City of Zurich';
-    const TN_ZH_CITY = 'Zurich (City)';
-    const TN_ZH_CANTON_NAME = 'Canton Zurich';
-    const TN_ZH_CANTON = 'Zurich (Canton)';
-    const TN_ZH_COMPANY = "System Test Phrase: Zurich Insurance";
+    // the json field name in the api json message to identify if the figure is a value or result
+    const CLASS_WORD = 'word';
+    const CLASS_TRIPLE = 'triple';
 
+    // phrase names used for system testing
     const RESERVED_PHRASES = array(
-        self::TN_ZH_CANTON,
-        self::TN_ZH_CITY,
-        self::TN_ZH_COMPANY
+        triple_api::TN_ADD,
+        triple_api::TN_EXCLUDED
     );
     const TEST_TRIPLE_STANDARD = array(
-        self::TN_ZH_CANTON,
-        self::TN_ZH_CITY
+        triple_api::TN_ADD,
+        triple_api::TN_EXCLUDED
     );
 
-    // used only if the phrase is a triple
-    private ?triple_api $triple;
-
-    // the type of this phrase
-    private ?int $type_id;
 
     /*
      * construct and map
      */
 
-    function __construct(
-        int    $id = 0,
-        string $name = '',
-        string $from = '',
-        string $verb = '',
-        string $to = '')
+    function __construct(word_api|triple_api $obj)
     {
-        global $phrase_types;
-
-        parent::__construct($id, $name);
-        if ($from != '' and $to != '') {
-            $this->triple = new triple_api($id, $name, $from, $verb, $to);
-        }
-        $this->set_type($phrase_types->default_id());
-    }
-
-    /**
-     * reset the in memory fields used e.g. if some ids are updated
-     */
-    function reset(): void
-    {
-        $this->description = null;
-        $this->triple = null;
-        $this->set_type(null);
+        $this->set_obj($obj);
     }
 
 
@@ -100,24 +80,31 @@ class phrase_api extends user_sandbox_named_api
      * set and get
      */
 
-    function set_description(?string $description)
+    function set_phrase_obj(word_api|triple_api $obj): void
     {
-        $this->description = $description;
+        $this->obj = $obj;
     }
 
-    function description(): ?string
+    /**
+     * TODO remove this logic from the API and keep it only in the model, the database view and the frontend
+     *
+     * set the object id based on the given phrase id
+     * must have the same logic as the database view and the frontend
+     * @param int $id the phrase id that is converted to the object id
+     * @return void
+     */
+    function set_id(int $id): void
     {
-        return $this->description;
+        $this->set_obj_id(abs($id));
     }
 
-    function set_type(?int $type_id)
+    function id(): int
     {
-        $this->type_id = $type_id;
-    }
-
-    function type(): ?int
-    {
-        return $this->type_id;
+        if ($this->is_word()) {
+            return $this->obj_id();
+        } else {
+            return $this->obj_id() * -1;
+        }
     }
 
 
@@ -130,22 +117,24 @@ class phrase_api extends user_sandbox_named_api
      */
     function dsp_obj(): phrase_dsp
     {
-        $dsp_obj = new phrase_dsp($this->id, $this->name);
-        $dsp_obj->set_description($this->description());
+        if ($this->is_word()) {
+            $dsp_obj = $this->wrd_dsp()->phrase();
+        } else {
+            $dsp_obj = $this->trp_dsp()->phrase();
+        }
         return $dsp_obj;
     }
 
     protected function wrd_dsp(): word_dsp
     {
-        $wrd = new word_dsp($this->id, $this->name);
-        $wrd->set_type_id($this->type());
-        return $wrd;
+        $api_json = $this->get_json();
+        return new word_dsp($api_json);
     }
 
     protected function trp_dsp(): triple_dsp
     {
-        $trp = new triple_dsp($this->id, $this->name);
-        $trp->set_type_id($this->type());
+        $trp = new triple_dsp($this->get_json());
+        $trp->set_type_id($this->type_id());
         return $trp;
     }
 
@@ -159,7 +148,7 @@ class phrase_api extends user_sandbox_named_api
      */
     function is_word(): bool
     {
-        if ($this->id > 0) {
+        if ($this->obj()::class == word_api::class) {
             return true;
         } else {
             return false;
@@ -168,19 +157,22 @@ class phrase_api extends user_sandbox_named_api
 
 
     /*
-     * info
+     * interface
      */
 
     /**
-     * @return bool true if one of the phrases that classify this value is of type percent
+     * @return array with the value vars including the private vars
      */
-    function is_percent(): bool
+    function jsonSerialize(): array
     {
+        $vars = parent::jsonSerialize();
+        $vars[api::FLD_ID] = $this->obj_id();
         if ($this->is_word()) {
-            return $this->wrd_dsp()->is_percent();
+            $vars[combine_object_api::FLD_CLASS] = self::CLASS_WORD;
         } else {
-            return $this->trp_dsp()->is_percent();
+            $vars[combine_object_api::FLD_CLASS] = self::CLASS_TRIPLE;
         }
+        return $vars;
     }
 
 }

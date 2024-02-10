@@ -30,11 +30,19 @@
 */
 
 // for callable php files the standard zukunft.com header to load all classes and allow debugging
+use controller\controller;
+use html\view\view as view_dsp;
+use cfg\result;
+use cfg\user;
+use cfg\view;
+
 $debug = $_GET['debug'] ?? 0;
 const ROOT_PATH = __DIR__ . '/../';
 include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 
 $db_con = prg_start("formula_result");
+
+global $system_views;
 
 $result = ''; // reset the html code var
 
@@ -43,18 +51,19 @@ $session_usr = new user;
 $result .= $session_usr->get();
 
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
-if ($session_usr->id > 0) {
+if ($session_usr->id() > 0) {
 
-    load_usr_data();
+    $session_usr->load_usr_data();
 
     // show the header
-    $dsp = new view_dsp_old($session_usr);
-    $dsp->set_id(cl(db_cl::VIEW, view::FORMULA_EXPLAIN));
-    $back = $_GET['back']; // the page (or phrase id) from which formula testing has been called
-    $result .= $dsp->dsp_navbar($back);
+    $msk = new view($session_usr);
+    $msk->set_id($system_views->id(controller::DSP_FORMULA_EXPLAIN));
+    $back = $_GET[controller::API_BACK]; // the page (or phrase id) from which formula testing has been called
+    $msk_dsp = new view_dsp($msk->api_json());
+    $result .= $msk_dsp->dsp_navbar($back);
 
     // get the parameters
-    $frm_val_id = $_GET['id'];      // id of the formula result if known already
+    $frm_val_id = $_GET[controller::URL_VAR_ID];      // id of the formula result if known already
     $frm_id = $_GET['formula']; // id of the formula which values should be explained
     $phr_id = $_GET['word'];    // id of the leading word used to order the result explaining
     //$wrd_group_id = $_GET['group'];   // id of the word group (excluding and time word)
@@ -62,14 +71,14 @@ if ($session_usr->id > 0) {
 
     // explain the result
     if ($frm_val_id > 0 or $frm_id > 0) {
-        $fv = new formula_value($session_usr);
-        $fv->load_by_id($frm_val_id);
-        if ($fv->id() > 0) {
-            $result .= $fv->explain($phr_id, $back);
+        $res = new result($session_usr);
+        $res->load_by_id($frm_val_id);
+        if ($res->id() > 0) {
+            $result .= $res->explain($phr_id, $back);
         } else {
             $result .= log_err("Formula result with id " . $frm_val_id . ' not found.', "formula_result.php");
         }
-        log_debug('formula_result.php explained (id' . $fv->id() . ' for user ' . $session_usr->name . ')');
+        log_debug('formula_result.php explained (id' . $res->id() . ' for user ' . $session_usr->name . ')');
     } else {
         // ... or complain about a wrong call
         $url_txt = "";

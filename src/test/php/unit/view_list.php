@@ -30,12 +30,17 @@
 
 */
 
-use api\word_api;
-use cfg\phrase_type;
+namespace test;
+
+use api\view\view as view_api;
+use cfg\view;
+use cfg\view_sys_list;
+use cfg\db\sql_db;
+use cfg\view_list;
 
 class view_list_unit_tests
 {
-    function run(testing $t): void
+    function run(test_cleanup $t): void
     {
 
         global $usr;
@@ -44,6 +49,7 @@ class view_list_unit_tests
         $db_con = new sql_db();
         $t->name = 'view_list->';
         $t->resource_path = 'db/view/';
+        $json_file = 'unit/view/view_list.json';
         $usr->set_id(1);
 
         $t->header('Unit tests of the view list class (src/main/php/model/view/view_list.php)');
@@ -54,28 +60,63 @@ class view_list_unit_tests
         $sys_dsp_lst = new view_sys_list($usr);
         $this->assert_sql_sys_views($t, $db_con, $sys_dsp_lst);
 
+        // load of non system view
+        $msk_lst = new view_list($usr);
+        $t->assert_sql_names($db_con, $msk_lst, new view($usr));
+        $t->assert_sql_names($db_con, $msk_lst, new view($usr), view_api::TN_READ);
+
+        $msk_lst = new view_list($usr);
+        $this->assert_sql_by_component_id($t, $db_con, $msk_lst);
+
+
+        $t->subheader('Im- and Export tests');
+
+        $t->assert_json_file(new view_list($usr), $json_file);
+
     }
 
     /**
-     * test the SQL statement creation for a word list in all SQL dialect
+     * test the SQL statement creation for the system view list in all SQL dialect
      * and check if the statement name is unique
      *
-     * @param testing $t the test environment
+     * @param test_cleanup $t the test environment
      * @param sql_db $db_con the test database connection
      * @param view_sys_list $lst
      * @return void
      */
-    private function assert_sql_sys_views(testing $t, sql_db $db_con, view_sys_list $lst): void
+    private function assert_sql_sys_views(test_cleanup $t, sql_db $db_con, view_sys_list $lst): void
     {
         // check the Postgres query syntax
         $db_con->db_type = sql_db::POSTGRES;
         $qp = $lst->load_sql_list($db_con);
-        $t->assert_qp($qp, sql_db::POSTGRES);
+        $t->assert_qp($qp, $db_con->db_type);
 
         // check the MySQL query syntax
         $db_con->db_type = sql_db::MYSQL;
         $qp = $lst->load_sql_list($db_con);
-        $t->assert_qp($qp, sql_db::MYSQL);
+        $t->assert_qp($qp, $db_con->db_type);
+    }
+
+    /**
+     * test the SQL statement creation for a view list in all SQL dialect
+     * and check if the statement name is unique
+     *
+     * @param test_cleanup $t the test environment
+     * @param sql_db $db_con the test database connection
+     * @param view_list $lst the view list object for the sql creation
+     * @return void
+     */
+    private function assert_sql_by_component_id(test_cleanup $t, sql_db $db_con, view_list $lst): void
+    {
+        // check the Postgres query syntax
+        $db_con->db_type = sql_db::POSTGRES;
+        $qp = $lst->load_sql_by_component_id($db_con, 1);
+        $t->assert_qp($qp, $db_con->db_type);
+
+        // check the MySQL query syntax
+        $db_con->db_type = sql_db::MYSQL;
+        $qp = $lst->load_sql_by_component_id($db_con, 1);
+        $t->assert_qp($qp, $db_con->db_type);
     }
 
 }

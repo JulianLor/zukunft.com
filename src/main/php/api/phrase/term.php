@@ -29,93 +29,95 @@
 
 */
 
-namespace api;
+namespace api\phrase;
 
-use cfg\phrase_type;
-use formula;
-use html\formula_dsp;
-use html\phrase_dsp;
-use html\triple_dsp;
-use html\verb_dsp;
-use html\word_dsp;
-use verb;
-use word;
-use triple;
+include_once API_SANDBOX_PATH . 'combine_named.php';
+include_once API_WORD_PATH . 'word.php';
+include_once API_WORD_PATH . 'triple.php';
+include_once API_FORMULA_PATH . 'formula.php';
+include_once API_VERB_PATH . 'verb.php';
+include_once WEB_WORD_PATH . 'word.php';
+include_once WEB_WORD_PATH . 'triple.php';
+include_once WEB_FORMULA_PATH . 'formula.php';
+include_once WEB_VERB_PATH . 'verb.php';
+include_once WEB_PHRASE_PATH . 'term.php';
 
-class term_api extends user_sandbox_named_api
+use api\api;
+use api\formula\formula as formula_api;
+use api\sandbox\combine_named as combine_named_api;
+use api\sandbox\combine_object as combine_object_api;
+use api\verb\verb as verb_api;
+use api\word\triple as triple_api;
+use api\word\word as word_api;
+use html\phrase\phrase as phrase_dsp;
+use html\word\word as word_dsp;
+use html\word\triple as triple_dsp;
+use html\formula\formula as formula_dsp;
+use html\verb\verb as verb_dsp;
+use JsonSerializable;
+
+class term extends combine_named_api implements JsonSerializable
 {
 
-    // the word, triple, verb or formula object
-    private ?user_sandbox_api $obj = null;
+    // the json field name in the api json message to identify if the term is a word, triple, verb or formula
+    const CLASS_WORD = 'word';
+    const CLASS_TRIPLE = 'triple';
+    const CLASS_VERB = 'verb';
+    const CLASS_FORMULA = 'formula';
 
-    // the type of this phrase
-    private phrase_type $type;
 
     /*
      * construct and map
      */
 
-    function __construct(
-        int    $id = 0,
-        string $name = '',
-        string $obj = null)
+    function __construct(word_api|triple_api|formula_api|verb_api $obj)
     {
-        parent::__construct($id, $name);
-        $this->set_obj_id($id, $obj);
-        $this->name = $name;
-        // TODO set type
-        // $this->type = phrase_type::NORMAL;
+        $this->set_obj($obj);
     }
 
-    /**
-     * reset the in memory fields used e.g. if some ids are updated
-     */
-    function reset(): void
-    {
-        $this->description = null;
-    }
 
     /*
      * set and get
      */
 
-    function set_description(?string $description)
+    function set_term_obj(word_api|triple_api|verb_api|formula_api $obj): void
     {
-        $this->description = $description;
-    }
-
-    function description(): ?string
-    {
-        return $this->description;
+        $this->obj = $obj;
     }
 
     /**
-     * @param int $id the object id that is converted to the term id
+     * TODO remove this logic from the API and keep it only in the model, the database view and the frontend
+     *
+     * set the object id based on the given term id
+     * must have the same logic as the database view and the frontend
+     * @param int $id the term id that is converted to the object id
      * @return void
      */
-    function set_obj_id(int $id, string $class): void
+    function set_id(int $id): void
     {
-        if ($class == word::class) {
-            $this->id = ($id * 2) - 1;
-        } elseif ($class == triple::class) {
-            $this->id = ($id * -2) + 1;
-        } elseif ($class == formula::class) {
-            $this->id = ($id * 2);
-        } elseif ($class == verb::class) {
-            $this->id = ($id * -2);
+        if ($id % 2 == 0) {
+            $this->set_obj_id(abs($id) / 2);
+        } else {
+            $this->set_obj_id((abs($id) + 1) / 2);
         }
     }
 
     /**
-     * @return int the id of the containing object witch is (corresponding to id())
-     * e.g 1 for a word, 1 for a phrase, 1 for a formula and 1 for a verb
+     * @return int the id of the term generated from the object id
+     * e.g 1 for a word 1, -1 for a triple 1, 2 for a formula 1 and -2 for a verb 1
      */
-    function id_obj(): int
+    function id(): int
     {
-        if ($this->id % 2 == 0) {
-            return abs($this->id / 2);
+        if ($this->is_word()) {
+            return ($this->obj_id() * 2) - 1;
+        } elseif ($this->is_triple()) {
+            return ($this->obj_id() * -2) + 1;
+        } elseif ($this->is_formula()) {
+            return ($this->obj_id() * 2);
+        } elseif ($this->is_verb()) {
+            return ($this->obj_id() * -2);
         } else {
-            return abs(($this->id + 1) / 2);
+            return 0;
         }
     }
 
@@ -129,30 +131,32 @@ class term_api extends user_sandbox_named_api
      */
     function dsp_obj(): phrase_dsp
     {
-        $dsp_obj = new phrase_dsp($this->id, $this->name);
+        $dsp_obj = new phrase_dsp($this->obj()->dsp_obj());
+        $dsp_obj->set_name($this->description());
         $dsp_obj->set_description($this->description());
         return $dsp_obj;
     }
 
     protected function wrd_dsp(): word_dsp
     {
-        return new word_dsp($this->id_obj(), $this->name);
+        return new word_dsp($this->obj_id(), $this->name());
     }
 
     protected function trp_dsp(): triple_dsp
     {
-        return new triple_dsp($this->id_obj(), $this->name);
+        return new triple_dsp($this->obj_id(), $this->name());
     }
 
     protected function frm_dsp(): formula_dsp
     {
-        return new formula_dsp($this->id_obj(), $this->name);
+        return new formula_dsp($this->obj_id(), $this->name());
     }
 
     protected function vrb_dsp(): verb_dsp
     {
-        return new verb_dsp($this->id_obj(), $this->name);
+        return new verb_dsp($this->obj_id(), $this->name());
     }
+
 
     /*
      * classifications
@@ -163,7 +167,7 @@ class term_api extends user_sandbox_named_api
      */
     function is_word(): bool
     {
-        if ($this->class_from_id() == word::class) {
+        if ($this->obj()::class == word_api::class) {
             return true;
         } else {
             return false;
@@ -175,7 +179,7 @@ class term_api extends user_sandbox_named_api
      */
     function is_triple(): bool
     {
-        if ($this->class_from_id() == triple::class) {
+        if ($this->obj()::class == triple_api::class) {
             return true;
         } else {
             return false;
@@ -187,7 +191,7 @@ class term_api extends user_sandbox_named_api
      */
     function is_formula(): bool
     {
-        if ($this->class_from_id() == formula::class) {
+        if ($this->obj()::class == formula_api::class) {
             return true;
         } else {
             return false;
@@ -199,28 +203,40 @@ class term_api extends user_sandbox_named_api
      */
     function is_verb(): bool
     {
-        if ($this->class_from_id() == verb::class) {
+        if ($this->obj()::class == verb_api::class) {
             return true;
         } else {
             return false;
         }
     }
 
-    private function class_from_id(): string
+
+    /*
+     * interface
+     */
+
+    /**
+     * @return array with the value vars including the private vars
+     * corresponding to the web api_array function:
+     * use the object id not the term id because the class is included
+     * maybe to reduce traffic remove the class but than the term id needs to be used
+     */
+    function jsonSerialize(): array
     {
-        if ($this->id % 2 != 0) {
-            if ($this->id > 0) {
-                return word::class;
-            } else {
-                return triple::class;
-            }
+        $vars = parent::jsonSerialize();
+        $vars[api::FLD_ID] = $this->obj_id();
+        if ($this->is_word()) {
+            $vars[combine_object_api::FLD_CLASS] = self::CLASS_WORD;
+        } elseif ($this->is_triple()) {
+            $vars[combine_object_api::FLD_CLASS] = self::CLASS_TRIPLE;
+        } elseif ($this->is_formula()) {
+            $vars[combine_object_api::FLD_CLASS] = self::CLASS_FORMULA;
+        } elseif ($this->is_verb()) {
+            $vars[combine_object_api::FLD_CLASS] = self::CLASS_VERB;
         } else {
-            if ($this->id > 0) {
-                return formula::class;
-            } else {
-                return verb::class;
-            }
+            log_err('class ' . $this->obj()::class . ' of term ' . $this->name() . ' not expected');
         }
+        return $vars;
     }
 
 }

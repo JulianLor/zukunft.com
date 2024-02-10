@@ -30,7 +30,15 @@
 
 */
 
-function run_system_test(testing $t): void
+use api\word\word as word_api;
+use cfg\user;
+use cfg\user_list;
+use test\test_cleanup;
+use const test\TEST_EMAIL;
+use const test\TEST_USER_DESCRIPTION;
+use const test\TEST_USER_IP;
+
+function run_system_test(test_cleanup $t): void
 {
 
     global $usr;
@@ -38,9 +46,9 @@ function run_system_test(testing $t): void
     $t->header('Consistency check of the \"zukunft.com\" code');
 
     // load the main test word
-    $wrd_company = $t->test_word(TEST_WORD);
+    $wrd_company = $t->test_word(word_api::TN_COMPANY);
 
-    if (TEST_EMAIL == TRUE) {
+    if (TEST_EMAIL) {
         $t->header('est mail sending');
         $mail_to = 'timon@zukunft.com';
         $mail_subject = 'Test mailto';
@@ -54,7 +62,7 @@ function run_system_test(testing $t): void
 
 
     // check if the owner is always setting
-    //$sbx = New user_sandbox;
+    //$sbx = New _sandbox;
     //$chk_txt = $sbx->chk_owner(sql_db::TBL_TRIPLE, False); if ($chk_txt <> '') { echo $chk_txt."<br>"; }
 
     $t->header('Test the blocked IP addresses');
@@ -68,7 +76,7 @@ function run_system_test(testing $t): void
     if ($usr_test->id() > 0) {
         $result = 'permitted!';
     }
-    $t->dsp('IP blocking for ' . $usr_test->ip_addr, $target, $result);
+    $t->display('IP blocking for ' . $usr_test->ip_addr, $target, $result);
 
 
     $t->header('Test the user class (classes/user.php)');
@@ -79,12 +87,12 @@ function run_system_test(testing $t): void
     $usr_test->load_by_name(user::SYSTEM_TEST_NAME);
     $target = '<a href="/http/user.php?id=' . $usr_test->id() . '">zukunft.com system test</a>';
     $result = $usr->display();
-    $t->dsp('user->load for id ' . $wrd_company->id(), $target, $result);
+    $t->display('user->load for id ' . $wrd_company->id(), $target, $result);
 
 
     $t->header('Test the user list class (classes/user_list.php)');
 
-    $usr_lst = new user_list;
+    $usr_lst = new user_list($usr);
     $usr_lst->load_active();
     $result = $usr_lst->name_lst();
     $target = TEST_USER_DESCRIPTION;

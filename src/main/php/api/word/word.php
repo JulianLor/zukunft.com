@@ -30,14 +30,15 @@
 
 */
 
-namespace api;
+namespace api\word;
 
+use api\phrase\phrase as phrase_api;
+use api\phrase\term as term_api;
+use api\sandbox\sandbox_typed as sandbox_typed_api;
 use cfg\phrase_type;
-use html\term_dsp;
-use html\word_dsp;
-use word;
+use cfg\word as word_cfg;
 
-class word_api extends user_sandbox_named_with_type_api
+class word extends sandbox_typed_api
 {
 
     /*
@@ -46,37 +47,75 @@ class word_api extends user_sandbox_named_with_type_api
 
     // word names for stand-alone unit tests that are added with the system initial data load
     // TN_* is the name of the word used for testing
+    // TI_* is the database id based on the initial load
     // TD_* is the tooltip/description of the word
-    const TN_READ = 'Mathematical constant';
-    const TD_READ = 'A mathematical constant that never changes e.g. Pi';
-    const TN_CONST = 'Pi';
-    const TN_COUNTRY = 'Country';
-    const TN_CANTON = 'Canton';
-    const TN_CITY = 'City';
-    const TN_CH = 'Switzerland';
-    const TN_READ_GERMANY = 'Germany';
-    const TN_ZH = 'Zurich';
-    const TN_ZH_CANTON = 'Zurich (Canton)';
-    const TN_ZH_CITY = 'Zurich (City)';
-    const TN_INHABITANTS = 'inhabitants';
-    const TN_INHABITANT = 'inhabitant';
+    const TN_READ = 'Mathematics';
+    const TD_READ = 'Mathematics is an area of knowledge that includes the topics of numbers and formulas';
+    const TI_MATH = 1;
+    const TN_CONST = 'constant';
+    const TD_CONST = 'fixed and well-defined number';
+    const TI_CONST = 2;
+    const TN_PI = 'Pi';
+    const TI_PI = 3;
+    const TD_PI = 'ratio of the circumference of a circle to its diameter';
+    const TN_E = "Euler's constant";
+    const TI_E = 4;
+    const TN_CIRCUMFERENCE = 'circumference';
+    const TI_CIRCUMFERENCE = 134;
+    const TN_DIAMETER = 'diameter';
+    const TI_DIAMETER = 135;
     const TN_ONE = 'one';
+    const TI_ONE = 162;
     const TN_MIO = 'million';
+    const TI_MIO = 164;
     const TN_MIO_SHORT = 'mio';
+    const TN_MINUTE = 'minute';
+    const TI_MINUTE = 98;
+    const TN_SECOND = 'second';
+    const TI_SECOND = 17;
+    const TN_COUNTRY = 'Country';
+    const TN_CH = 'Switzerland';
+    const TI_CH = 190;
+    const TN_DE = 'Germany';
+    const TN_CANTON = 'Canton';
+    const TI_CANTON = 191;
+    const TN_CITY = 'City';
+    const TI_CITY = 192;
+    const TN_ZH = 'Zurich';
+    const TI_ZH = 193;
+    const TN_BE = 'Bern';
+    const TI_BE = 194;
+    const TN_GE = 'Geneva';
+    const TI_GE = 195;
+    const TN_INHABITANT = 'inhabitant';
+    const TI_INHABITANT = 197;
+    const TN_INHABITANTS = 'inhabitants';
+    const TN_YEAR = 'Year';
     const TN_2015 = '2015';
     const TN_2016 = '2016';
     const TN_2017 = '2017';
     const TN_2018 = '2018';
     const TN_2019 = '2019';
+    const TI_2019 = 16;
     const TN_2020 = '2020';
-    const TN_YEAR = 'Year';
+    const TI_2020 = 202;
     const TN_PCT = 'percent';
+    const TI_PCT = 166;
+    // _PRE are the predefined words
+    const TN_THIS_PRE = 'this'; // the test name for the predefined word 'this'
+    const TI_THIS = 185;
+    const TN_PRIOR_PRE = 'prior';
+    const TI_PRIOR = 187;
+    const TN_PARTS = 'parts';
+    const TI_PARTS = 210;
+    const TN_TOTAL_PRE = 'total';
+    const TI_TOTAL = 211;
+    const TN_COMPANY = 'Company';
 
     // persevered word names for unit and integration tests based on the database
     const TN_ADD = 'System Test Word';
     const TN_RENAMED = 'System Test Word Renamed';
     const TN_PARENT = 'System Test Word Parent';
-    const TN_COMPANY = 'System Test Word Group e.g. Company';
     const TN_FIN_REPORT = 'System Test Word with many relations e.g. Financial Report';
     const TN_CASH_FLOW = 'System Test Word Parent without Inheritance e.g. Cash Flow Statement';
     const TN_TAX_REPORT = 'System Test Word Child without Inheritance e.g. Income Taxes';
@@ -112,14 +151,37 @@ class word_api extends user_sandbox_named_with_type_api
     const TD_UPD_API = 'System Test Word API Description Renamed';
 
 
-    // word groups for creating the test words and remove them after the test
+    // list of predefined words used for system testing that are expected to be never renamed
     const RESERVED_WORDS = array(
-        word::DB_SETTINGS,
+        word_cfg::SYSTEM_CONFIG,
         self::TN_READ,
+        self::TN_CONST,
+        self::TN_PI,
+        self::TN_ONE,
+        self::TN_MIO,
+        self::TN_MIO_SHORT,
+        self::TN_COUNTRY,
+        self::TN_CH,
+        self::TN_DE,
+        self::TN_CANTON,
+        self::TN_CITY,
+        self::TN_ZH,
+        self::TN_BE,
+        self::TN_GE,
+        self::TN_INHABITANT,
+        self::TN_INHABITANTS,
+        self::TN_YEAR,
+        self::TN_2015,
+        self::TN_2016,
+        self::TN_2017,
+        self::TN_2018,
+        self::TN_2019,
+        self::TN_2020,
+        self::TN_PCT,
+        self::TN_COMPANY,
         self::TN_ADD,
         self::TN_RENAMED,
         self::TN_PARENT,
-        self::TN_COMPANY,
         self::TN_FIN_REPORT,
         self::TN_CASH_FLOW,
         self::TN_TAX_REPORT,
@@ -151,29 +213,81 @@ class word_api extends user_sandbox_named_with_type_api
         self::TN_ADD_API,
         self::TN_UPD_API
     );
-    const TEST_WORDS_STANDARD = array(
+    // list of words that are used for system testing that should be removed are the system test has been completed
+    // and that are never expected to be used by a user
+    const TEST_WORDS = array(
+        self::TN_ADD,
+        self::TN_RENAMED,
         self::TN_PARENT,
-        self::TN_CH,
-        self::TN_COUNTRY,
-        self::TN_CANTON,
-        self::TN_CITY,
-        self::TN_COMPANY,
+        self::TN_FIN_REPORT,
         self::TN_CASH_FLOW,
         self::TN_TAX_REPORT,
-        self::TN_INHABITANTS,
-        self::TN_MIO,
-        self::TN_INCREASE,
-        self::TN_YEAR,
-        self::TN_2020,
+        self::TN_ASSETS,
+        self::TN_ASSETS_CURRENT,
+        self::TN_SECTOR,
+        self::TN_ENERGY,
+        self::TN_WIND_ENERGY,
+        self::TN_CASH,
+        self::TN_2021,
+        self::TN_2022,
+        self::TN_CHF,
         self::TN_SHARE,
         self::TN_PRICE,
         self::TN_EARNING,
         self::TN_PE,
-        self::TN_TOTAL
+        self::TN_IN_K,
+        self::TN_BIL,
+        self::TN_TOTAL,
+        self::TN_INCREASE,
+        self::TN_THIS,
+        self::TN_PRIOR,
+        self::TN_TIME_JUMP,
+        self::TN_LATEST,
+        self::TN_SCALING_PCT,
+        self::TN_SCALING_MEASURE,
+        self::TN_CALC,
+        self::TN_LAYER,
+        self::TN_ADD_API,
+        self::TN_UPD_API
+    );
+    // list of words that are used for system testing and that should be created before the system test starts
+    const TEST_WORDS_CREATE = array(
+        self::TN_ADD,
+        self::TN_PARENT,
+        self::TN_FIN_REPORT,
+        self::TN_CASH_FLOW,
+        self::TN_TAX_REPORT,
+        self::TN_ASSETS,
+        self::TN_ASSETS_CURRENT,
+        self::TN_SECTOR,
+        self::TN_ENERGY,
+        self::TN_WIND_ENERGY,
+        self::TN_CASH,
+        self::TN_2021,
+        self::TN_2022,
+        self::TN_CHF,
+        self::TN_SHARE,
+        self::TN_PRICE,
+        self::TN_EARNING,
+        self::TN_PE,
+        self::TN_IN_K,
+        self::TN_BIL,
+        self::TN_TOTAL,
+        self::TN_INCREASE,
+        self::TN_THIS,
+        self::TN_PRIOR,
+        self::TN_TIME_JUMP,
+        self::TN_LATEST,
+        self::TN_SCALING_PCT,
+        self::TN_SCALING_MEASURE,
+        self::TN_CALC,
+        self::TN_LAYER,
+        self::TN_ADD_API,
+        self::TN_UPD_API
     );
     const TEST_WORDS_MEASURE = array(self::TN_CHF);
     const TEST_WORDS_SCALING_HIDDEN = array(self::TN_ONE);
-    const TEST_WORDS_SCALING = array(self::TN_IN_K, self::TN_MIO, self::TN_BIL);
+    const TEST_WORDS_SCALING = array(self::TN_IN_K, self::TN_MIO, self::TN_MIO_SHORT, self::TN_BIL);
     const TEST_WORDS_PERCENT = array(self::TN_PCT);
     // the time words must be in correct order because the following is set during creation
     const TEST_WORDS_TIME_YEAR = array(
@@ -181,8 +295,6 @@ class word_api extends user_sandbox_named_with_type_api
         self::TN_2016,
         self::TN_2017,
         self::TN_2018,
-        self::TN_2019,
-        self::TN_2020,
         self::TN_2021,
         self::TN_2022
     );
@@ -202,6 +314,7 @@ class word_api extends user_sandbox_named_with_type_api
     // the main parent phrase
     private ?phrase_api $parent;
 
+
     /*
      * construct and map
      */
@@ -214,11 +327,12 @@ class word_api extends user_sandbox_named_with_type_api
         $this->type_id = null;
     }
 
+
     /*
-     * get and set
+     * set and get
      */
 
-    function set_description(string $description): void
+    function set_description(?string $description): void
     {
         $this->description = $description;
     }
@@ -287,107 +401,17 @@ class word_api extends user_sandbox_named_with_type_api
      * cast
      */
 
-    function term(): term_api|term_dsp
+    /**
+     * @return phrase_api the related phrase api or display object with the basic values filled
+     */
+    function phrase(): phrase_api
     {
-        return new term_api($this->id, $this->name, word::class);
+        return new phrase_api($this);
     }
 
-    /**
-     * @returns word_dsp the cast object with the HTML code generating functions
-     */
-    function dsp_obj(): word_dsp
+    function term(): term_api
     {
-        $wrd_dsp = new word_dsp($this->id, $this->name, $this->description);
-        $wrd_dsp->plural = $this->plural;
-        $wrd_dsp->type_id = $this->type_id;
-        if ($this->parent != null) {
-            $wrd_dsp->parent = $this->parent->dsp_obj();
-        }
-        return $wrd_dsp;
-    }
-
-    /*
-     * type functions
-     */
-
-    /**
-     * repeating of the backend functions in the frontend to enable filtering in the frontend and reduce the traffic
-     * repeated in triple, because a triple can have it's own type
-     * kind of repeated in phrase to use hierarchies
-     *
-     * @param string $type the ENUM string of the fixed type
-     * @returns bool true if the word has the given type
-     * TODO Switch to php 8.1 and real ENUM
-     */
-    function is_type(string $type): bool
-    {
-        global $phrase_types;
-        $result = false;
-        if ($this->type_id() != Null) {
-            if ($this->type_id() == $phrase_types->id($type)) {
-                $result = true;
-            }
-        }
-        return $result;
-    }
-
-    /**
-     * @return bool true if the word has the type "time" e.g. "2022 (year)"
-     */
-    function is_time(): bool
-    {
-        return $this->is_type(phrase_type::TIME);
-    }
-
-    /**
-     * @return bool true if the word has the type "time" e.g. "monthly"
-     */
-    function is_time_jump(): bool
-    {
-        return $this->is_type(phrase_type::TIME_JUMP);
-    }
-
-    /**
-     * @return bool true if the word has the type "measure" (e.g. "meter" or "CHF")
-     * in case of a division, these words are excluded from the result
-     * in case of add, it is checked that the added value does not have a different measure
-     */
-    function is_measure(): bool
-    {
-        return $this->is_type(phrase_type::MEASURE);
-    }
-
-    /**
-     * @return bool true if the word has the type "scaling" (e.g. "million", "million" or "one"; "one" is a hidden scaling type)
-     */
-    function is_scaling(): bool
-    {
-        $result = false;
-        if ($this->is_type(phrase_type::SCALING)
-            or $this->is_type(phrase_type::SCALING_HIDDEN)) {
-            $result = true;
-        }
-        return $result;
-    }
-
-    /**
-     * @return bool true if the word has the type "scaling_percent" (e.g. "percent")
-     */
-    function is_percent(): bool
-    {
-        return $this->is_type(phrase_type::PERCENT);
-    }
-
-    /**
-     * @return bool true if the word is normally not shown to the user e.g. scaling of one is assumed
-     */
-    function is_hidden(): bool
-    {
-        $result = false;
-        if ($this->is_type(phrase_type::SCALING_HIDDEN)) {
-            $result = true;
-        }
-        return $result;
+        return new term_api($this);
     }
 
 }

@@ -30,10 +30,21 @@
 
 */
 
+namespace test;
+
+include_once MODEL_VALUE_PATH . 'value_phrase_link.php';
+include_once MODEL_VALUE_PATH . 'value_phrase_link_list.php';
+
+use cfg\phrase;
+use cfg\db\sql_db;
+use cfg\value\value;
+use cfg\value\value_phrase_link;
+use cfg\value\value_phrase_link_list;
+
 class value_phrase_link_unit_tests
 {
 
-    function run(testing $t)
+    function run(test_cleanup $t)
     {
 
         global $usr;
@@ -51,15 +62,15 @@ class value_phrase_link_unit_tests
 
         // sql to load a value phrase link by id
         $val_phr_lnk = new value_phrase_link($usr);
-        $val_phr_lnk->id = 1;
-        $t->assert_load_sql_obj_vars($db_con, $val_phr_lnk);
+        $val_phr_lnk->set_id(1);
+        $t->assert_sql_by_obj_vars($db_con, $val_phr_lnk);
 
         // sql to load a value phrase link by value, phrase and user id
         $val_phr_lnk = new value_phrase_link($usr);
-        $val_phr_lnk->id = 0;
+        $val_phr_lnk->set_id(0);
         $val_phr_lnk->val->set_id(1);
         $val_phr_lnk->phr->set_id(2);
-        $t->assert_load_sql_obj_vars($db_con, $val_phr_lnk);
+        $t->assert_sql_by_obj_vars($db_con, $val_phr_lnk);
 
 
         $t->subheader('Database list query creation tests');
@@ -68,13 +79,13 @@ class value_phrase_link_unit_tests
         $val_phr_lnk_lst = new value_phrase_link_list($usr);
         $phr = new phrase($usr);
         $phr->set_id(2);
-        $this->assert_lst_sql_all($t, $db_con, $val_phr_lnk_lst, $phr);
+        $this->assert_sql_lst_all($t, $db_con, $val_phr_lnk_lst, $phr);
 
         // sql to load a value phrase link list by phrase id
         $val_phr_lnk_lst = new value_phrase_link_list($usr);
         $val = new value($usr);
         $val->set_id(3);
-        $this->assert_lst_sql_all($t, $db_con, $val_phr_lnk_lst, null, $val);
+        $this->assert_sql_lst_all($t, $db_con, $val_phr_lnk_lst, null, $val);
 
     }
 
@@ -82,24 +93,24 @@ class value_phrase_link_unit_tests
      * test the SQL statement creation for a value phrase link list in all SQL dialect
      * and check if the statement name is unique
      *
-     * @param testing $t the test environment
+     * @param test_cleanup $t the test environment
      * @param sql_db $db_con the test database connection
      * @param value_phrase_link_list $lst filled with an id to be able to load
      * @param phrase|null $phr the phrase used for selection
      * @param value|null $val the value used for selection
      * @return void
      */
-    private function assert_lst_sql_all(testing $t, sql_db $db_con, value_phrase_link_list $lst, ?phrase $phr = null, ?value $val = null)
+    private function assert_sql_lst_all(test_cleanup $t, sql_db $db_con, value_phrase_link_list $lst, ?phrase $phr = null, ?value $val = null): void
     {
         // check the Postgres query syntax
         $db_con->db_type = sql_db::POSTGRES;
         $qp = $lst->load_sql($db_con, $phr, $val);
-        $t->assert_qp($qp, sql_db::POSTGRES);
+        $t->assert_qp($qp, $db_con->db_type);
 
         // check the MySQL query syntax
         $db_con->db_type = sql_db::MYSQL;
         $qp = $lst->load_sql($db_con, $phr, $val);
-        $t->assert_qp($qp, sql_db::MYSQL);
+        $t->assert_qp($qp, $db_con->db_type);
     }
 
 }

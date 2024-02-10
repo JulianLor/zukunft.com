@@ -30,12 +30,19 @@
 
 */
 
+use controller\controller;
+use html\html_base;
+use html\view\view as view_dsp;
+use cfg\user;
+use cfg\view;
+
 $debug = $_GET['debug'] ?? 0;
 const ROOT_PATH = __DIR__ . '/../';
 include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 
 // open database
 $db_con = prg_start("import");
+$html = new html_base();
 
 $result = ''; // reset the html code var
 $msg = ''; // to collect all messages that should be shown to the user immediately
@@ -43,17 +50,18 @@ $msg = ''; // to collect all messages that should be shown to the user immediate
 // load the session user parameters
 $usr = new user;
 $result .= $usr->get();
-$back = $_GET['back'];     // the word id from which this value change has been called (maybe later any page)
+$back = $_GET[controller::API_BACK];     // the word id from which this value change has been called (maybe later any page)
 
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
 log_debug('import.php check user ');
 if ($usr->id() > 0) {
 
-    load_usr_data();
+    $html = new html_base();
+    $usr->load_usr_data();
 
     // prepare the display
-    $dsp = new view_dsp_old($usr);
-    $dsp->load_by_code_id(view::IMPORT);
+    $msk = new view($usr);
+    $msk->load_by_code_id(controller::DSP_IMPORT);
 
     // get the filepath of the data that are supposed to be imported
     $fileName = $_FILES["fileToUpload"]["name"];
@@ -109,9 +117,7 @@ if ($usr->id() > 0) {
                 && is_uploaded_file($_FILES['fileToUpload']['tmp_name'])) {
                 $json_str = file_get_contents($_FILES['fileToUpload']['tmp_name']);
                 $import = new file_import;
-                $import->usr = $usr;
-                $import->json_str = $json_str;
-                $import_result = $import->put();
+                $import_result = $import->put($json_str, $usr);
                 if ($import_result->is_ok()) {
                     $msg .= ' done ('
                         . $import->words_done . ' words, '
@@ -123,6 +129,7 @@ if ($usr->id() > 0) {
                         . $import->values_done . ' values, '
                         . $import->list_values_done . ' simple values, '
                         . $import->views_done . ' views loaded, '
+                        . $import->components_done . ' components loaded, '
                         . $import->calc_validations_done . ' results validated, '
                         . $import->view_validations_done . ' views validated)';
                     if ($import->users_done > 0) {
@@ -152,10 +159,11 @@ if ($usr->id() > 0) {
     if ($result == '') {
         log_debug('import.php display mask ');
         // show the value and the linked words to edit the value (again after removing or adding a word)
-        $result .= $dsp->dsp_navbar($back);
-        $result .= dsp_err($msg);
+        $msk_dsp = new view_dsp($msk->api_json());
+        $result .= $msk_dsp->dsp_navbar($back);
+        $result .= $html->dsp_err($msg);
 
-        $result .= dsp_form_file_select();
+        $result .= $html->dsp_form_file_select();
         // $result .= dsp_btn_text ('Start import', '/http/import.php?confirm=1&filepath='.);
         /*
         if ($fileName == '') {

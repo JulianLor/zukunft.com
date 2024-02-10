@@ -30,11 +30,18 @@
 
 */
 
-use api\view_api;
+namespace test;
+
+use api\view\view as view_api;
+use cfg\view_term_link;
+use html\view\view as view_dsp;
+use cfg\library;
+use cfg\db\sql_db;
+use cfg\view;
 
 class view_unit_tests
 {
-    function run(testing $t): void
+    function run(test_cleanup $t): void
     {
 
         global $usr;
@@ -53,9 +60,10 @@ class view_unit_tests
         $t->subheader('SQL user sandbox statement tests');
 
         $dsp = new view($usr);
-        $t->assert_load_sql_id($db_con, $dsp);
-        $t->assert_load_sql_name($db_con, $dsp);
-        $t->assert_load_sql_code_id($db_con, $dsp);
+        $t->assert_sql_by_id($db_con, $dsp);
+        $t->assert_sql_by_name($db_con, $dsp);
+        $t->assert_sql_by_code_id($db_con, $dsp);
+        $t->assert_sql_by_term($db_con, $dsp, $t->dummy_term());
 
 
         $t->subheader('SQL statement tests');
@@ -64,22 +72,22 @@ class view_unit_tests
         $dsp = new view($usr);
         $dsp->set_id(2);
         //$t->assert_load_sql($db_con, $dsp);
-        $t->assert_load_standard_sql($db_con, $dsp);
-        $t->assert_user_config_sql($db_con, $dsp);
+        $t->assert_sql_standard($db_con, $dsp);
+        $t->assert_sql_user_changes($db_con, $dsp);
 
         // sql to load the view by name
         $dsp = new view($usr);
         $dsp->set_name(view_api::TN_ADD);
         //$t->assert_load_sql($db_con, $dsp);
-        $t->assert_load_standard_sql($db_con, $dsp);
+        $t->assert_sql_standard($db_con, $dsp);
 
         // sql to load the view components
         $dsp = new view($usr);
         $dsp->set_id(2);
         $db_con->db_type = sql_db::POSTGRES;
         $created_sql = $dsp->load_components_sql($db_con)->sql;
-        $expected_sql = $t->file('db/view/view_components_by_view_id.sql');
-        $t->dsp('view->load_components_sql by view id', $lib->trim($expected_sql), $lib->trim($created_sql));
+        $expected_sql = $t->file('db/component/components_by_view_id.sql');
+        $t->display('view->load_components_sql by view id', $lib->trim($expected_sql), $lib->trim($created_sql));
 
         // ... and check if the prepared sql name is unique
         $t->assert_sql_name_unique($dsp->load_components_sql($db_con)->name);
@@ -87,26 +95,26 @@ class view_unit_tests
         // ... and the same for MySQL by replication the SQL builder statements
         $db_con->db_type = sql_db::MYSQL;
         $created_sql = $dsp->load_components_sql($db_con)->sql;
-        $expected_sql = $t->file('db/view/view_components_by_view_id_mysql.sql');
-        $t->dsp('view->load_components_sql for MySQL', $lib->trim($expected_sql), $lib->trim($created_sql));
+        $expected_sql = $t->file('db/component/components_by_view_id_mysql.sql');
+        $t->display('view->load_components_sql for MySQL', $lib->trim($expected_sql), $lib->trim($created_sql));
 
-        $t->subheader('Convert tests');
-
-        // casting API
-        $dsp = new view($usr);
-        $dsp->set(1, view_api::TN_READ);
-        $dsp->description = view_api::TD_READ;
-        $dsp->code_id = view_api::TI_READ;
-        $t->assert_api($dsp);
-
-        /*
-         * im- and export tests
-         */
 
         $t->subheader('Im- and Export tests');
 
-        // TODO use view_dsp for testing and activate
-        //$t->assert_json(new view_dsp_old($usr), $json_file);
+        $t->assert_json_file(new view($usr), $json_file);
+
+
+        $t->subheader('API and frontend cast unit tests for views');
+
+        $dsp = $t->dummy_view();
+        $t->assert_api($dsp);
+        $t->assert_api_to_dsp($dsp, new view_dsp());
+
+        $dsp = $t->dummy_view_with_components();
+        $t->assert_api($dsp, 'view_with_components');
+        // TODO activate Prio 1
+        //$t->assert_api_to_dsp($dsp, new view_dsp());
+
 
         /*
          * Display tests
@@ -125,9 +133,16 @@ class view_unit_tests
         $wrd->set_name(word::TEST_NAME);
         $result = $dsp->display($wrd, 1);
         $target = '';
-        $t->dsp('view->display', $target, $result);
+        $t->display('view->display', $target, $result);
         */
 
+
+        $t->header('Unit tests of the view term link class (src/main/php/model/view/view_term_link.php)');
+
+        $t->subheader('SQL user sandbox statement tests');
+
+        $dsp = new view_term_link($usr);
+        $t->assert_sql_by_id($db_con, $dsp);
     }
 
 }

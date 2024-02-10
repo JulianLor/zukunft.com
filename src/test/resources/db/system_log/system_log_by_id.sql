@@ -1,4 +1,4 @@
-PREPARE system_log_by_id (int) AS
+PREPARE system_log_by_id (bigint) AS
     SELECT s.sys_log_id,
            s.user_id,
            s.solver_id,
@@ -6,6 +6,7 @@ PREPARE system_log_by_id (int) AS
            s.sys_log_type_id,
            s.sys_log_function_id,
            s.sys_log_text,
+           s.sys_log_description,
            s.sys_log_trace,
            s.sys_log_status_id,
            l.sys_log_function_name,

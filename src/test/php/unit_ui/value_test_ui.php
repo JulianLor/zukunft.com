@@ -30,11 +30,24 @@
 
 */
 
-use api\value_api;
-use api\word_api;
-use html\word_dsp;
+use api\value\value as value_api;
+use api\word\word as word_api;
+use html\value\value_list as value_list_dsp;
+use cfg\phrase_list;
+use cfg\value;
+use cfg\value_list;
+use cfg\word;
+use cfg\word_list;
+use test\test_cleanup;
+use const test\TIMEOUT_LIMIT_DB;
+use const test\TIMEOUT_LIMIT_PAGE;
+use const test\TIMEOUT_LIMIT_PAGE_LONG;
+use const test\TIMEOUT_LIMIT_PAGE_SEMI;
+use const test\TV_NESN_SALES_2016_FORMATTED;
+use const test\TW_2014;
+use const test\TW_CF;
 
-function run_value_ui_test(testing $t): void
+function run_value_ui_test(test_cleanup $t): void
 {
 
     global $usr;
@@ -50,9 +63,9 @@ function run_value_ui_test(testing $t): void
     $phr_lst_ch->add_name(word_api::TN_CH);
     $phr_lst_added->add_name(word_api::TN_RENAMED);
     $val_added = new value($usr);
-    $val_added->load_by_grp($phr_lst_added->get_grp());
+    $val_added->load_by_grp($phr_lst_added->get_grp_id());
     $val_ch = new value($usr);
-    $val_ch->load_by_grp($phr_lst_ch->get_grp());
+    $val_ch->load_by_grp($phr_lst_ch->get_grp_id());
 
     // call the add value page and check if at least some basic keywords are returned
     $back = 0;
@@ -89,7 +102,7 @@ function run_value_ui_test(testing $t): void
     $val_lst = new value_list($usr);
     $result = $val_lst->check_all();
     $target = '';
-    $t->dsp('value_list->check_all', $target, $result, TIMEOUT_LIMIT_DB);
+    $t->display('value_list->check_all', $target, $result, TIMEOUT_LIMIT_DB);
 
     // test get a single value from a value list by group and time
     // get all value for Switzerland
@@ -103,16 +116,16 @@ function run_value_ui_test(testing $t): void
     $grp = $wrd_lst->get_grp();
     $result = $grp->id();
     $target = '2116';
-    $t->dsp('word_list->get_grp for ' . $wrd_lst->dsp_id() . '', $target, $result, TIMEOUT_LIMIT_DB);
+    $t->display('word_list->get_grp for ' . $wrd_lst->dsp_id() . '', $target, $result, TIMEOUT_LIMIT_DB);
     $val = $val_lst->get_by_grp($grp, $wrd_time);
     if ($val != null) {
         $result = $val->number();
     }
     $target = value_api::TV_CH_INHABITANTS_2020_IN_MIO;
-    $t->dsp('value_list->get_by_grp for ' . $wrd_lst->dsp_id() . '', $target, $result, TIMEOUT_LIMIT_DB);
+    $t->display('value_list->get_by_grp for ' . $wrd_lst->dsp_id() . '', $target, $result, TIMEOUT_LIMIT_DB);
 
     // ... get all times of the Switzerland values
-    $time_lst = $val_lst->time_lst();
+    $time_lst = $val_lst->time_list();
     $wrd_2014 = new word($usr);
     $wrd_2014->load_by_name(TW_2014);
     if ($time_lst->does_contain($wrd_2014)) {
@@ -121,20 +134,20 @@ function run_value_ui_test(testing $t): void
         $result = false;
     }
     $target = true;
-    $t->dsp('value_list->time_lst is ' . $time_lst->dsp_name() . ', which includes ' . $wrd_2014->name(), $target, $result, TIMEOUT_LIMIT_DB);
+    $t->display('value_list->time_lst is ' . $time_lst->dsp_name() . ', which includes ' . $wrd_2014->name(), $target, $result, TIMEOUT_LIMIT_DB);
 
     // ... and filter by times
     $time_lst = new word_list($usr);
     $wrd_lst->load_by_names(array(word_api::TN_2019, word_api::TN_2021));
     $used_value_lst = $val_lst->filter_by_time($time_lst);
-    $used_time_lst = $used_value_lst->time_lst();
+    $used_time_lst = $used_value_lst->time_list();
     if ($time_lst->does_contain($wrd_2014)) {
         $result = true;
     } else {
         $result = false;
     }
     $target = false;
-    $t->dsp('value_list->time_lst is ' . $used_time_lst->dsp_name() . ', which does not include ' . $wrd_2014->name(), $target, $result);
+    $t->display('value_list->time_lst is ' . $used_time_lst->dsp_name() . ', which does not include ' . $wrd_2014->name(), $target, $result);
 
     // ... but not 2020
     $wrd_2020 = new word($usr);
@@ -145,7 +158,7 @@ function run_value_ui_test(testing $t): void
         $result = false;
     }
     $target = true;
-    $t->dsp('value_list->filter_by_phrase_lst is ' . $used_time_lst->dsp_name() . ', but includes ' . $wrd_2020->name(), $target, $result);
+    $t->display('value_list->filter_by_phrase_lst is ' . $used_time_lst->dsp_name() . ', but includes ' . $wrd_2020->name(), $target, $result);
 
     // ... and filter by phrases
     $sector_lst = new word_list($usr);
@@ -161,7 +174,7 @@ function run_value_ui_test(testing $t): void
         $result = false;
     }
     $target = false;
-    $t->dsp('value_list->filter_by_phrase_lst is ' . $used_phr_lst->dsp_name() . ', which does not include ' . $wrd_auto->name(), $target, $result);
+    $t->display('value_list->filter_by_phrase_lst is ' . $used_phr_lst->dsp_name() . ', which does not include ' . $wrd_auto->name(), $target, $result);
 
     // ... but not 2016
     $wrd_power = new word($usr);
@@ -172,7 +185,7 @@ function run_value_ui_test(testing $t): void
         $result = false;
     }
     $target = true;
-    $t->dsp('value_list->filter_by_phrase_lst is ' . $used_phr_lst->dsp_name() . ', but includes ' . $wrd_power->name(), $target, $result);
+    $t->display('value_list->filter_by_phrase_lst is ' . $used_phr_lst->dsp_name() . ', but includes ' . $wrd_power->name(), $target, $result);
 
 
     $t->header('Test the value list display class (classes/value_list_display.php)');
@@ -182,13 +195,13 @@ function run_value_ui_test(testing $t): void
     $wrd->load_by_name('Nestlé');
     $wrd_col = new word($usr);
     $wrd_col->load_by_name(TW_CF);
-    $val_lst = new value_list_dsp_old($usr);
+    $val_lst = new value_list_dsp();
     $val_lst->phr = $wrd->phrase();
     $result = $val_lst->dsp_table($wrd_col, $wrd->id());
     $target = TV_NESN_SALES_2016_FORMATTED;
     $t->dsp_contains(', value_list_dsp->dsp_table for "' . $wrd->name() . '" (' . $result . ') contains ' . $target . '', $target, $result, TIMEOUT_LIMIT_PAGE_LONG);
     //$result = $val_lst->dsp_table($wrd_col, $wrd->id);
     //$target = zuv_table ($wrd->id, $wrd_col->id, $usr->id());
-    //$t->dsp('value_list_dsp->dsp_table for "'.$wrd->name.'"', $target, $result, TIMEOUT_LIMIT_DB);
+    //$t->display('value_list_dsp->dsp_table for "'.$wrd->name.'"', $target, $result, TIMEOUT_LIMIT_DB);
 
 }

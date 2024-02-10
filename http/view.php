@@ -34,7 +34,12 @@
 */
 
 // for callable php files the standard zukunft.com header to load all classes and allow debugging
+use controller\controller;
 use html\api;
+use html\view\view as view_dsp;
+use cfg\user;
+use cfg\view;
+use cfg\word;
 
 $debug = $_GET['debug'] ?? 0;
 const ROOT_PATH = __DIR__ . '/../';
@@ -43,9 +48,11 @@ include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 // open database 
 $db_con = prg_start("view");
 
+global $system_views;
+
 $result = ''; // reset the html code var
 $msg = ''; // to collect all messages that should be shown to the user immediately
-$back = $_GET['back']; // the word id from which this value change has been called (maybe later any page)
+$back = $_GET[controller::API_BACK]; // the word id from which this value change has been called (maybe later any page)
 
 // load the session user parameters
 $usr = new user;
@@ -54,7 +61,7 @@ $result .= $usr->get();
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
 if ($usr->id() > 0) {
 
-    load_usr_data();
+    $usr->load_usr_data();
 
     // get the word(s) to display
     // TODO replace it with phrase
@@ -78,13 +85,13 @@ if ($usr->id() > 0) {
                 $view_id = $_GET['view'];
             } else {
                 // if the user has set a view for this word, use it
-                $view_id = $wrd->view_id;
+                $view_id = $wrd->view_id();
                 if ($view_id <= 0) {
                     // if any user has set a view for this word, use the common view
-                    $view_id = $wrd->view_id();
+                    $view_id = $wrd->calc_view_id();
                     if ($view_id <= 0) {
                         // if no one has set a view for this word, use the fallback view
-                        $view_id = cl(db_cl::VIEW, view::WORD);
+                        $view_id = $system_views->id(controller::DSP_WORD);
                     }
                 }
             }
@@ -92,15 +99,16 @@ if ($usr->id() > 0) {
 
         // create a display object, select and load the view and display the word according to the view
         if ($view_id > 0) {
-            $dsp = new view_dsp_old($usr);
-            $dsp->load_by_id($view_id, view::class);
-            $dsp_text = $dsp->display($wrd, $back);
+            $msk = new view($usr);
+            $msk->load_by_id($view_id, view::class);
+            $msk_dsp = new view_dsp($msk->api_json());
+            $dsp_text = $msk_dsp->display($wrd, $back);
 
             // use a fallback if the view is empty
-            if ($dsp_text == '' or $dsp->name() == '') {
-                $view_id = cl(db_cl::VIEW, view::START);
-                $dsp->load_by_id($view_id, view::class);
-                $dsp_text = $dsp->display($wrd, $back);
+            if ($dsp_text == '' or $msk->name() == '') {
+                $view_id = $system_views->id(controller::DSP_START);
+                $msk->load_by_id($view_id, view::class);
+                $dsp_text = $msk_dsp->display($wrd, $back);
             }
             if ($dsp_text == '') {
                 $result .= 'Please add a component to the view by clicking on Edit on the top right.';

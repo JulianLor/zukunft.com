@@ -1,12 +1,8 @@
 {
-  "id": 1,
-  "phr": {
-    "id": 1,
-    "name": "Mathematical constant",
-    "description": null
-  },
-  "external_key": "Mathematical_constant",
-  "type_id": null,
-  "url": null,
-  "description": null
+  "id": 4,
+  "phrase_id": 3,
+  "external_key": "Q167",
+  "source_id": 1,
+  "url": "https:\/\/www.wikidata.org\/wiki\/",
+  "description": "ratio of the circumference of a circle to its diameter"
 }

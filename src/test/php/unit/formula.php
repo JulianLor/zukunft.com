@@ -30,14 +30,24 @@
 
 */
 
-use api\formula_api;
-use api\value_api;
-use api\word_api;
-use cfg\formula_type;
+namespace test;
+
+include_once MODEL_FORMULA_PATH . 'expression.php';
+
+use api\formula\formula as formula_api;
+use api\value\value as value_api;
+use api\word\word as word_api;
+use cfg\expression;
+use cfg\formula;
+use cfg\phrase_list;
+use cfg\db\sql_db;
+use cfg\term_list;
+use cfg\word;
+use html\formula\formula as formula_dsp;
 
 class formula_unit_tests
 {
-    function run(testing $t): void
+    function run(test_cleanup $t): void
     {
 
         global $usr;
@@ -56,8 +66,8 @@ class formula_unit_tests
         $t->subheader('SQL user sandbox statement tests');
 
         $frm = new formula($usr);
-        $t->assert_load_sql_id($db_con, $frm);
-        $t->assert_load_sql_name($db_con, $frm);
+        $t->assert_sql_by_id($db_con, $frm);
+        $t->assert_sql_by_name($db_con, $frm);
 
 
         $t->subheader('SQL statement tests');
@@ -65,54 +75,43 @@ class formula_unit_tests
         // sql to load the formula by id
         $frm = new formula($usr);
         $frm->set_id(2);
-        //$t->assert_load_sql($db_con, $frm);
-        $t->assert_load_standard_sql($db_con, $frm);
-        $t->assert_not_changed_sql($db_con, $frm);
-        $t->assert_user_config_sql($db_con, $frm);
+        //$t->assert_sql_all($db_con, $frm);
+        $t->assert_sql_standard($db_con, $frm);
+        $t->assert_sql_not_changed($db_con, $frm);
+        $t->assert_sql_user_changes($db_con, $frm);
+        $this->assert_sql_user_changes_frm($t, $db_con, $frm);
 
         // sql to load the formula by name
         $frm = new formula($usr);
         $frm->set_name(formula_api::TF_READ_SCALE_MIO);
-        //$t->assert_load_sql($db_con, $frm);
-        $t->assert_load_standard_sql($db_con, $frm);
-
-
-        // check the Postgres query syntax
-        $db_con->db_type = sql_db::POSTGRES;
-        $qp = $frm->load_user_sql($db_con);
-        $t->assert_qp($qp, sql_db::POSTGRES);
-
-        // check the MySQL query syntax
-        $db_con->db_type = sql_db::MYSQL;
-        $qp = $frm->load_user_sql($db_con);
-        $t->assert_qp($qp, sql_db::MYSQL);
-
-
-        $t->subheader('Convert tests');
-
-        // casting API
-        $frm = new formula($usr);
-        $frm->set(1, formula_api::TN_READ, formula_type::CALC);
-        $t->assert_api($frm);
+        //$t->assert_sql_all($db_con, $frm);
+        $t->assert_sql_standard($db_con, $frm);
 
 
         $t->subheader('Im- and Export tests');
 
-        $t->assert_json(new formula($usr), $json_file);
+        $t->assert_json_file(new formula($usr), $json_file);
+
+
+        $t->subheader('API and HTML frontend unit tests');
+
+        $frm = $t->dummy_formula();
+        $t->assert_api($frm);
+        $t->assert_api_to_dsp($frm, new formula_dsp());
+
 
         $t->subheader('Expression tests');
 
         // get the id of the phrases that should be added to the result based on the formula reference text
         $target = new phrase_list($usr);
         $trm_lst = new term_list($usr);
-        $wrd = new word($usr);
-        $wrd->set_id(205);
+        $wrd = $t->dummy_word_one();
         $target->add($wrd->phrase());
         $trm_lst->add($wrd->term());
         $exp = new expression($usr);
-        $exp->set_ref_text('{w205}={w203}*1000000');
-        $result = $exp->fv_phr_lst($trm_lst);
-        $t->assert('Expression->fv_phr_lst for ' . formula_api::TF_READ_SCALE_MIO, $result->dsp_id(), $target->dsp_id());
+        $exp->set_ref_text('{w' . word_api::TI_ONE . '}={w' . word_api::TI_MIO . '}*1000000', $t->dummy_term_list_scale());
+        $result = $exp->res_phr_lst($trm_lst);
+        $t->assert('Expression->res_phr_lst for ' . formula_api::TF_READ_SCALE_MIO, $result->dsp_id(), $target->dsp_id());
 
         // get the special formulas used in a formula to calculate the result
         // e.g. "next" is a special formula to get the following values
@@ -123,7 +122,7 @@ class formula_unit_tests
         $frm_next->id = 1;
         $frm_has_next = new formula($usr);
         $frm_has_next->usr_text = '=next';
-        $t->assert('Expression->fv_phr_lst for ' . formula_api::TF_SCALE_MIO, $result->dsp_id(), $target->dsp_id());
+        $t->assert('Expression->res_phr_lst for ' . formula_api::TF_SCALE_MIO, $result->dsp_id(), $target->dsp_id());
         */
 
         // test the calculation of one value
@@ -133,26 +132,40 @@ class formula_unit_tests
             formula_api::TN_READ_THIS,
             formula_api::TN_READ_PRIOR
         ));
-        $phr_lst = $t->phrase_list_for_tests(array(
-            word_api::TN_PCT,
-            formula_api::TN_READ_THIS,
-            formula_api::TN_READ_PRIOR,
-            word_api::TN_CH,
-            word_api::TN_INHABITANTS,
-            word_api::TN_2020,
-            word_api::TN_MIO
-        ));
+        $phr_lst = $t->dummy_phrase_list_increase();
 
-        $frm = $t->new_formula(formula_api::TN_ADD, 1);
-        $frm->set_user_text(formula_api::TF_INCREASE, $trm_lst);
-        $fv_lst = $frm->to_num($phr_lst);
-        $fv = $fv_lst->lst[0];
-        $result = $fv->num_text;
+        $frm = $t->dummy_formula_increase();
+        // TODO activate Prio 1
+        // $res_lst = $frm->to_num($phr_lst);
+        //$res = $res_lst->lst[0];
+        //$result = $res->num_text;
         $target = '=(' . value_api::TV_CH_INHABITANTS_2020_IN_MIO . '-' .
             value_api::TV_CH_INHABITANTS_2019_IN_MIO . ')/' .
             value_api::TV_CH_INHABITANTS_2019_IN_MIO;
         //$t->assert('get numbers for formula ' . $frm->dsp_id() . ' based on term list ' . $trm_lst->dsp_id(), $result, $target);
 
+    }
+
+    /**
+     * TODO check the diff to assert_sql_user_changes
+     *
+     * @param test_cleanup $t the test environment
+     * @param sql_db $db_con does not need to be connected to a real database
+     * @param formula $frm the user sandbox object e.g. a word
+     */
+    private function assert_sql_user_changes_frm(test_cleanup $t, sql_db $db_con, formula $frm): void
+    {
+        // check the Postgres query syntax
+        $db_con->db_type = sql_db::POSTGRES;
+        $qp = $frm->load_sql_user_changes_frm($db_con);
+        $result = $t->assert_qp($qp, $db_con->db_type);
+
+        // ... and check the MySQL query syntax
+        if ($result) {
+            $db_con->db_type = sql_db::MYSQL;
+            $qp = $frm->load_sql_user_changes_frm($db_con);
+            $t->assert_qp($qp, $db_con->db_type);
+        }
     }
 
 }

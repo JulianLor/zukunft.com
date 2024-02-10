@@ -30,7 +30,10 @@
 
 */
 
-function run_db_link_test(testing $t): void
+use cfg\log\change_log_table;
+use test\test_cleanup;
+
+function run_db_link_test(test_cleanup $t): void
 {
     global $change_log_tables;
 
@@ -40,6 +43,6 @@ function run_db_link_test(testing $t): void
     $id = change_log_table::WORD;
     $target = 5;
     $result = $change_log_tables->id($id);
-    $t->dsp(", sql_code_link " . $id, $target, $result);
+    $t->display(", sql_code_link " . $id, $target, $result);
 
 }

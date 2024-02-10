@@ -29,14 +29,32 @@
 
 */
 
-use api\system_log_api;
+namespace test;
+
+include_once MODEL_SYSTEM_PATH . 'ip_range.php';
+include_once MODEL_SYSTEM_PATH . 'ip_range_list.php';
+include_once MODEL_LOG_PATH . 'system_log_list.php';
+include_once API_LOG_PATH . 'system_log.php';
+
+use cfg\config;
+use cfg\log\system_log_list;
+use cfg\log\system_log;
+use api\log\system_log as system_log_api;
+use api\word\word as word_api;
+use DateTime;
+use cfg\ip_range;
+use cfg\ip_range_list;
+use cfg\library;
+use cfg\db\sql_db;
+use cfg\sys_log_status;
 
 class system_unit_tests
 {
-    function run(testing $t): void
+    function run(test_cleanup $t): void
     {
 
         global $usr;
+        global $usr_sys;
         global $sql_names;
         global $sys_log_stati;
 
@@ -48,11 +66,162 @@ class system_unit_tests
         $usr->set_id(1);
 
 
+        $t->header('Unit tests of objects');
+
+        $t->subheader('Debug function tests');
+
+        // create a dummy object of each object and test that the dsp_id debug function does not cause an infinite loop
+        $test_name = 'debug word id';
+        $wrd = $t->dummy_word();
+        $target = '"Mathematics" (word_id 1) for user 1 (zukunft.com system test)';
+        $t->assert($test_name, $wrd->dsp_id(), $target);
+        $test_name = 'debug word list id';
+        $lst = $t->dummy_word_list();
+        $target = '"Mathematics","constant","Pi","Euler\'s constant" (word_id 1,2,3,4) for user 1 (zukunft.com system test)';
+        $t->assert($test_name, $lst->dsp_id(), $target);
+        $test_name = 'debug verb id';
+        $vrb = $t->dummy_verb();
+        $target = 'not set/not_set (verb_id 1) for user 1 (zukunft.com system test)';
+        $t->assert($test_name, $vrb->dsp_id(), $target);
+        $test_name = 'debug triple id';
+        $trp = $t->dummy_triple();
+        $target = '"constant" "is part of" "Mathematics" (2,3,1 -> triple_id 1) for user 1 (zukunft.com system test)';
+        $t->assert($test_name, $trp->dsp_id(), $target);
+        $test_name = 'debug triple_list id';
+        $trp_lst = $t->dummy_triple_list();
+        $target = '"Pi (math)" (triple_id 2) for user 1 (zukunft.com system test)';
+        $t->assert($test_name, $trp_lst->dsp_id(), $target);
+        $test_name = 'debug phrase id';
+        $phr = $t->dummy_triple()->phrase();
+        $target = '"constant" "is part of" "Mathematics" (2,3,1 -> triple_id 1) for user 1 (zukunft.com system test) as phrase';
+        $t->assert($test_name, $phr->dsp_id(), $target);
+        $test_name = 'debug phrase_list id';
+        $phr_lst = $t->dummy_phrase_list();
+        $target = '"Mathematical constant","Mathematics","Pi","Pi (math)","constant" (phrase_id 1,2,3,-1,-2) for user 1 (zukunft.com system test)';
+        $t->assert($test_name, $phr_lst->dsp_id(), $target);
+        $test_name = 'debug phrase_group id';
+        $grp = $t->dummy_phrase_group();
+        $target = '"Pi (math)" (group_id 5) as "Pi (math)" for user 1 (zukunft.com system test)';
+        $t->assert($test_name, $grp->dsp_id(), $target);
+        $test_name = 'debug group_list id';
+        $grp_lst = $t->dummy_phrase_group_list();
+        $target = ' ... total 1';
+        $t->assert($test_name, $grp_lst->dsp_id(), $target);
+        $test_name = 'debug term id';
+        $trm = $t->dummy_term();
+        $target = '"Mathematics" (word_id 1) for user 1 (zukunft.com system test) as term';
+        $t->assert($test_name, $trm->dsp_id(), $target);
+        $test_name = 'debug term_list id';
+        $trm_lst = $t->dummy_term_list();
+        $target = '"Mathematical constant","Mathematics","not set","scale minute to sec" (-2,-1,1,2)';
+        $t->assert($test_name, $trm_lst->dsp_id(), $target);
+        $test_name = 'debug value id';
+        $val = $t->dummy_value();
+        $target = '"Pi (math)" 3.1415926535898 (phrase_id_1, phrase_id_2, phrase_id_3, phrase_id_4 = -2,,,) for user 1 (zukunft.com system test)';
+        $t->assert($test_name, $val->dsp_id(), $target);
+        $test_name = 'debug value_list id';
+        $val_lst = $t->dummy_value_list();
+        $target = '"Pi (math)" 3.1415926535898 / "inhabitant in the city of Zurich (2019)" 415367 (phrase_id_1, phrase_id_2, phrase_id_3, phrase_id_4 = -2,,, / ' . word_api::TI_2019 . ',' . word_api::TI_ZH . ',' . word_api::TI_INHABITANT . ',) for user 1 (zukunft.com system test)';
+        $t->assert($test_name, $val_lst->dsp_id(), $target);
+        $test_name = 'debug value_phrase_link id';
+        $val_lnk = $t->dummy_value_phrase_link();
+        $target = 'link "Pi (math)" 3.1415926535898 (phrase_id_1, phrase_id_2, phrase_id_3, phrase_id_4 = -2,,,) to "Mathematics" (word_id 1) as phrase for zukunft.com system test (1)';
+        $t->assert($test_name, $val_lnk->dsp_id(), $target);
+        $test_name = 'debug formula id';
+        $frm = $t->dummy_formula();
+        $target = '"scale minute to sec" (formula_id 1) for user 1 (zukunft.com system test)';
+        $t->assert($test_name, $frm->dsp_id(), $target);
+        $test_name = 'debug formula_list id';
+        $frm_lst = $t->dummy_formula_list();
+        $target = 'scale minute to sec (formula_id 1) for user 1 (zukunft.com system test)';
+        $t->assert($test_name, $frm_lst->dsp_id(), $target);
+        $test_name = 'debug formula_link id';
+        $frm_lnk = $t->dummy_formula_link();
+        $target = 'from "scale minute to sec" (formula_id 1) to "Mathematics" (word_id 1) as phrase as  (formula_link_id 1)';
+        $t->assert($test_name, $frm_lnk->dsp_id(), $target);
+        $test_name = 'debug formula_element id';
+        $elm = $t->dummy_element();
+        $target = 'word "minute" (98) for user 1 (zukunft.com system test)';
+        $t->assert($test_name, $elm->dsp_id(), $target);
+        $test_name = 'debug formula_element_list id';
+        $elm = $t->dummy_element_list();
+        $target = '"minute" (formula_element_id 98) for user 1 (zukunft.com system test)';
+        $t->assert($test_name, $elm->dsp_id(), $target);
+        $test_name = 'debug expression id';
+        $exp = $t->dummy_expression();
+        $target = '""second" = "minute" * 60" ({w17}={w98}*60)';
+        $t->assert($test_name, $exp->dsp_id(), $target);
+        $test_name = 'debug result id';
+        $res = $t->dummy_result();
+        $target = '"Mathematics" 123456 (phrase_id_1, phrase_id_2, phrase_id_3, phrase_id_4 = 1,,,) for user 1 (zukunft.com system test)';
+        $t->assert($test_name, $res->dsp_id(), $target);
+        $test_name = 'debug result_list id';
+        $res_lst = $t->dummy_result_list();
+        $target = '"Mathematics" 123456 / "percent" 0.01234 (phrase_id_1, phrase_id_2, phrase_id_3, phrase_id_4 = 1,,, / 2,,,) for user 1 (zukunft.com system test)';
+        $t->assert($test_name, $res_lst->dsp_id(), $target);
+        $test_name = 'debug figure id';
+        $fig = $t->dummy_figure_value();
+        $target = 'value figure "Pi (math)" 3.1415926535898 (phrase_id_1, phrase_id_2, phrase_id_3, phrase_id_4 = -2,,,) for user 1 (zukunft.com system test) 2022-12-26 18:23:45';
+        $t->assert($test_name, $fig->dsp_id(), $target);
+        $test_name = 'debug figure_list id';
+        $fig_lst = $t->dummy_figure_list();
+        $target = ' 3.1415926535898 Pi (math)  123456 "Mathematics"  (5,-2)';
+        $t->assert($test_name, $fig_lst->dsp_id(), $target);
+        $test_name = 'debug view id';
+        $msk = $t->dummy_view();
+        $target = '"Word" (view_id 1) for user 1 (zukunft.com system test)';
+        $t->assert($test_name, $msk->dsp_id(), $target);
+        $test_name = 'debug view_list id';
+        $msk_lst = $t->dummy_view_list();
+        $target = '"Word","Add word" (view_id 1,3) for user 1 (zukunft.com system test)';
+        $t->assert($test_name, $msk_lst->dsp_id(), $target);
+        $test_name = 'debug component id';
+        $cmp = $t->dummy_component();
+        $target = '"Word" (component_id 1) for user 1 (zukunft.com system test)';
+        $t->assert($test_name, $cmp->dsp_id(), $target);
+        $test_name = 'debug component_list id';
+        $cmp_lst = $t->dummy_component_list();
+        $target = '"Word","form field share type" (component_id 1,6) for user 1 (zukunft.com system test)';
+        $t->assert($test_name, $cmp_lst->dsp_id(), $target);
+        $test_name = 'debug component_link id';
+        $cmp_lnk = $t->dummy_component_link();
+        $target = 'from "Word" (view_id 1) to "Word" (component_id 1) as (component_link_id 1) at pos 1';
+        $t->assert($test_name, $cmp_lnk->dsp_id(), $target);
+        $test_name = 'debug component_link_list id';
+        $cmp_lnk_lst = $t->dummy_component_link_list();
+        $target = '"Word" (component_link_id 1) for user 1 (zukunft.com system test)';
+        $t->assert($test_name, $cmp_lnk_lst->dsp_id(), $target);
+        $test_name = 'debug source id';
+        $src = $t->dummy_source();
+        $target = '"The International System of Units" (source_id 3) for user 1 (zukunft.com system test)';
+        $t->assert($test_name, $src->dsp_id(), $target);
+        $test_name = 'debug ref id';
+        $ref = $t->dummy_reference();
+        $target = 'ref of "Pi" to "wikidata" (4)';
+        $t->assert($test_name, $ref->dsp_id(), $target);
+        $test_name = 'debug language id';
+        $lan = $t->dummy_language();
+        $target = 'English/english (language_id 1)';
+        $t->assert($test_name, $lan->dsp_id(), $target);
+        $test_name = 'debug change_log id';
+        $chg = $t->dummy_change_log_list_named();
+        $target = 'change log id 0 at 2022-12-26T18:23:45+01:00 add words  row 1';
+        $t->assert($test_name, $chg->dsp_id(), $target);
+        $test_name = 'debug system_log id';
+        $log = $t->dummy_sys_log();
+        $target = 'system log id 1 at 2023-01-03T20:59:59+01:00 row the log text that describes the problem for the user or system admin';
+        $t->assert($test_name, $log->dsp_id(), $target);
+        $test_name = 'debug batch_job id';
+        $job = $t->dummy_job();
+        $target = 'base_import for id 1 (1) for user 1 (zukunft.com system)';
+        $t->assert($test_name, $job->dsp_id(), $target);
+
+
         $t->header('Unit tests of the system classes (src/main/php/model/system/ip_range.php)');
 
         $t->subheader('System function tests');
-        $t->assert('default log message', log_debug(), 'system_unit_tests->run');
-        $t->assert('debug log message', log_debug('additional info'), 'system_unit_tests->run: additional info');
+        $t->assert('default log message', log_debug(), 'test\system_unit_tests->run');
+        $t->assert('debug log message', log_debug('additional info'), 'test\system_unit_tests->run: additional info');
 
 
         $t->subheader('IP filter tests');
@@ -62,29 +231,7 @@ class system_unit_tests
          */
 
         $ip_range = new ip_range();
-
-        // sql to load by id
-        $db_con->db_type = sql_db::POSTGRES;
-        $ip_range->id = 1;
-        $ip_range->set_user($usr);
-        $created_sql = $ip_range->load_sql($db_con)->sql;
-        $expected_sql = $t->file('db/system/ip_blocked.sql');
-        $t->assert('ip_range->load_sql by id', $lib->trim($created_sql), $lib->trim($expected_sql));
-
-        // ... and check if the prepared sql name is unique
-        $result = false;
-        $sql_name = $ip_range->load_sql($db_con)->name;
-        if (!in_array($sql_name, $sql_names)) {
-            $result = true;
-            $sql_names[] = $sql_name;
-        }
-        $t->assert('ip_range->load_sql by id', $result, true);
-
-        // ... and the same for MySQL by replication the SQL builder statements
-        $db_con->db_type = sql_db::MYSQL;
-        $created_sql = $ip_range->load_sql($db_con)->sql;
-        $expected_sql = $t->file('db/system/ip_blocked_mysql.sql');
-        $t->assert('ip_range->load_sql by id for MySQL', $lib->trim($created_sql), $lib->trim($expected_sql));
+        $t->assert_sql_by_id($db_con, $ip_range);
 
         // sql to load by ip range
         $db_con->db_type = sql_db::POSTGRES;
@@ -92,13 +239,13 @@ class system_unit_tests
         $ip_range->from = '66.249.64.95';
         $ip_range->to = '66.249.64.95';
         $ip_range->set_user($usr);
-        $created_sql = $ip_range->load_sql($db_con)->sql;
+        $created_sql = $ip_range->load_sql_by_vars($db_con)->sql;
         $expected_sql = $t->file('db/system/ip_range.sql');
         $t->assert('ip_range->load_sql by ip range', $lib->trim($created_sql), $lib->trim($expected_sql));
 
         // ... and check if the prepared sql name is unique
         $result = false;
-        $sql_name = $ip_range->load_sql($db_con)->name;
+        $sql_name = $ip_range->load_sql_by_vars($db_con)->name;
         if (!in_array($sql_name, $sql_names)) {
             $result = true;
             $sql_names[] = $sql_name;
@@ -107,7 +254,7 @@ class system_unit_tests
 
         // ... and the same for MySQL by replication the SQL builder statements
         $db_con->db_type = sql_db::MYSQL;
-        $created_sql = $ip_range->load_sql($db_con)->sql;
+        $created_sql = $ip_range->load_sql_by_vars($db_con)->sql;
         $expected_sql = $t->file('db/system/ip_range_mysql.sql');
         $t->assert('ip_range->load_sql by id for MySQL', $lib->trim($created_sql), $lib->trim($expected_sql));
 
@@ -115,14 +262,14 @@ class system_unit_tests
         $t->subheader('ip list sql tests');
 
         $ip_lst = new ip_range_list();
-        $t->assert_load_sql_obj_vars($db_con, $ip_lst);
+        $t->assert_sql_by_obj_vars($db_con, $ip_lst);
 
 
         $t->subheader('user list loading sql tests');
 
-        // check if the sql to load the complete list of all .. types is created as expected
+        // check if the sql to load the complete list of all ... types is created as expected
         $sys_log_status = new sys_log_status();
-        $t->assert_load_sql_all($db_con, $sys_log_status);
+        $t->assert_sql_all($db_con, $sys_log_status);
 
 
         $t->subheader('system config sql tests');
@@ -142,33 +289,33 @@ class system_unit_tests
          * these tests are probably not needed because not problem is expected
          * activate if nevertheless an issue occurs
         $system_users = new user_list();
-        $t->assert_load_sql($db_con, $system_users);
+        $t->assert_sql_all($db_con, $system_users);
         $user_profiles = new user_profile_list();
-        $t->assert_load_sql($db_con, $user_profiles);
-        $word_types = new word_type_list();
-        $t->assert_load_sql($db_con, $word_types);
+        $t->assert_sql_all($db_con, $user_profiles);
+        $phrase_types = new phrase_types();
+        $t->assert_sql_all($db_con, $phrase_types);
         $formula_types = new formula_type_list();
-        $t->assert_load_sql($db_con, $formula_types);
+        $t->assert_sql_all($db_con, $formula_types);
         $formula_link_types = new formula_link_type_list();
-        $t->assert_load_sql($db_con, $formula_link_types);
+        $t->assert_sql_all($db_con, $formula_link_types);
         $formula_element_types = new formula_element_type_list();
-        $t->assert_load_sql($db_con, $formula_element_types);
+        $t->assert_sql_all($db_con, $formula_element_types);
         $view_types = new view_type_list();
-        $t->assert_load_sql($db_con, $view_types);
-        $view_component_types = new view_cmp_type_list();
-        $t->assert_load_sql($db_con, $view_component_types);
+        $t->assert_sql_all($db_con, $view_types);
+        $component_types = new component_type_list();
+        $t->assert_sql_all($db_con, $component_types);
         $ref_types = new ref_type_list();
-        $t->assert_load_sql($db_con, $ref_types);
+        $t->assert_sql_all($db_con, $ref_types);
         $share_types = new share_type_list();
-        $t->assert_load_sql($db_con, $share_types);
+        $t->assert_sql_all($db_con, $share_types);
         $protection_types = new protection_type_list();
-        $t->assert_load_sql($db_con, $protection_types);
+        $t->assert_sql_all($db_con, $protection_types);
         $job_types = new job_type_list();
-        $t->assert_load_sql($db_con, $job_types);
+        $t->assert_sql_all($db_con, $job_types);
         $change_log_tables = new change_log_table();
-        $t->assert_load_sql($db_con, $change_log_tables);
+        $t->assert_sql_all($db_con, $change_log_tables);
         $change_log_fields = new change_log_field();
-        $t->assert_load_sql($db_con, $change_log_fields);
+        $t->assert_sql_all($db_con, $change_log_fields);
          */
 
         /*
@@ -180,10 +327,36 @@ class system_unit_tests
         $json_in = json_decode(file_get_contents(PATH_TEST_FILES . 'unit/system/ip_blacklist.json'), true);
         $ip_range = new ip_range();
         $ip_range->set_user($usr);
-        $ip_range->import_obj($json_in, false);
+        $ip_range->import_obj($json_in, $t);
         $json_ex = json_decode(json_encode($ip_range->export_obj()), true);
-        $result = json_is_similar($json_in, $json_ex);
+        $result = $lib->json_is_similar($json_in, $json_ex);
         $t->assert('ip_range->import check', $result, true);
+
+
+        /*
+         * ip range tests
+         */
+
+        $t->subheader('ip range tests');
+
+        $json_in = json_decode(file_get_contents(PATH_TEST_FILES . 'unit/system/ip_blacklist.json'), true);
+        $ip_range = new ip_range();
+        $ip_range->set_user($usr);
+        $ip_range->import_obj($json_in, $t);
+        $test_ip = '66.249.64.95';
+        $result = $ip_range->includes($test_ip);
+        $t->assert('ip_range->includes check', $result, true);
+
+        // negative case before
+        $test_ip = '66.249.64.94';
+        $result = $ip_range->includes($test_ip);
+        $t->assert('ip_range->includes check', $result, false);
+
+        // negative case after
+        $test_ip = '66.249.65.95';
+        $result = $ip_range->includes($test_ip);
+        $t->assert('ip_range->includes check', $result, false);
+
 
         /*
          * system consistency SQL creation tests
@@ -192,7 +365,7 @@ class system_unit_tests
         $t->subheader('System consistency tests');
 
         // sql to check the system consistency
-        $db_con->set_type(sql_db::TBL_FORMULA);
+        $db_con->set_class(sql_db::TBL_FORMULA);
         $db_con->db_type = sql_db::POSTGRES;
         $qp = $db_con->missing_owner_sql();
         $expected_sql = $t->file('db/system/missing_owner_by_formula.sql');
@@ -283,13 +456,19 @@ class system_unit_tests
         $log->function_name = system_log_api::TV_FUNC_NAME;
         $log->solver_name = system_log_api::TV_SOLVE_ID;
         $log->status_name = $sys_log_stati->id(sys_log_status::OPEN);
-        $log_dsp = $log->get_dsp_obj();
+        $log_dsp = $log->get_api_obj();
         $created = $log_dsp->get_json();
         $expected = file_get_contents(PATH_TEST_FILES . 'api/system/system_log.json');
         $t->assert('system_log_dsp->get_json', $lib->trim_json($created), $lib->trim_json($expected));
 
-        $created = $log_dsp->get_html($usr, '');
+        // html code for the system log entry for normal users
+        $created = $log_dsp->get_html($usr);
         $expected = file_get_contents(PATH_TEST_FILES . 'web/system/system_log.html');
+        $t->assert('system_log_dsp->get_json', $lib->trim_html($created), $lib->trim_html($expected));
+
+        // ... and the same for admin users
+        $created = $log_dsp->get_html($usr_sys);
+        $expected = file_get_contents(PATH_TEST_FILES . 'web/system/system_log_admin.html');
         $t->assert('system_log_dsp->get_json', $lib->trim_html($created), $lib->trim_html($expected));
 
         // create a second system log entry to create a list
@@ -330,7 +509,7 @@ class system_unit_tests
         $t->subheader('SQL database link tests');
 
         $db_con = new sql_db();
-        $db_con->set_type(sql_db::TBL_FORMULA);
+        $db_con->set_class(sql_db::TBL_FORMULA);
         $created = $db_con->count_sql();
         $expected = file_get_contents(PATH_TEST_FILES . 'db/formula/formula_count.sql');
         $t->assert_sql('sql_db->count', $created, $expected);

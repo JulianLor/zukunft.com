@@ -35,12 +35,25 @@
 
 */
 
-namespace api;
+namespace api\sandbox;
 
-class type_object_api
+class type_object
 {
     public int $id;
     public string $name;
     public string $code_id;
+
+
+    /*
+     * interface
+     */
+
+    /**
+     * @return string the json api message as a text string
+     */
+    function get_json(): string
+    {
+        return json_encode($this);
+    }
 
 }

@@ -30,13 +30,20 @@
 
 */
 
+namespace test;
+
 // TODO combine with triple_unit_test
 
-use api\phrase_api;
+use api\phrase\phrase as phrase_api;
+use api\word\triple as triple_api;
+use cfg\db\sql_db;
+use cfg\triple;
+use cfg\verb;
+use cfg\word;
 
 class triple_unit_tests_old
 {
-    function run(testing $t): void
+    function run(test_cleanup $t): void
     {
 
         global $usr;
@@ -56,14 +63,14 @@ class triple_unit_tests_old
         // sql to load a triple by id
         $trp = new triple($usr);
         $trp->set_id(1);
-        $t->assert_load_sql_obj_vars($db_con, $trp);
-        $t->assert_load_standard_sql($db_con, $trp);
+        $t->assert_sql_by_obj_vars($db_con, $trp);
+        $t->assert_sql_standard($db_con, $trp);
 
         // sql to load a triple by name
         $trp = new triple($usr);
-        $trp->set_name(phrase_api::TN_ZH_COMPANY);
-        $t->assert_load_sql_obj_vars($db_con, $trp);
-        $t->assert_load_standard_sql($db_con, $trp);
+        $trp->set_name(triple_api::TN_ZH_COMPANY);
+        $t->assert_sql_by_obj_vars($db_con, $trp);
+        $t->assert_sql_standard($db_con, $trp);
 
         // sql to load a triple by link ids
         $trp = new triple($usr);
@@ -73,20 +80,20 @@ class triple_unit_tests_old
         $vrb->set_id(3);
         $wrd_to = new word($usr);
         $wrd_to->set_id(4);
-        $trp->from = $wrd_from->phrase();
+        $trp->fob = $wrd_from->phrase();
         $trp->verb = $vrb;
-        $trp->to = $wrd_to->phrase();
-        $t->assert_load_sql_obj_vars($db_con, $trp);
-        $t->assert_load_standard_sql($db_con, $trp);
+        $trp->tob = $wrd_to->phrase();
+        $t->assert_sql_by_obj_vars($db_con, $trp);
+        $t->assert_sql_standard($db_con, $trp);
         $trp->set_id(5);
-        $t->assert_not_changed_sql($db_con, $trp);
-        $t->assert_user_config_sql($db_con, $trp);
+        $t->assert_sql_not_changed($db_con, $trp);
+        $t->assert_sql_user_changes($db_con, $trp);
 
         // sql to check the usage of a triple
 
         $t->subheader('Im- and Export tests');
 
-        $t->assert_json(new triple($usr), $json_file);
+        $t->assert_json_file(new triple($usr), $json_file);
     }
 
 }

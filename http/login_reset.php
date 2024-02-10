@@ -31,10 +31,14 @@
 
 // standard zukunft header for callable php files to allow debugging and lib loading
 use html\html_base;
+use cfg\db\sql_db;
+use cfg\user;
 
 $debug = $_GET['debug'] ?? 0;
 const ROOT_PATH = __DIR__ . '/../';
 include_once ROOT_PATH . 'src/main/php/zu_lib.php';
+
+$html = new html_base();
 
 // TODO include("auth.php");
 // all taken from
@@ -74,9 +78,9 @@ if ($usr->id() > 0) {
 
             // save activation key
             $key = getRandomKey();
-            $db_con->set_type(sql_db::TBL_USER);
+            $db_con->set_class(sql_db::TBL_USER);
             $db_con->set_usr($usr->id());
-            if (!$db_con->update($db_usr->id(), array("activation_key", "activation_key_timeout"), array($db_con->sf($key), 'NOW() + INTERVAL 1 DAY'))) {
+            if (!$db_con->update_old($db_usr->id(), array("activation_key", "activation_key_timeout"), array($db_con->sf($key), 'NOW() + INTERVAL 1 DAY'))) {
                 log_err('Saving of activation key failed for user ' . $db_usr->id(), 'login_reset');
             }
 
@@ -101,11 +105,11 @@ if ($usr->id() > 0) {
 
 if (!$_SESSION['logged']) {
     $html = new html_base();
-    $result .= dsp_form_center();
+    $result .= $html->dsp_form_center();
     $result .= $html->logo_big();
     $result .= '<br><br>';
     $result .= '<form action="login_reset.php" method="post">';
-    $result .= dsp_text_h2('Reset password<br>');
+    $result .= $html->dsp_text_h2('Reset password<br>');
     $result .= 'Fill in one of the fields to receive a temporary password via email:<br><br> ';
     $result .= 'Username:<br> ';
     $result .= '<input name="username"><br><br> ';

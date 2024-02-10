@@ -31,6 +31,12 @@
 // Zukunft.com verb list
 
 // standard zukunft header for callable php files to allow debugging and lib loading
+use cfg\verb_list;
+use controller\controller;
+use html\view\view as view_dsp;
+use cfg\user;
+use cfg\view;
+
 $debug = $_GET['debug'] ?? 0;
 const ROOT_PATH = __DIR__ . '/../';
 include_once ROOT_PATH . 'src/main/php/zu_lib.php';
@@ -39,7 +45,7 @@ include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 $db_con = prg_start("verbs");
 
 $result = ''; // reset the html code var
-$back = $_GET['back']; // the word id from which this value change has been called (maybe later any page)
+$back = $_GET[controller::API_BACK]; // the word id from which this value change has been called (maybe later any page)
 
 // load the session user parameters
 $usr = new user;
@@ -48,17 +54,20 @@ $result .= $usr->get();
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
 if ($usr->id() > 0) {
 
-    load_usr_data();
+    $html = new \html\html_base();
+
+    $usr->load_usr_data();
 
     // prepare the display
-    $dsp = new view_dsp_old($usr);
-    $dsp->load_by_code_id(view::VERBS);
+    $msk = new view($usr);
+    $msk->load_by_code_id(controller::DSP_VERBS);
 
     // show the header
-    $result .= $dsp->dsp_navbar($back);
+    $msk_dsp = new view_dsp($msk->api_json());
+    $result .= $msk_dsp->dsp_navbar($back);
 
     // display the verb list
-    $result .= dsp_text_h2("Word link types");
+    $result .= $html->dsp_text_h2("Word link types");
     $vrb_lst = new verb_list($usr);
     $vrb_lst->load($db_con);
     $result .= $vrb_lst->dsp_list();

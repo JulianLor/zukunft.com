@@ -1,12 +1,12 @@
-PREPARE triple_by_id (int, int) AS
+PREPARE triple_by_id (bigint, bigint) AS
     SELECT
                 s.triple_id,
                 u.triple_id AS user_triple_id,
                 s.user_id,
                 s.from_phrase_id,
-                s.to_phrase_id,
                 s.verb_id,
-                s.word_type_id,
+                s.to_phrase_id,
+                s.phrase_type_id,
                 s.triple_condition_id,
                 s.triple_condition_type_id,
                 CASE WHEN (u.triple_name    <> '' IS NOT TRUE) THEN s.triple_name    ELSE u.triple_name    END AS triple_name,

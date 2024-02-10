@@ -30,18 +30,28 @@
 
 */
 
+namespace test;
+
+include_once WEB_VALUE_PATH . 'value_list.php';
+include_once MODEL_VALUE_PATH . 'value_list.php';
+
+use cfg\db\sql_par;
+use cfg\value\value_list;
+use html\value\value_list as value_list_dsp;
+use cfg\library;
+use cfg\phrase;
+use cfg\phrase_list;
+use cfg\db\sql_db;
+use cfg\word;
+
 class value_list_unit_tests
 {
-    const TEST_NAME = 'value_list->';
-    const PATH = 'db/value/';
-    const FILE_EXT = '.sql';
-    const FILE_MYSQL = '_mysql';
 
-    public testing $test;
+    public test_cleanup $test;
     public value_list $lst;
     public sql_db $db_con;
 
-    function run(testing $t)
+    function run(test_cleanup $t): void
     {
 
         global $usr;
@@ -60,78 +70,120 @@ class value_list_unit_tests
          * SQL creation tests (mainly to use the IDE check for the generated SQL statements)
          */
 
-        $db_con->db_type = sql_db::POSTGRES;
-        $this->test = $t;
-
-        // sql to load a list of value by the word id
-        $wrd = new word($usr);
-        $wrd->set_id(1);
+        // sql to load a list of value by ...
         $val_lst = new value_list($usr);
-        $val_lst->phr = $wrd->phrase();
-        $created_sql = $val_lst->load_sql($db_con)->sql;
-        $expected_sql = $t->file('db/value/value_list_by_word_id.sql');
-        $t->assert('value_list->load_sql by phrase id', $lib->trim($created_sql), $lib->trim($expected_sql));
-
-        // sql to load a list of value by the phrase ids
-        $val_lst = new value_list($usr);
-        $val_lst->phr_lst = (new phrase_list_unit_tests)->get_phrase_list();
-        $created_sql = $val_lst->load_by_phr_lst_sql($db_con);
-        $expected_sql = $t->file('db/value/value_list_by_triple_id_list.sql');
-        $t->assert('value_list->load_by_phr_lst_sql by group and time', $lib->trim($created_sql), $lib->trim($expected_sql));
-
-        // ... and check if the prepared sql name is unique
-        $t->assert_sql_name_unique($val_lst->load_by_phr_lst_sql($db_con, true));
-
-        // ... and the same for MySQL by replication the SQL builder statements
-        $db_con->db_type = sql_db::MYSQL;
-        $created_sql = $val_lst->load_by_phr_lst_sql($db_con);
-        $expected_sql = $t->file('db/value/value_list_by_triple_id_list_mysql.sql');
-        $t->assert('value_list->load_by_phr_lst_sql by group and time for MySQL', $lib->trim($created_sql), $lib->trim($expected_sql));
-
-
-        // sql to load a list of value by the phrase id
-        $phr = new phrase($usr);
-        $phr->set_id(1);
-        $qp = $this->assert_by_phr_sql($phr, sql_db::POSTGRES);
-        $this->assert_by_phr_sql($phr, sql_db::MYSQL);
-        $this->test->assert_sql_name_unique($qp->name);
+        // ... a related to a phrase e.g. all value related to the City of Zurich
+        $phr = $t->phrase_zh();
+        $this->assert_sql_by_phr($t, $db_con, $val_lst, $phr);
+        // ... a list of ids
+        $val_ids = $t->dummy_value_list()->id_lst();
+        $t->assert_sql_by_ids($db_con, $val_lst, $val_ids);
+        // ... a list of groups
+        $grp_lst = $t->dummy_phrase_list_small();
+        $this->assert_sql_by_grp_lst($t, $db_con, $val_lst, $grp_lst);
+        // ... a related to all phrases of a list e.g. the inhabitants of Canton Zurich over time
+        $phr_lst = $t->dummy_phrase_list_zh();
+        $t->assert_sql_by_phr_lst($db_con, $val_lst, $phr_lst);
+        // ... a related to any phrase of a list e.g. the match const pi and e
+        $phr_lst = $t->phrase_list_math_const();
+        $t->assert_sql_by_phr_lst($db_con, $val_lst, $phr_lst, true);
+        // ... a related to any phrase of a longer word and triple list e.g. all phrase related to the math number pi
+        $phr_lst = $t->dummy_phrase_list();
+        $t->assert_sql_by_phr_lst($db_con, $val_lst, $phr_lst, true);
 
 
         $t->subheader('Im- and Export tests');
 
-        $t->assert_json(new value_list($usr), $json_file);
+        $t->assert_json_file(new value_list($usr), $json_file);
 
+
+        $t->subheader('HTML frontend unit tests');
+
+        $trp_lst = $t->dummy_value_list();
+        $t->assert_api_to_dsp($trp_lst, new value_list_dsp());
 
     }
 
     /**
      * test the SQL statement creation for a value list
+     * similar to assert_load_sql but for a phrase list
      *
+     * @param test_cleanup $t the forwarded testing object
+     * @param sql_db $db_con does not need to be connected to a real database
+     * @param object $usr_obj the user sandbox object e.g. a word
+     * @param phrase_list $phr_lst the phrase list that should be used for the sql creation
+     * @param bool $or if true all values are returned that are linked to any phrase of the list
+     */
+    private function assert_sql_by_phr_lst(
+        test_cleanup $t,
+        sql_db       $db_con,
+        object       $usr_obj,
+        phrase_list  $phr_lst,
+        bool         $or = false
+    ): void
+    {
+        // check the Postgres query syntax
+        $sc = $db_con->sql_creator();
+        $sc->db_type = sql_db::POSTGRES;
+        $qp = $usr_obj->load_sql_by_phr_lst($sc, $phr_lst, false, $or);
+        $result = $t->assert_qp($qp, $sc->db_type);
+
+        // ... and check the MySQL query syntax
+        if ($result) {
+            $sc->db_type = sql_db::MYSQL;
+            $qp = $usr_obj->load_sql_by_phr_lst($sc, $phr_lst, false, $or);
+            $t->assert_qp($qp, $sc->db_type);
+        }
+    }
+
+    /**
+     * test the SQL statement creation for a value list
+     * similar to assert_load_sql but for a group list
+     *
+     * @param test_cleanup $t the forwarded testing object
+     * @param sql_db $db_con does not need to be connected to a real database
+     * @param object $usr_obj the user sandbox object e.g. a word
+     * @param phrase_list $phr_lst the phrase list that should be used for the sql creation
+     */
+    private function assert_sql_by_grp_lst(test_cleanup $t, sql_db $db_con, object $usr_obj, phrase_list $phr_lst): void
+    {
+        // check the Postgres query syntax
+        $sc = $db_con->sql_creator();
+        $sc->db_type = sql_db::POSTGRES;
+        $qp = $usr_obj->load_sql_by_grp_lst($sc, $phr_lst);
+        $result = $t->assert_qp($qp, $sc->db_type);
+
+        // ... and check the MySQL query syntax
+        if ($result) {
+            $sc->db_type = sql_db::MYSQL;
+            $qp = $usr_obj->load_sql_by_grp_lst($sc, $phr_lst);
+            $t->assert_qp($qp, $sc->db_type);
+        }
+    }
+
+    /**
+     * test the SQL statement creation for a value list
+     *
+     * @param test_cleanup $t the forwarded testing object
+     * @param sql_db $db_con does not need to be connected to a real database
+     * @param value_list $val_lst the value list object that should ve filled
      * @param phrase $phr filled with an id to be able to load
-     * @param string $dialect if not Postgres the name of the SQL dialect
      * @return void
      */
-    private function assert_by_phr_sql(phrase $phr, string $dialect = ''): sql_par
+    private function assert_sql_by_phr(test_cleanup $t, sql_db $db_con, value_list $val_lst, phrase $phr): void
     {
-        global $usr;
+        // check the Postgres query syntax
+        $sc = $db_con->sql_creator();
+        $sc->db_type = sql_db::POSTGRES;
+        $qp = $val_lst->load_sql_by_phr($sc, $phr);
+        $result = $t->assert_qp($qp, $sc->db_type);
 
-        $lib = new library();
-
-        $lst = new value_list($usr);
-        $db_con = new sql_db();
-        $db_con->db_type = $dialect;
-        $dialect_ext = '';
-        if ($dialect == sql_db::MYSQL) {
-            $dialect_ext = self::FILE_MYSQL;
+        // ... and check the MySQL query syntax
+        if ($result) {
+            $sc->db_type = sql_db::MYSQL;
+            $qp = $val_lst->load_sql_by_phr($sc, $phr);
+            $t->assert_qp($qp, $sc->db_type);
         }
-        $qp = $lst->load_by_phr_sql($db_con, $phr);
-        $expected_sql = $this->test->file(self::PATH . $qp->name . $dialect_ext . self::FILE_EXT);
-        $this->test->assert(
-            self::TEST_NAME . $qp->name . $dialect,
-            $lib->trim($qp->sql),
-            $lib->trim($expected_sql)
-        );
-        return $qp;
     }
 
 }

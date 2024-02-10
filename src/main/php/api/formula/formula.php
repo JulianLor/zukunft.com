@@ -30,13 +30,18 @@
 
 */
 
-namespace api;
+namespace api\formula;
 
-use formula;
-use html\formula_dsp;
-use html\term_dsp;
+include_once API_SANDBOX_PATH . 'sandbox_typed.php';
+include_once MODEL_FORMULA_PATH . 'formula.php';
+include_once WEB_FORMULA_PATH . 'formula.php';
 
-class formula_api extends user_sandbox_named_with_type_api
+use api\phrase\term as term_api;
+use api\sandbox\sandbox_typed as sandbox_typed_api;
+use api\word\word as word_api;
+use api\verb\verb as verb_api;
+
+class formula extends sandbox_typed_api
 {
 
     /*
@@ -45,30 +50,34 @@ class formula_api extends user_sandbox_named_with_type_api
 
     // formulas for stand-alone unit tests that are added with the system initial data load
     // TN_* is the name of the formula used for testing
+    // TI_* is the database id based on the initial load
     // TF_* is the formula expression in the human-readable format
     // TR_* is the formula expression in the database reference format
     const TN_READ = 'scale minute to sec';
     const TF_READ = '"second" = "minute" * 60';
     const TN_READ_ANOTHER = 'scale hour to sec';
+    const TF_DIAMETER = '= "circumference" / "Pi"';
+    const TR_DIAMETER = '={w' . word_api::TI_CIRCUMFERENCE . '}/{w' . word_api::TI_PI . '}';
+    const TN_READ_THIS = 'this';
+    const TN_READ_PRIOR = 'prior';
+    const TN_PERCENT = 'percent';
     const TN_INCREASE = 'increase';
     const TF_INCREASE = '"percent" = ( "this" - "prior" ) / "prior"';
     const TF_INCREASE_ALTERNATIVE = '"percent" = 1 - ( "this" / "prior" )';
-    const TR_INCREASE = '{w1}=({f18}-{f20})/{f20}';
-    const TN_READ_THIS = 'this';
-    const TN_READ_PRIOR = 'prior';
-    const TN_DIAMETER = 'diameter';
-    const TF_DIAMETER = '= "circumference" / "Pi"';
-    const TR_DIAMETER = '={w1}/{t2}';
+    const TR_INCREASE = '{w' . word_api::TI_PCT . '}=({w' . word_api::TI_THIS . '}-{w' . word_api::TI_PRIOR . '})/{w' . word_api::TI_PRIOR . '}';
+    const TN_LITRE_TO_M3 = 'scale litre to m3';
+    const TN_BIGGEST_CITY = 'population in the city of Zurich in percent of Switzerland';
     const TN_READ_SCALE_MIO = 'scale millions to one';
     const TF_READ_SCALE_MIO = '"one" = "millions" * 1000000';
-    const TR_SCALE_MIO = '{w1} = {w2} * 1000000';
+    const TR_SCALE_MIO = '{w' . word_api::TI_ONE . '} = {w' . word_api::TI_MIO . '} * 1000000';
     const TN_PARTS_IN_PERCENT = 'parts in percent';
-    const TF_PARTS_IN_PERCENT = '"percent" = "parts" "of" / "total"';
-    const TR_PARTS_IN_PERCENT = '{w1}={w2}{w3}/{w4}';
+    const TF_PARTS_IN_PERCENT = '"percent" = "parts" "of" / "total"'; // TODO check if separate verb "of each" is needed
+    const TR_PARTS_IN_PERCENT = '{w' . word_api::TI_PCT . '}={w' . word_api::TI_PARTS . '}{v' . verb_api::TI_OF . '}/{w' . word_api::TI_TOTAL . '}';
 
     // persevered formula names for unit and integration tests
     const TN_ADD = 'System Test Formula'; // to test adding a new formula to the database and using the increase formula
     const TN_RENAMED = 'System Test Formula Renamed';
+    const TN_EXCLUDED = 'System Test Formula Excluded';
     const TN_THIS = 'System Test Formula This'; // to test if another formula of the functional type "this" can be created
     const TF_THIS = '= "System Test Formula This"';
     const TN_RATIO = 'System Test Formula PE Ratio'; // to test a simple ration calculation like how many times Switzerland is bigger than the canton zurich or the price to earning ration for equity
@@ -84,11 +93,31 @@ class formula_api extends user_sandbox_named_with_type_api
     const TN_SCALE_BIL = 'System Test Formula scale billions to one';
     const TF_SCALE_BIL = '"one" = "System Test Scaling Word e.g. billions" * 1000000000';
 
-    // formula names that are reserved for creating the test formulas, that are removed after the test
+    // formula names that are reserved either
+    // for creating the test formulas, that are removed after the test
     // so these formula names cannot be used for user formulas
+    // or for fixed of the default data set that are used for unit tests
     const RESERVED_FORMULAS = array(
+        self::TN_READ,
         self::TN_ADD,
         self::TN_RENAMED,
+        self::TN_EXCLUDED,
+        self::TN_THIS,
+        self::TN_RATIO,
+        self::TN_SECTOR,
+        self::TN_SCALE_K,
+        self::TN_SCALE_TO_K,
+        self::TN_SCALE_MIO,
+        self::TN_SCALE_BIL
+    );
+
+    // formula names used for integration tests
+    // that are removed after each test
+    // and therefore cannot be used by users
+    const TEST_FORMULAS = array(
+        self::TN_ADD,
+        self::TN_RENAMED,
+        self::TN_EXCLUDED,
         self::TN_THIS,
         self::TN_RATIO,
         self::TN_SECTOR,
@@ -104,7 +133,7 @@ class formula_api extends user_sandbox_named_with_type_api
      */
 
     // the formula expression as shown to the user
-    private string $usr_text;
+    private string $user_text;
 
 
     /*
@@ -114,21 +143,21 @@ class formula_api extends user_sandbox_named_with_type_api
     function __construct(int $id = 0, string $name = '')
     {
         parent::__construct($id, $name);
-        $this->usr_text = '';
+        $this->user_text = '';
     }
 
     /*
      * set and get
      */
 
-    function set_usr_text(string $usr_text)
+    function set_usr_text(string $usr_text): void
     {
-        $this->usr_text = $usr_text;
+        $this->user_text = $usr_text;
     }
 
     function usr_text(): string
     {
-        return $this->usr_text;
+        return $this->user_text;
     }
 
 
@@ -136,19 +165,23 @@ class formula_api extends user_sandbox_named_with_type_api
      * cast
      */
 
-    /**
-     * @returns formula_dsp the cast object with the HTML code generating functions
-     */
-    function dsp_obj(): formula_dsp
+    function term(): term_api
     {
-        $dsp_obj = new formula_dsp($this->id, $this->name);
-        $dsp_obj->set_usr_text($this->usr_text());
-        return $dsp_obj;
+        return new term_api($this);
     }
 
-    function term(): term_api|term_dsp
+
+    /*
+     * interface
+     */
+
+    /**
+     * @return array with the formula vars without empty values that are not needed
+     */
+    function jsonSerialize(): array
     {
-        return new term_api($this->id, $this->name, formula::class);
+        $vars = get_object_vars($this);
+        return array_filter($vars, fn($value) => !is_null($value) && $value !== '');
     }
 
 }

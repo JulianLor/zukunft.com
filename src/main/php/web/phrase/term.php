@@ -2,8 +2,8 @@
 
 /*
 
-    /web/term.php - the display extension of the api term object
-    ------------
+    web/phrase/term.php - to create the html code to display a word, triple, verb or formula
+    --------------------
 
 
     This file is part of zukunft.com - calc with words
@@ -23,45 +23,246 @@
     To contact the authors write to:
     Timon Zielonka <timon@zukunft.com>
 
-    Copyright (c) 1995-2022 zukunft.com AG, Zurich
+    Copyright (c) 1995-2023 zukunft.com AG, Zurich
     Heang Lor <heang@zukunft.com>
 
     http://zukunft.com
 
 */
 
-namespace html;
+namespace html\phrase;
 
-use api\term_api;
+include_once WEB_SANDBOX_PATH . 'combine_named.php';
+include_once API_SANDBOX_PATH . 'combine_object.php';
+include_once API_PHRASE_PATH . 'term.php';
+include_once WEB_WORD_PATH . 'word.php';
+include_once WEB_WORD_PATH . 'triple.php';
+include_once WEB_FORMULA_PATH . 'formula.php';
+include_once WEB_VERB_PATH . 'verb.php';
 
-class term_dsp extends term_api
+use api\api;
+use api\phrase\term as term_api;
+use api\sandbox\combine_object as combine_object_api;
+use html\combine_named_dsp;
+use html\formula\formula as formula_dsp;
+use html\verb\verb as verb_dsp;
+use html\word\word as word_dsp;
+use html\word\triple as triple_dsp;
+
+class term extends combine_named_dsp
 {
+
+
+    /*
+     * set and get
+     */
+
+    /**
+     * set the vars of this term html display object bases on the api message
+     * @param string $json_api_msg an api json message as a string
+     * @return void
+     */
+    function set_from_json(string $json_api_msg): void
+    {
+        $json_array = json_decode($json_api_msg, true);
+        if ($json_array[combine_object_api::FLD_CLASS] == term_api::CLASS_WORD) {
+            $wrd = new word_dsp();
+            $wrd->set_from_json_array($json_array);
+            $this->set_obj($wrd);
+            // unlike the cases below the switch of the term id to the object id not needed for words
+        } elseif ($json_array[combine_object_api::FLD_CLASS] == term_api::CLASS_TRIPLE) {
+            $trp = new triple_dsp();
+            $trp->set_from_json_array($json_array);
+            $this->set_obj($trp);
+            // TODO check if needed
+            //$this->set_id($trp->id());
+        } elseif ($json_array[combine_object_api::FLD_CLASS] == term_api::CLASS_VERB) {
+            $vrb = new verb_dsp();
+            $vrb->set_from_json_array($json_array);
+            $this->set_obj($vrb);
+            //$this->set_id($vrb->id());
+        } elseif ($json_array[combine_object_api::FLD_CLASS] == term_api::CLASS_FORMULA) {
+            $frm = new formula_dsp();
+            $frm->set_from_json_array($json_array);
+            $this->set_obj($frm);
+            //$this->set_id($frm->id());
+        } else {
+            log_err('Json class ' . $json_array[combine_object_api::FLD_CLASS] . ' not expected for a term');
+        }
+    }
+
+    function set_term_obj(word_dsp|triple_dsp|verb_dsp|formula_dsp|null $obj): void
+    {
+        $this->obj = $obj;
+    }
+
+    /**
+     * set the object id based on the given term id
+     * must have the same logic as the database view and the api
+     * @param int $id the term id that is converted to the object id
+     * @return void
+     */
+    function set_id(int $id): void
+    {
+        if ($id % 2 == 0) {
+            $this->set_obj_id(abs($id) / 2);
+        } else {
+            $this->set_obj_id((abs($id) + 1) / 2);
+        }
+    }
+
+    /**
+     * @return int the id of the term generated from the object id
+     * e.g 1 for a word 1, -1 for a triple 1, 2 for a formula 1 and -2 for a verb 1
+     */
+    function id(): int
+    {
+        if ($this->is_word()) {
+            return ($this->obj_id() * 2) - 1;
+        } elseif ($this->is_triple()) {
+            return ($this->obj_id() * -2) + 1;
+        } elseif ($this->is_formula()) {
+            return $this->obj_id() * 2;
+        } elseif ($this->is_verb()) {
+            return $this->obj_id() * -2;
+        } else {
+            return 0;
+        }
+    }
+
+    /**
+     * @return int|string the id of the object
+     * e.g 1 for a word 1, 1 for a triple 1, 1 for a formula 1 and 1 for a verb 1
+     */
+    function obj_id(): int|string
+    {
+        return $this->obj()->id();
+    }
+
+
+    /*
+     * interface
+     */
+
+    /**
+     * @return array the json message array to send the updated data to the backend
+     * corresponding to the api jsonSerialize function:
+     * use the object id not the term id because the class is included
+     * maybe to reduce traffic remove the class but than the term id needs to be used
+     */
+    function api_array(): array
+    {
+        $vars = array();
+        if ($this->is_word()) {
+            $vars[combine_object_api::FLD_CLASS] = term_api::CLASS_WORD;
+        } elseif ($this->is_triple()) {
+            $vars[combine_object_api::FLD_CLASS] = term_api::CLASS_TRIPLE;
+        } elseif ($this->is_formula()) {
+            $vars[combine_object_api::FLD_CLASS] = term_api::CLASS_FORMULA;
+        } elseif ($this->is_verb()) {
+            $vars[combine_object_api::FLD_CLASS] = term_api::CLASS_VERB;
+        } else {
+            log_err('cannot create api message for term ' . $this->dsp_id() . ' because class is unknown');
+        }
+        $vars[api::FLD_ID] = $this->obj_id();
+        $vars[api::FLD_NAME] = $this->name();
+        $vars[api::FLD_DESCRIPTION] = $this->description();
+        if (!$this->is_verb()) {
+            $vars[api::FLD_TYPE] = $this->type_id();
+        }
+        if ($this->is_formula()) {
+            $vars[api::FLD_USER_TEXT] = $this->obj()->usr_text();
+        }
+        return array_filter($vars, fn($value) => !is_null($value) && $value !== '');
+    }
+
+
+    /*
+     * classifications
+     */
+
+    /**
+     * @return bool true if this term is a word or supposed to be a word
+     */
+    function is_word(): bool
+    {
+        if ($this->obj()::class == word_dsp::class) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    /**
+     * @return bool true if this term is a triple
+     */
+    function is_triple(): bool
+    {
+        if ($this->obj()::class == triple_dsp::class) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    /**
+     * @return bool true if this term is a verb
+     */
+    function is_verb(): bool
+    {
+        if ($this->obj()::class == verb_dsp::class) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    /**
+     * @return bool true if this term is a formula
+     */
+    function is_formula(): bool
+    {
+        if ($this->obj()::class == formula_dsp::class) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+
+    /*
+     * display
+     */
+
+    /**
+     * @return string best possible id for this term mainly used for debugging
+     */
+    function dsp_id(): string
+    {
+        return $this->obj()->dsp_id();
+    }
 
     /**
      * @returns string the html code to display with mouse over that shows the description
      */
-    function dsp(): string
+    function display(): string
     {
-        if ($this->is_word()) {
-            return $this->wrd_dsp()->dsp();
-        } else {
-            return $this->trp_dsp()->dsp();
-        }
+        return $this->obj()->display();
     }
 
     /**
      * @returns string the html code to display the phrase with reference links
      */
-    function dsp_link(): string
+    function display_linked(): string
     {
         if ($this->is_word()) {
-            return $this->wrd_dsp()->dsp_link();
+            return $this->obj()->display_linked();
         } elseif ($this->is_triple()) {
-            return $this->trp_dsp()->dsp_link();
+            return $this->obj()->display_linked();
         } elseif ($this->is_formula()) {
-            return $this->frm_dsp()->dsp_link();
+            return $this->obj()->display_linked();
         } elseif ($this->is_verb()) {
-            return $this->vrb_dsp()->dsp_link();
+            return $this->obj()->display_linked();
         } else {
             $msg = 'Unexpected term type ' . $this->dsp_id();
             log_err($msg);
@@ -76,7 +277,7 @@ class term_dsp extends term_api
     {
         $result = '';
         if ($this->is_word()) {
-            $wrd = $this->wrd_dsp();
+            $wrd = $this->obj();
             $result .= $wrd->td('', '', $intent);
         }
         return $result;
@@ -88,7 +289,7 @@ class term_dsp extends term_api
     function dsp_unlink(int $link_id): string
     {
         $result = '    <td>' . "\n";
-        $result .= \html\btn_del("unlink word", "/http/link_del.php?id=" . $link_id . "&back=" . $this->id);
+        $result .= \html\btn_del("unlink word", "/http/link_del.php?id=" . $link_id . "&back=" . $this->id());
         $result .= '    </td>' . "\n";
 
         return $result;
@@ -110,34 +311,30 @@ class term_dsp extends term_api
      */
     function dsp_selector(term_api $type, string $form_name, int $pos, string $class, string $back = ''): string
     {
-        $result = '';
+        // TODO include pattern in the call
+        $pattern = '';
+        $trm_lst = new term_list();
+        $trm_lst->load_like($pattern);
 
         if ($pos > 0) {
-            $field_name = "phrase" . $pos;
+            $field_name = "term" . $pos;
         } else {
-            $field_name = "phrase";
+            $field_name = "term";
         }
-        $sel = new html_selector;
-        $sel->form = $form_name;
-        $sel->name = $field_name;
-        if ($form_name == "value_add" or $form_name == "value_edit") {
-            $sel->label = "";
-        } else {
+        $label = "";
+        if ($form_name != "value_add" and $form_name != "value_edit") {
             if ($pos == 1) {
-                $sel->label = "From:";
+                $label = "From:";
             } elseif ($pos == 2) {
-                $sel->label = "To:";
+                $label = "To:";
             } else {
-                $sel->label = "Word:";
+                $label = "Word:";
             }
         }
-        $sel->bs_class = $class;
-        //$sel->sql = $this->sql_list($type);
-        $sel->selected = $this->id;
-        $sel->dummy_text = '... please select';
-        $result .= $sel->display();
+        // TODO activate Prio 3
+        // $sel->bs_class = $class;
 
-        return $result;
+        return $trm_lst->selector($field_name, $form_name, $label, '', $this->id());
     }
 
 }

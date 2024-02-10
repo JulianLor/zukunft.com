@@ -7,13 +7,144 @@
     <link rel="stylesheet" href="https://www.zukunft.com/lib_external/fontawesome/css/all.css">
 </head>
 <body>
-<div class="container"><h4>type list display test</h4>selector:<br>
-    <div class="form-group "><select class="form-control" name="" id="">
-        <option value="0" selected>please select ...</option>
-        <option value="1">default</option>
-        <option value="2">reversible</option>
-    </select></div>
-    <br></div>
+<div class="container">
+    <nav class="navbar bg-light fixed-top"><a class="navbar-brand" href="/http/view.php" title="zukunft.com"><img
+            src="/src/main/resources/images/ZUKUNFT_logo.svg" alt="zukunft.com" style="height: 4em;"></a>
+        <form action="/http/find.php" class="form-inline my-2 my-lg-0"><label for="pattern"></label><input
+                class="form-control mr-sm-2" type="search" name="pattern" id="pattern" placeholder="word or formula">
+            <button class="btn btn-outline-primary my-2 my-sm-0" type="submit">Get numbers</button>
+        </form>
+        <div class="col-sm-2">
+            <ul class="nav navbar-nav">
+                <li class="active"></li>
+                <li class="active"></li>
+                <li class="active"><a href="/http/view_edit.php?id=1" title="adjust the view"><i
+                        class="far fa-edit"></i></a><a href="/http/view_add.php" title="create a new view"><i
+                        class="far fa-plus-square"></i></a></li>
+            </ul>
+        </div>
+    </nav>
+    <br><br><br><br><br>All type selectors<br><br>
+    <form action="/http/view.php" id="view"><label for="user profile">user profile</label>
+        <div class="form-group "><select class="form-control" name="user profile" form="view" id="user profile">
+            <option value="0" selected>please select ...</option>
+            <option value="2">normal</option>
+            <option value="3">admin</option>
+        </select></div>
+        <br><label for="verb">verb</label>
+        <div class="form-group "><select class="form-control" name="verb" form="view" id="verb">
+            <option value="0" selected>please select ...</option>
+            <option value="1">not_set</option>
+            <option value="2">is</option>
+            <option value="3">contains</option>
+            <option value="4">with</option>
+            <option value="9">follow</option>
+        </select></div>
+        <br><label for="phrase type">phrase type</label>
+        <div class="form-group "><select class="form-control" name="phrase type" form="view" id="phrase type">
+            <option value="0" selected>please select ...</option>
+            <option value="1">standard</option>
+            <option value="2">time</option>
+            <option value="3">measure type</option>
+            <option value="4">time jump</option>
+            <option value="5">calc</option>
+            <option value="6">format percent</option>
+            <option value="7">scaling</option>
+            <option value="8">hidden scaling</option>
+            <option value="9">view / layer</option>
+            <option value="10">formula link</option>
+            <option value="11">differentiator filler</option>
+            <option value="12">this</option>
+            <option value="13">next</option>
+            <option value="14">prior</option>
+            <option value="15">scaling word percent</option>
+            <option value="16">scaled measure</option>
+            <option value="17">math constant</option>
+            <option value="18">measure divisor</option>
+            <option value="19">latest</option>
+            <option value="20">key</option>
+            <option value="21">information</option>
+            <option value="22">hidden triple</option>
+            <option value="23">hidden system</option>
+            <option value="24">group and select</option>
+        </select></div>
+        <br><label for="formula type">formula type</label>
+        <div class="form-group "><select class="form-control" name="formula type" form="view" id="formula type">
+            <option value="0" selected>please select ...</option>
+            <option value="1">default</option>
+            <option value="2">reversible</option>
+        </select></div>
+        <br><label for="link type">link type</label>
+        <div class="form-group "><select class="form-control" name="link type" form="view" id="link type">
+            <option value="0" selected>please select ...</option>
+            <option value="1">System Test Type Name</option>
+            <option value="2">default</option>
+            <option value="3">time_period_based</option>
+        </select></div>
+        <br><label for="view type">view type</label>
+        <div class="form-group "><select class="form-control" name="view type" form="view" id="view type">
+            <option value="0" selected>please select ...</option>
+            <option value="1">System Test Type Name</option>
+            <option value="2">default</option>
+            <option value="7">system</option>
+        </select></div>
+        <br><label for="component type">component type</label>
+        <div class="form-group "><select class="form-control" name="component type" form="view" id="component type">
+            <option value="0" selected>please select ...</option>
+            <option value="1">System Test Type Name</option>
+            <option value="2">text</option>
+            <option value="8">word_name</option>
+            <option value="17">system_form_title</option>
+            <option value="18">system_form_back_stack</option>
+            <option value="19">system_form_confirm_status</option>
+            <option value="20">system_form_field_name</option>
+            <option value="21">system_form_field_description</option>
+            <option value="22">system_form_select_phrase</option>
+            <option value="23">system_form_select_verb</option>
+            <option value="24">system_form_select_share</option>
+            <option value="25">system_form_select_protection</option>
+            <option value="26">system_button_cancel</option>
+            <option value="27">system_button_save</option>
+            <option value="28">system_button_del</option>
+            <option value="29">form_end</option>
+            <option value="30">row_start</option>
+            <option value="31">row_right</option>
+            <option value="32">row_end</option>
+        </select></div>
+        <br><label for="ref type">ref type</label>
+        <div class="form-group "><select class="form-control" name="ref type" form="view" id="ref type">
+            <option value="0" selected>please select ...</option>
+            <option value="1">System Test Type Name</option>
+            <option value="2">wikipedia</option>
+        </select></div>
+        <br><label for="source type">source type</label>
+        <div class="form-group "><select class="form-control" name="source type" form="view" id="source type">
+            <option value="0" selected>please select ...</option>
+            <option value="1">System Test Type Name</option>
+            <option value="2">xbrl</option>
+            <option value="3">csv</option>
+            <option value="4">pdf</option>
+        </select></div>
+        <br><label for="protection">protection</label>
+        <div class="form-group "><select class="form-control" name="protection" form="view" id="protection">
+            <option value="0" selected>please select ...</option>
+            <option value="1">no_protection</option>
+            <option value="2">user_protection</option>
+            <option value="3">admin_protection</option>
+            <option value="4">no_change</option>
+        </select></div>
+        <br><label for="share">share</label>
+        <div class="form-group "><select class="form-control" name="share" form="view" id="share">
+            <option value="0" selected>please select ...</option>
+            <option value="1">public</option>
+            <option value="2">personal</option>
+            <option value="3">group</option>
+            <option value="4">private</option>
+        </select></div>
+        <br>
+        <button type="submit" class="btn btn-outline-success btn-space">view</button>
+    </form>
+</div>
 <footer>
     <div class="text-center"><small><a href="/http/about.php" title="About">About</a> &middot;<a
             href="/http/privacy_policy.html" title="Privacy Policy">Privacy Policy</a> &middot; All structured data is

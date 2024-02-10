@@ -26,8 +26,17 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 */
 
+include_once SERVICE_IMPORT_PATH . 'import.php';
+
+use cfg\verb_list;
+use html\html_base;
+use cfg\db\sql_db;
+use cfg\user;
+use cfg\user_profile;
+
 /**
  * import a single json file
+ * TODO return a user message instead of a string
  *
  * @param string $filename
  * @param user $usr
@@ -45,9 +54,7 @@ function import_json_file(string $filename, user $usr): string
             $msg .= ' failed because message file is empty of not found.';
         } else {
             $import = new file_import;
-            $import->usr = $usr;
-            $import->json_str = $json_str;
-            $import_result = $import->put();
+            $import_result = $import->put($json_str, $usr);
             if ($import_result->is_ok()) {
                 $msg .= ' done ('
                     . $import->words_done . ' words, '
@@ -59,6 +66,7 @@ function import_json_file(string $filename, user $usr): string
                     . $import->sources_done . ' sources, '
                     . $import->refs_done . ' references, '
                     . $import->views_done . ' views loaded, '
+                    . $import->components_done . ' components loaded, '
                     . $import->calc_validations_done . ' results validated, '
                     . $import->view_validations_done . ' views validated)';
                 if ($import->users_done > 0) {
@@ -127,6 +135,32 @@ function import_verbs(user $usr): bool
 }
 
 /**
+ * import the initial system configuration
+ * @param user $usr who has triggered the function
+ * @return bool true if the configuration has imported
+ */
+function import_config(user $usr): bool
+{
+    global $db_con;
+    global $verbs;
+
+    $result = false;
+
+    if ($usr->is_admin() or $usr->is_system()) {
+        $import_result = import_json_file(SYSTEM_CONFIG_FILE, $usr);
+        if (str_starts_with($import_result, ' done ')) {
+            $result = true;
+        }
+    }
+
+    // TODO load the config
+    // $verbs = new verb_list($usr);
+    // $verbs->load($db_con);
+
+    return $result;
+}
+
+/**
  * import all zukunft.com base configuration json files
  * for an import it can be assumed that this base configuration is loaded
  * even if a user has overwritten some of these definitions the technical import should be possible
@@ -143,9 +177,10 @@ function import_base_config(user $usr): string
         $usr, true
     );
 
+    $html = new html_base();
     $file_list = unserialize(BASE_CONFIG_FILES);
     foreach ($file_list as $filename) {
-        ui_echo('load ' . $filename);
+        $html->echo('load ' . $filename);
         echo "\n";
         $result .= import_json_file(PATH_BASE_CONFIG_MESSAGE_FILES . $filename, $usr);
     }

@@ -30,11 +30,21 @@
 
 */
 
-use api\source_api;
+namespace test;
+
+use api\ref\source as source_api;
+use cfg\ref_type_list;
+use cfg\source_list;
+use cfg\source_type_list;
+use html\ref\ref as ref_dsp;
+use html\ref\source as source_dsp;
+use cfg\ref;
+use cfg\source;
+use cfg\db\sql_db;
 
 class ref_unit_tests
 {
-    function run(testing $t): void
+    function run(test_cleanup $t): void
     {
 
         global $usr;
@@ -48,21 +58,27 @@ class ref_unit_tests
 
         $t->header('Unit tests of the reference class (src/main/php/model/ref/ref.php)');
 
-        $t->subheader('SQL user sandbox statement tests');
-        $ref = new ref($usr);
-        $t->assert_load_sql_id($db_con, $ref);
-
-        $t->subheader('API unit tests');
-        $ref = $t->dummy_reference();
-        $t->assert_api($ref);
-
-        $t->subheader('Im- and Export tests');
-        $t->assert_json(new ref($usr), $json_file);
-
         $t->subheader('SQL statement tests');
+        $ref = new ref($usr);
+        $t->assert_sql_by_id($db_con, $ref);
+        $this->assert_sql_link_ids($t, $db_con, $ref);
+
+        // sql to load a ref by id
+        $ref = new ref($usr);
+        $ref->set_id(3);
+        $t->assert_sql_standard($db_con, $ref);
+
         // sql to load the ref types
         $ref_type_list = new ref_type_list();
-        $t->assert_load_sql_all($db_con, $ref_type_list, sql_db::TBL_REF_TYPE);
+        $t->assert_sql_all($db_con, $ref_type_list, sql_db::TBL_REF_TYPE);
+
+        $t->subheader('Im- and Export tests');
+        $t->assert_json_file(new ref($usr), $json_file);
+
+        $t->subheader('API and frontend cast unit tests for references');
+        $ref = $t->dummy_reference();
+        $t->assert_api($ref);
+        $t->assert_api_to_dsp($ref, new ref_dsp());
 
 
         // init for source
@@ -72,37 +88,75 @@ class ref_unit_tests
 
         $t->header('Unit tests of the source class (src/main/php/model/ref/source.php)');
 
-        $t->subheader('SQL user sandbox statement tests');
-        $src = new source($usr);
-        $t->assert_load_sql_id($db_con, $src);
-        $t->assert_load_sql_name($db_con, $src);
-        $t->assert_load_sql_code_id($db_con, $src);
-
-        $t->subheader('API unit tests');
-        $src = $t->dummy_source();
-        $t->assert_api_msg($db_con, $src);
-
-        $t->subheader('Im- and Export tests');
-        $t->assert_json(new source($usr), $json_file);
-
         $t->subheader('SQL statement tests');
+        $src = new source($usr);
+        $t->assert_sql_table_create($db_con, $src);
+        $t->assert_sql_index_create($db_con, $src);
+        $t->assert_sql_foreign_key_create($db_con, $src);
+        $t->assert_sql_by_id($db_con, $src);
+        $t->assert_sql_by_name($db_con, $src);
+        $t->assert_sql_by_code_id($db_con, $src);
+
         // sql to load a source by id
         $src = new source($usr);
         $src->set_id(4);
-        $t->assert_load_standard_sql($db_con, $src);
+        $t->assert_sql_standard($db_con, $src);
 
         // sql to load a source by name
         $src = new source($usr);
         $src->set_name(source_api::TN_READ);
-        $t->assert_load_standard_sql($db_con, $src);
+        $t->assert_sql_standard($db_con, $src);
         $src->set_id(5);
-        $t->assert_not_changed_sql($db_con, $src);
-        $t->assert_user_config_sql($db_con, $src);
+        $t->assert_sql_not_changed($db_con, $src);
+        $t->assert_sql_user_changes($db_con, $src);
 
         // sql to load the source types
         $source_type_list = new source_type_list();
-        $t->assert_load_sql_all($db_con, $source_type_list, sql_db::TBL_SOURCE_TYPE);
+        $t->assert_sql_all($db_con, $source_type_list, sql_db::TBL_SOURCE_TYPE);
 
+        $t->subheader('Im- and Export tests');
+        $t->assert_json_file(new source($usr), $json_file);
+
+        $t->subheader('API and frontend cast unit tests for sources');
+        $src = $t->dummy_source();
+        $t->assert_api_msg($db_con, $src);
+        $t->assert_api_to_dsp($src, new source_dsp());
+
+
+        // init for source list
+        $t->name = 'source_list->';
+
+        $src_lst = new source_list($usr);
+        $trm_ids = array(1, 2, 3);
+        $t->assert_sql_by_ids($db_con, $src_lst, $trm_ids);
+        $src_lst = new source_list($usr);
+        $t->assert_sql_like($db_con, $src_lst);
+
+    }
+
+    /**
+     * test the SQL statement creation for a value phrase link list in all SQL dialect
+     * and check if the statement name is unique
+     *
+     * @param test_cleanup $t the test environment
+     * @param sql_db $db_con the test database connection
+     * @param ref $ref the reference object for which the load by link ids sql statement creation should be tested
+     * @return void
+     */
+    private function assert_sql_link_ids(
+        test_cleanup $t,
+        sql_db $db_con,
+        ref $ref): void
+    {
+        // check the Postgres query syntax
+        $db_con->db_type = sql_db::POSTGRES;
+        $qp = $ref->load_sql_by_link_ids($db_con->sql_creator(), 1, 2);
+        $t->assert_qp($qp, $db_con->db_type);
+
+        // check the MySQL query syntax
+        $db_con->db_type = sql_db::MYSQL;
+        $qp = $ref->load_sql_by_link_ids($db_con->sql_creator(), 1, 2);
+        $t->assert_qp($qp, $db_con->db_type);
     }
 
 }

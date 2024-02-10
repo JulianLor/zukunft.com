@@ -30,12 +30,21 @@
 */
 
 // standard zukunft header for callable php files to allow debugging and lib loading
+use controller\controller;
+use html\ref\source as source_dsp;
+use html\view\view as view_dsp;
+use cfg\source;
+use cfg\user;
+use cfg\view;
+
 $debug = $_GET['debug'] ?? 0;
 const ROOT_PATH = __DIR__ . '/../';
 include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 
 // open database
 $db_con = prg_start("source_edit");
+
+global $system_views;
 
 $result = ''; // reset the html code var
 $msg = ''; // to collect all messages that should be shown to the user immediately
@@ -47,33 +56,35 @@ $result .= $usr->get();
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
 if ($usr->id() > 0) {
 
-    load_usr_data();
+    $html = new \html\html_base();
+
+    $usr->load_usr_data();
 
     // prepare the display
-    $dsp = new view_dsp_old($usr);
-    $dsp->load_by_id(cl(db_cl::VIEW, view::SOURCE_EDIT));
-    $back = $_GET['back']; // the original calling page that should be shown after the change if finished
+    $msk = new view($usr);
+    $msk->load_by_id($system_views->id(controller::DSP_SOURCE_EDIT));
+    $back = $_GET[controller::API_BACK]; // the original calling page that should be shown after the change if finished
 
     // create the source object to have an place to update the parameters
     $src = new source($usr);
-    $src->load_by_id($_GET['id']);
+    $src->load_by_id($_GET[controller::URL_VAR_ID]);
 
     if ($src->id() <= 0) {
         $result .= log_err("No source found to change because the id is missing.", "source_edit.php");
     } else {
 
         // if the save button has been pressed at least the name is filled (an empty name should never be saved; instead the word should be deleted)
-        if ($_GET['name'] <> '') {
+        if ($_GET[controller::URL_VAR_NAME] <> '') {
 
             // get the parameters (but if not set, use the database value)
-            if (isset($_GET['name'])) {
-                $src->set_name($_GET['name']);
+            if (isset($_GET[controller::URL_VAR_NAME])) {
+                $src->set_name($_GET[controller::URL_VAR_NAME]);
             }
             if (isset($_GET['url'])) {
                 $src->url = $_GET['url'];
             }
-            if (isset($_GET['comment'])) {
-                $src->description = $_GET['comment'];
+            if (isset($_GET[controller::URL_VAR_COMMENT])) {
+                $src->description = $_GET[controller::URL_VAR_COMMENT];
             }
 
             // save the changes
@@ -85,7 +96,7 @@ if ($usr->id() > 0) {
                 $usr->set_source($src->id());
 
                 // ... and display the calling view
-                $result .= dsp_go_back($back, $usr);
+                $result .= $html->dsp_go_back($back, $usr);
             } else {
                 // ... or in case of a problem prepare to show the message
                 $msg .= $upd_result;
@@ -96,11 +107,13 @@ if ($usr->id() > 0) {
         // if nothing yet done display the add view (and any message on the top)
         if ($result == '') {
             // show the header
-            $result .= $dsp->dsp_navbar($back);
-            $result .= dsp_err($msg);
+            $msk_dsp = new view_dsp($msk->api_json());
+            $result .= $msk_dsp->dsp_navbar($back);
+            $result .= $html->dsp_err($msg);
 
             // show the source and its relations, so that the user can change it
-            $result .= $src->dsp_obj()->dsp_edit($back);
+            $scr_dsp = new source_dsp($src->api_json());
+            $result .= $scr_dsp->dsp_edit($back);
         }
     }
 }

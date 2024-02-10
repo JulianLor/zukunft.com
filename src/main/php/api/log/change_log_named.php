@@ -30,9 +30,11 @@
 
 */
 
-namespace controller\log;
+namespace api\log;
 
-class change_log_named_api extends change_log_api
+include_once API_LOG_PATH . 'change_log.php';
+
+class change_log_named extends change_log
 {
 
 

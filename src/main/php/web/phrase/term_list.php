@@ -2,8 +2,8 @@
 
 /*
 
-    /web/phrase_list_dsp.php - the display extension of the api phrase list object
-    -----------------------
+    /web/phrase/term_list_dsp.php - the display extension of the api phrase list object
+    -----------------------------
 
     mainly links to the word and triple display functions
 
@@ -32,40 +32,99 @@
 
 */
 
-namespace html;
+namespace html\phrase;
 
-use api\term_list_api;
+use api\phrase\term as term_api;
+use api\sandbox\combine_object as combine_object_api;
+use html\list_dsp;
+use html\word\word as word_dsp;
+use html\word\triple as triple_dsp;
+use html\formula\formula as formula_dsp;
+use html\verb\verb as verb_dsp;
+use cfg\library;
 
-class term_list_dsp extends term_list_api
+include_once WEB_SANDBOX_PATH . 'list.php';
+
+class term_list extends list_dsp
 {
+
+
+    /*
+     * set and get
+     */
+
+    /**
+     * set the vars of a term object based on the given json
+     * @param array $json_array an api single object json message
+     * @return object a term_dsp with the word, triple, formula or verb set based on the given json
+     */
+    function set_obj_from_json_array(array $json_array): object
+    {
+        $trm = null;
+        if (array_key_exists(combine_object_api::FLD_CLASS, $json_array)) {
+            if ($json_array[combine_object_api::FLD_CLASS] == term_api::CLASS_WORD) {
+                $wrd = new word_dsp();
+                $wrd->set_from_json_array($json_array);
+                $trm = $wrd->term();
+            } elseif ($json_array[combine_object_api::FLD_CLASS] == term_api::CLASS_TRIPLE) {
+                $trp = new triple_dsp();
+                $trp->set_from_json_array($json_array);
+                $trm = $trp->term();
+            } elseif ($json_array[combine_object_api::FLD_CLASS] == term_api::CLASS_FORMULA) {
+                $frm = new formula_dsp();
+                $frm->set_from_json_array($json_array);
+                $trm = $frm->term();
+            } elseif ($json_array[combine_object_api::FLD_CLASS] == term_api::CLASS_VERB) {
+                $vrb = new verb_dsp();
+                $vrb->set_from_json_array($json_array);
+                $trm = $vrb->term();
+            } else {
+                log_err('class ' . $json_array[combine_object_api::FLD_CLASS] . ' not expected.');
+            }
+        } else {
+            $lib = new library();
+            log_err('json key ' . combine_object_api::FLD_CLASS . ' is missing in ' . $lib->dsp_array($json_array));
+        }
+        return $trm;
+    }
+
+
+    /*
+     * display
+     */
 
     /**
      * @returns string the html code to display the phrases with the most useful link
      */
-    function dsp(): string
+    function display(): string
     {
         $result = '';
         foreach ($this->lst as $trm) {
-            if ($result != '' and $trm->dsp_link() != '') {
+            if ($result != '' and $trm->display() != '') {
                 $result .= ', ';
             }
-            $result .= $trm->dsp_link();
+            $result .= $trm->display();
         }
         return $result;
     }
 
     /**
-     * @returns string the html code to select a phrase out of this list
+     * @returns string the html code to display the phrases with the most useful link
      */
-    function selector(string $name = '', string $form = '', int $selected = 0): string
+    function display_linked(): string
     {
-        $sel = new html_selector;
-        $sel->name = $name;
-        $sel->form = $form;
-        $sel->lst = $this->lst_key();
-        $sel->selected = $selected;
-
-        return $sel->dsp();
+        $result = '';
+        foreach ($this->lst as $trm) {
+            if ($result != '' and $trm->display_linked() != '') {
+                $result .= ', ';
+            }
+            $result .= $trm->display_linked();
+        }
+        return $result;
     }
 
+    function add(object $obj): bool
+    {
+        return $this->add_obj($obj);
+    }
 }

@@ -30,19 +30,34 @@
 
 */
 
-use api\formula_api;
-use api\phrase_api;
-use api\source_api;
-use api\triple_api;
-use api\verb_api;
-use api\view_api;
-use api\view_cmp_api;
-use api\word_api;
+namespace test;
+
+use api\component\component as component_api;
+use api\formula\formula as formula_api;
+use api\phrase\phrase as phrase_api;
+use api\ref\source as source_api;
+use api\word\triple as triple_api;
+use api\verb\verb as verb_api;
+use api\view\view as view_api;
+use api\word\word as word_api;
+use cfg\db\sql_par;
+use cfg\formula;
 use cfg\formula_type;
+use cfg\library;
+use cfg\phrase;
+use cfg\phrase_list;
 use cfg\phrase_type;
+use cfg\ref_type;
+use cfg\db\sql_db;
+use cfg\term;
+use cfg\term_list;
+use cfg\triple;
+use cfg\value\value;
+use cfg\verb;
+use cfg\word;
 use html\html_base;
 
-class testing extends test_api
+class test_cleanup extends test_api
 {
     // queries to check if removing of the test rows is complete
     const CLEAN_CHECK_WORDS = 'db/cleanup/test_words.sql';
@@ -80,11 +95,11 @@ class testing extends test_api
                     $val = new value($this->usr1);
                     $val->load_by_id($val_id);
                     // check again, because some id may be added twice
-                    if ($val->id() > 0) {
+                    if ($val->is_id_set()) {
                         $msg = $val->del();
                         $result .= $msg->get_last_message();
                         $target = '';
-                        $this->dsp('value->del test value for "' . word_api::TN_RENAMED . '"', $target, $result, TIMEOUT_LIMIT_DB_MULTI);
+                        $this->display('value->del test value for "' . word_api::TN_RENAMED . '"', $target, $result, TIMEOUT_LIMIT_DB_MULTI);
                     }
                 }
             }
@@ -93,11 +108,12 @@ class testing extends test_api
         // secure cleanup the test views
         // TODO: if a user has changed the view during the test, delete also the user views
 
-        $result .= $this->test_view_cmp_unlink(view_api::TN_COMPLETE, view_cmp_api::TN_TITLE);
-        $result .= $this->test_view_cmp_unlink(view_api::TN_COMPLETE, view_cmp_api::TN_VALUES);
-        $result .= $this->test_view_cmp_unlink(view_api::TN_COMPLETE, view_cmp_api::TN_RESULTS);
-        $result .= $this->test_view_cmp_unlink(view_api::TN_TABLE, view_cmp_api::TN_TITLE);
-        $result .= $this->test_view_cmp_unlink(view_api::TN_TABLE, view_cmp_api::TN_TABLE);
+        $result .= $this->test_component_unlink(view_api::TN_COMPLETE, component_api::TN_TITLE);
+        $result .= $this->test_component_unlink(view_api::TN_COMPLETE, component_api::TN_VALUES);
+        $result .= $this->test_component_unlink(view_api::TN_COMPLETE, component_api::TN_RESULTS);
+        $result .= $this->test_component_unlink(view_api::TN_EXCLUDED, component_api::TN_EXCLUDED);
+        $result .= $this->test_component_unlink(view_api::TN_TABLE, component_api::TN_TITLE);
+        $result .= $this->test_component_unlink(view_api::TN_TABLE, component_api::TN_TABLE);
 
         // load the test view
         $dsp = $this->load_view(view_api::TN_ADD);
@@ -112,35 +128,35 @@ class testing extends test_api
         }
 
         // load the first test view component
-        $cmp = $this->load_view_component(view_cmp_api::TN_ADD);
+        $cmp = $this->load_component(component_api::TN_ADD);
         if ($cmp->id() <= 0) {
-            $cmp = $this->load_view_component(view_cmp_api::TN_RENAMED);
+            $cmp = $this->load_component(component_api::TN_RENAMED);
         }
 
         // load the first test view component for user 2
-        $cmp_usr2 = $this->load_view_component(view_cmp_api::TN_ADD, $this->usr2);
+        $cmp_usr2 = $this->load_component(component_api::TN_ADD, $this->usr2);
         if ($cmp_usr2->id() <= 0) {
-            $cmp_usr2 = $this->load_view_component(view_cmp_api::TN_RENAMED, $this->usr2);
+            $cmp_usr2 = $this->load_component(component_api::TN_RENAMED, $this->usr2);
         }
 
         // load the second test view component
-        $cmp2 = $this->load_view_component(view_cmp_api::TN_ADD2);
+        $cmp2 = $this->load_component(component_api::TN_ADD2);
 
         // load the second test view component for user 2
-        $cmp2_usr2 = $this->load_view_component(view_cmp_api::TN_ADD2, $this->usr2);
+        $cmp2_usr2 = $this->load_component(component_api::TN_ADD2, $this->usr2);
 
         // check if the test components have been unlinked for user 2
         if ($dsp_usr2->id() > 0 and $cmp_usr2->id() > 0) {
             $result .= $cmp_usr2->unlink($dsp_usr2);
             $target = '';
-            $this->dsp('cleanup: unlink first component "' . $cmp_usr2->name() . '" from "' . $dsp_usr2->name() . '" for user 2', $target, $result, TIMEOUT_LIMIT_DB_MULTI);
+            $this->display('cleanup: unlink first component "' . $cmp_usr2->name() . '" from "' . $dsp_usr2->name() . '" for user 2', $target, $result, TIMEOUT_LIMIT_DB_MULTI);
         }
 
         // check if the test components have been unlinked
         if ($dsp->id() > 0 and $cmp->id() > 0) {
             $result .= $cmp->unlink($dsp);
             $target = '';
-            $this->dsp('cleanup: unlink first component "' . $cmp->name() . '" from "' . $dsp->name() . '"', $target, $result, TIMEOUT_LIMIT_DB_MULTI);
+            $this->display('cleanup: unlink first component "' . $cmp->name() . '" from "' . $dsp->name() . '"', $target, $result, TIMEOUT_LIMIT_DB_MULTI);
         }
 
         // unlink the second component
@@ -150,42 +166,42 @@ class testing extends test_api
         if ($dsp->id() > 0 and $cmp2->id() > 0) {
             $result .= $cmp2->unlink($dsp);
             $target = '';
-            $this->dsp('cleanup: unlink second component "' . $cmp2->name() . '" from "' . $dsp->name() . '"', $target, $result, TIMEOUT_LIMIT_DB_MULTI);
+            $this->display('cleanup: unlink second component "' . $cmp2->name() . '" from "' . $dsp->name() . '"', $target, $result, TIMEOUT_LIMIT_DB_MULTI);
         }
 
         // unlink the second component for user 2
         if ($dsp_usr2->id() > 0 and $cmp2_usr2->id() > 0) {
             $result .= $cmp2_usr2->unlink($dsp_usr2);
             $target = '';
-            $this->dsp('cleanup: unlink second component "' . $cmp2_usr2->name() . '" from "' . $dsp_usr2->name() . '" for user 2', $target, $result, TIMEOUT_LIMIT_DB_MULTI);
+            $this->display('cleanup: unlink second component "' . $cmp2_usr2->name() . '" from "' . $dsp_usr2->name() . '" for user 2', $target, $result, TIMEOUT_LIMIT_DB_MULTI);
         }
 
         // request to delete the added test views
-        foreach (view_cmp_api::RESERVED_VIEW_COMPONENTS as $cmp_name) {
-            $cmp = $this->load_view_component($cmp_name);
+        foreach (component_api::TEST_COMPONENTS as $cmp_name) {
+            $cmp = $this->load_component($cmp_name);
             if ($cmp->id() > 0) {
                 $msg = $cmp->del();
                 $result .= $msg->get_last_message();
                 $target = '';
-                $this->dsp('view_component->del of "' . $cmp_name . '"', $target, $result);
+                $this->display('component->del of "' . $cmp_name . '"', $target, $result);
             }
         }
 
         // request to delete the added test views
-        foreach (view_api::RESERVED_VIEWS as $dsp_name) {
+        foreach (view_api::TEST_VIEWS as $dsp_name) {
             $dsp = $this->load_view($dsp_name);
             if ($dsp->id() > 0) {
                 $msg = $dsp->del();
                 $result .= $msg->get_last_message();
                 $target = '';
-                $this->dsp('view->del of "' . $dsp_name . '"', $target, $result);
+                $this->display('view->del of "' . $dsp_name . '"', $target, $result);
             }
         }
 
         // reload the first test view component for user 2
-        $cmp_usr2 = $this->load_view_component(view_cmp_api::TN_ADD, $this->usr2);
+        $cmp_usr2 = $this->load_component(component_api::TN_ADD, $this->usr2);
         if ($cmp_usr2->id() <= 0) {
-            $cmp_usr2 = $this->load_view_component(view_cmp_api::TN_RENAMED, $this->usr2);
+            $cmp_usr2 = $this->load_component(component_api::TN_RENAMED, $this->usr2);
         }
 
         // request to delete the test view component for user 2
@@ -193,13 +209,13 @@ class testing extends test_api
             $msg = $cmp_usr2->del();
             $result .= $msg->get_last_message();
             $target = '';
-            $this->dsp('cleanup: del of first component "' . view_cmp_api::TN_ADD . '" for user 2', $target, $result, TIMEOUT_LIMIT_DB);
+            $this->display('cleanup: del of first component "' . component_api::TN_ADD . '" for user 2', $target, $result, TIMEOUT_LIMIT_DB);
         }
 
         // reload the first test view component
-        $cmp = $this->load_view_component(view_cmp_api::TN_ADD);
+        $cmp = $this->load_component(component_api::TN_ADD);
         if ($cmp->id() <= 0) {
-            $cmp = $this->load_view_component(view_cmp_api::TN_RENAMED);
+            $cmp = $this->load_component(component_api::TN_RENAMED);
         }
 
         // request to delete the test view component
@@ -207,18 +223,18 @@ class testing extends test_api
             $msg = $cmp->del();
             $result .= $msg->get_last_message();
             $target = '';
-            $this->dsp('cleanup: del of first component "' . view_cmp_api::TN_ADD . '"', $target, $result, TIMEOUT_LIMIT_DB);
+            $this->display('cleanup: del of first component "' . component_api::TN_ADD . '"', $target, $result, TIMEOUT_LIMIT_DB);
         }
 
         // reload the second test view component
-        $cmp2 = $this->load_view_component(view_cmp_api::TN_ADD2);
+        $cmp2 = $this->load_component(component_api::TN_ADD2);
 
         // request to delete the second added test view component
         if ($cmp2->id() > 0) {
             $msg = $cmp2->del();
             $result .= $msg->get_last_message();
             $target = '';
-            $this->dsp('cleanup: del of second component "' . view_cmp_api::TN_ADD2 . '"', $target, $result, TIMEOUT_LIMIT_DB);
+            $this->display('cleanup: del of second component "' . component_api::TN_ADD2 . '"', $target, $result, TIMEOUT_LIMIT_DB);
         }
 
         // request to delete the second added test view component for user 2
@@ -226,7 +242,7 @@ class testing extends test_api
             $msg = $cmp2_usr2->del();
             $result .= $msg->get_last_message();
             $target = '';
-            $this->dsp('cleanup: del of second component "' . view_cmp_api::TN_ADD2 . '" for user 2', $target, $result, TIMEOUT_LIMIT_DB);
+            $this->display('cleanup: del of second component "' . component_api::TN_ADD2 . '" for user 2', $target, $result, TIMEOUT_LIMIT_DB);
         }
 
         // reload the test view for user 2
@@ -240,7 +256,7 @@ class testing extends test_api
             $msg = $dsp_usr2->del();
             $result .= $msg->get_last_message();
             $target = '';
-            $this->dsp('cleanup: del of view "' . view_api::TN_ADD . '" for user 2', $target, $result, TIMEOUT_LIMIT_DB);
+            $this->display('cleanup: del of view "' . view_api::TN_ADD . '" for user 2', $target, $result, TIMEOUT_LIMIT_DB);
         }
 
         // reload the test view
@@ -254,17 +270,17 @@ class testing extends test_api
             $msg = $dsp->del();
             $result .= $msg->get_last_message();
             $target = '';
-            $this->dsp('cleanup: del of view "' . view_api::TN_ADD . '"', $target, $result, TIMEOUT_LIMIT_DB);
+            $this->display('cleanup: del of view "' . view_api::TN_ADD . '"', $target, $result, TIMEOUT_LIMIT_DB);
         }
 
         // request to delete the added test views
-        foreach (view_api::RESERVED_VIEWS as $dsp_name) {
+        foreach (view_api::TEST_VIEWS as $dsp_name) {
             $dsp = $this->load_view($dsp_name);
             if ($dsp->id() > 0) {
                 $msg = $dsp->del();
                 $result .= $msg->get_last_message();
                 $target = '';
-                $this->dsp('view->del of "' . $dsp_name . '"', $target, $result);
+                $this->display('view->del of "' . $dsp_name . '"', $target, $result);
             }
         }
 
@@ -274,18 +290,18 @@ class testing extends test_api
             $msg = $src->del();
             $result .= $msg->get_last_message();
             $target = '';
-            $this->dsp('source->del of "' . source_api::TN_RENAMED . '"', $target, $result, TIMEOUT_LIMIT_DB);
+            $this->display('source->del of "' . source_api::TN_RENAMED . '"', $target, $result, TIMEOUT_LIMIT_DB);
         }
 
         // request to delete the added test sources
-        foreach (source_api::RESERVED_SOURCES as $src_name) {
+        foreach (source_api::TEST_SOURCES as $src_name) {
             if ($src_name != source_api::TN_READ) {
                 $src = $this->load_source($src_name);
                 if ($src->id() > 0) {
                     $msg = $src->del();
                     $result .= $msg->get_last_message();
                     $target = '';
-                    $this->dsp('source->del of "' . $src_name . '"', $target, $result);
+                    $this->display('source->del of "' . $src_name . '"', $target, $result);
                 }
             }
         }
@@ -296,40 +312,40 @@ class testing extends test_api
             $msg = $ref->del();
             $result .= $msg->get_last_message();
             $target = '';
-            $this->dsp('ref->del of "' . word_api::TN_ADD . '"', $target, $result);
+            $this->display('ref->del of "' . word_api::TN_ADD . '"', $target, $result);
         }
 
         // request to delete the added test formulas
-        foreach (formula_api::RESERVED_FORMULAS as $frm_name) {
+        foreach (formula_api::TEST_FORMULAS as $frm_name) {
             $dsp = $this->load_formula($frm_name);
             if ($dsp->id() > 0) {
                 $msg = $dsp->del();
                 $result .= $msg->get_last_message();
                 $target = '';
-                $this->dsp('formula->del of "' . $frm_name . '"', $target, $result);
+                $this->display('formula->del of "' . $frm_name . '"', $target, $result);
             }
         }
 
         // request to delete the added test phrases
-        foreach (phrase_api::RESERVED_PHRASES as $phr_name) {
+        foreach (phrase_api::TEST_TRIPLE_STANDARD as $phr_name) {
             $phr = $this->load_phrase($phr_name);
             if ($phr->id() <> 0) {
                 $msg = $phr->del();
                 $result .= $msg->get_last_message();
                 $target = '';
-                $this->dsp('phrase->del of "' . $phr_name . '"', $target, $result);
+                $this->display('phrase->del of "' . $phr_name . '"', $target, $result);
             }
         }
 
         // request to delete some triples not yet covered by the other cleanup jobs
-        $this->del_triple(word_api::TN_2019, verb::IS_A, word_api::TN_YEAR);
-        $this->del_triple(word_api::TN_2020, verb::IS_A, word_api::TN_YEAR);
-        $this->del_triple(word_api::TN_2021, verb::IS_A, word_api::TN_YEAR);
-        $this->del_triple(word_api::TN_2022, verb::IS_A, word_api::TN_YEAR);
+        $this->del_triple(word_api::TN_2019, verb::IS, word_api::TN_YEAR);
+        $this->del_triple(word_api::TN_2020, verb::IS, word_api::TN_YEAR);
+        $this->del_triple(word_api::TN_2021, verb::IS, word_api::TN_YEAR);
+        $this->del_triple(word_api::TN_2022, verb::IS, word_api::TN_YEAR);
         $this->del_triple(word_api::TN_2020, verb::FOLLOW, word_api::TN_2019);
         $this->del_triple(word_api::TN_2021, verb::FOLLOW, word_api::TN_2020);
         $this->del_triple(word_api::TN_2022, verb::FOLLOW, word_api::TN_2021);
-        $this->del_triple(word_api::TN_CASH_FLOW, verb::IS_A, word_api::TN_FIN_REPORT);
+        $this->del_triple(word_api::TN_CASH_FLOW, verb::IS, word_api::TN_FIN_REPORT);
         $this->del_triple(word_api::TN_TAX_REPORT, verb::IS_PART_OF, word_api::TN_CASH_FLOW);
         $this->del_triple(word_api::TN_CASH, verb::IS_PART_OF, word_api::TN_ASSETS_CURRENT);
         $this->del_triple(word_api::TN_ASSETS_CURRENT, verb::IS_PART_OF, word_api::TN_ASSETS);
@@ -343,7 +359,7 @@ class testing extends test_api
             $msg = $wrd->del();
             $result .= $msg->get_last_message();
             $target = '';
-            $this->dsp('word->del of "' . word_api::TN_ADD . '"', $target, $result);
+            $this->display('word->del of "' . word_api::TN_ADD . '"', $target, $result);
         }
 
         // request to delete the renamed test word
@@ -352,11 +368,11 @@ class testing extends test_api
             $msg = $wrd->del();
             $result .= $msg->get_last_message();
             $target = '';
-            $this->dsp('word->del of "' . word_api::TN_RENAMED . '"', $target, $result, TIMEOUT_LIMIT_DB);
+            $this->display('word->del of "' . word_api::TN_RENAMED . '"', $target, $result, TIMEOUT_LIMIT_DB);
         }
 
         // request to delete the added test words
-        foreach (word_api::RESERVED_WORDS as $wrd_name) {
+        foreach (word_api::TEST_WORDS as $wrd_name) {
             // ... but keep the read only test word
             if ($wrd_name != word_api::TN_READ) {
                 $wrd = $this->load_word($wrd_name);
@@ -364,22 +380,22 @@ class testing extends test_api
                     $msg = $wrd->del();
                     $result .= $msg->get_last_message();
                     $target = '';
-                    $this->dsp('word->del of "' . $wrd_name . '"', $target, $result);
+                    $this->display('word->del of "' . $wrd_name . '"', $target, $result);
                 }
             }
         }
 
         // TODO better use a info system log message
-        echo $db_con->seq_reset(sql_db::TBL_VALUE) . '<br>';
-        echo $db_con->seq_reset(sql_db::TBL_WORD) . '<br>';
-        echo $db_con->seq_reset(sql_db::TBL_PHRASE_GROUP_WORD_LINK) . '<br>';
-        echo $db_con->seq_reset(sql_db::TBL_PHRASE_GROUP_TRIPLE_LINK) . '<br>';
-        echo $db_con->seq_reset(sql_db::TBL_FORMULA) . '<br>';
-        echo $db_con->seq_reset(sql_db::TBL_FORMULA_LINK) . '<br>';
-        echo $db_con->seq_reset(sql_db::TBL_VIEW) . '<br>';
-        echo $db_con->seq_reset(sql_db::TBL_VIEW_COMPONENT) . '<br>';
-        echo $db_con->seq_reset(sql_db::TBL_VIEW_COMPONENT_LINK) . '<br>';
-        echo $db_con->seq_reset(sql_db::TBL_SOURCE) . '<br>';
+        $html = new html_base();
+        $html->echo_html($db_con->seq_reset(sql_db::TBL_WORD));
+        //$html->echo_html($db_con->seq_reset(sql_db::TBL_GROUP_LINK));
+        //$html->echo_html($db_con->seq_reset(sql_db::TBL_PHRASE_GROUP_TRIPLE_LINK));
+        $html->echo_html($db_con->seq_reset(sql_db::TBL_FORMULA));
+        $html->echo_html($db_con->seq_reset(sql_db::TBL_FORMULA_LINK));
+        $html->echo_html($db_con->seq_reset(sql_db::TBL_VIEW));
+        $html->echo_html($db_con->seq_reset(sql_db::TBL_COMPONENT));
+        $html->echo_html($db_con->seq_reset(sql_db::TBL_COMPONENT_LINK));
+        $html->echo_html($db_con->seq_reset(sql_db::TBL_SOURCE));
 
         if ($result == '') {
             return true;
@@ -422,14 +438,14 @@ class testing extends test_api
         $pos = 1;
         foreach ($names as $name) {
             $class = match ($name) {
-                triple_api::TN_READ_NAME => triple::class,
+                triple_api::TN_PI_NAME => triple::class,
                 default => word::class,
             };
             $phr = new phrase($usr, $pos, $name);
 
             // set types of some special terms
             if ($name == word_api::TN_2020) {
-                $phr->obj->set_type(phrase_type::TIME);
+                $phr->obj()->set_type(phrase_type::TIME);
             }
 
             $phr_lst->add($phr);
@@ -451,29 +467,30 @@ class testing extends test_api
         $pos = 1;
         foreach ($names as $name) {
             $class = match ($name) {
-                triple_api::TN_READ => triple::class,
+                triple_api::TN_PI_NAME => triple::class,
                 formula_api::TN_READ, formula_api::TN_READ_THIS, formula_api::TN_READ_PRIOR => formula::class,
-                verb_api::TN_READ, verb::CAN_CONTAIN_NAME => verb::class,
+                verb_api::TN_READ, verb::CAN_CONTAIN_NAME, verb::CAN_CONTAIN_NAME_REVERSE => verb::class,
                 default => word::class,
             };
-            $trm = new term($usr, $class);
-            $trm->set_id_from_obj($pos, $class);
+            $trm = new term($usr);
+            $trm->set_obj_from_class($class);
+            $trm->set_obj_id($pos);
             $trm->set_name($name);
 
             // ste types of some special terms
             if ($name == formula_api::TN_READ_THIS) {
-                $trm->obj->type_cl = formula_type::THIS;
-                $trm->set_id_from_obj(18, $class);
+                $trm->obj()->type_cl = formula_type::THIS;
+                $trm->set_obj_id(18, $class);
                 $wrd = new word($usr);
                 $wrd->set(174, formula_type::THIS);
-                $trm->obj->name_wrd = $wrd;
+                $trm->obj()->name_wrd = $wrd;
             }
             if ($name == formula_api::TN_READ_PRIOR) {
-                $trm->obj->type_cl = formula_type::PREV;
-                $trm->set_id_from_obj(20, $class);
+                $trm->obj()->type_cl = formula_type::PREV;
+                $trm->set_obj_id(20, $class);
                 $wrd = new word($usr);
                 $wrd->set(176, formula_type::PREV);
-                $trm->obj->name_wrd = $wrd;
+                $trm->obj()->name_wrd = $wrd;
             }
 
             $trm_lst->add($trm);
@@ -519,13 +536,18 @@ class testing extends test_api
         return $result;
     }
 
-    function html_test(string $body, string $filename, testing $t)
+    function html_test(string $body, string $filename, test_cleanup $t): void
     {
         $lib = new library();
 
         $created_html = $this->html_page($body);
         $expected_html = $t->file('web/html/' . $filename . '.html');
-        $t->dsp($filename, $lib->trim_html($expected_html), $lib->trim_html($created_html));
+        $t->display($filename, $lib->trim_html($expected_html), $lib->trim_html($created_html));
+    }
+
+    function html_view_test(string $body, string $filename, test_cleanup $t): void
+    {
+        $this->html_test($body, 'views/' . $filename, $t);
     }
 
     private function html_page(string $body): string

@@ -30,17 +30,30 @@
 
 */
 
+namespace test;
+
+use cfg\foaf_direction;
+use cfg\verb_list;
+use html\verb\verb as verb_dsp;
+use cfg\phrase;
+use cfg\db\sql_db;
+use cfg\verb;
+use cfg\word;
+use cfg\word_select_direction;
+
 class verb_unit_tests
 {
-    function run(testing $t): void
+    function run(test_cleanup $t): void
     {
 
         global $usr;
+        global $usr_sys;
 
         // init
         $db_con = new sql_db();
         $t->name = 'verb->';
         $t->resource_path = 'db/verb/';
+        $json_file = 'unit/verb/is_a.json';
         $usr->set_id(1);
 
 
@@ -49,9 +62,23 @@ class verb_unit_tests
         $t->subheader('SQL statement tests');
 
         $vrb = new verb();
-        $t->assert_load_sql_id($db_con, $vrb);
-        $t->assert_load_sql_name($db_con, $vrb);
-        $t->assert_load_sql_code_id($db_con, $vrb);
+        $t->assert_sql_by_id($db_con, $vrb);
+        $t->assert_sql_by_name($db_con, $vrb);
+        $t->assert_sql_by_code_id($db_con, $vrb);
+
+
+        $t->subheader('Im- and Export tests');
+
+        $vrb = new verb();
+        // set the admin user if this is needed for the import e.g. for verbs
+        $vrb->set_user($usr_sys);
+        $t->assert_json_file($vrb, $json_file);
+
+
+        $t->subheader('HTML frontend unit tests');
+
+        $vrb = $t->dummy_verb();
+        $t->assert_api_to_dsp($vrb, new verb_dsp());
 
 
         $t->header('Unit tests of the verb list class (src/main/php/model/verb/verb_list.php)');
@@ -60,30 +87,30 @@ class verb_unit_tests
 
         // sql to load a list with all verbs
         $vrb_lst = new verb_list($usr);
-        $t->assert_load_sql_all($db_con, $vrb_lst);
+        $t->assert_sql_all($db_con, $vrb_lst);
 
         // sql to load a verb list by phrase id and direction up
         $vrb_lst = new verb_list($usr);
         $phr = new phrase($usr);
         $phr->set_id(5);
-        $this->assert_load_by_linked_phrases_sql($t, $db_con, $vrb_lst, $phr, word_select_direction::UP);
+        $this->assert_sql_by_linked_phrases($t, $db_con, $vrb_lst, $phr, foaf_direction::UP);
 
         // ... same for direction down
-        $this->assert_load_by_linked_phrases_sql($t, $db_con, $vrb_lst, $phr, word_select_direction::DOWN);
+        $this->assert_sql_by_linked_phrases($t, $db_con, $vrb_lst, $phr, foaf_direction::DOWN);
 
     }
 
     /**
      * similar to $t->assert_load_sql but calling load_by_linked_phrases_sql instead of load_sql
      *
-     * @param testing $t the forwarded testing object
+     * @param test_cleanup $t the forwarded testing object
      * @param sql_db $db_con does not need to be connected to a real database
      * @param verb_list $vrb_lst the verb list object used for testing
      * @param phrase $phr the phrase used for testing
-     * @param string $direction
+     * @param foaf_direction $direction
      */
-    private function assert_load_by_linked_phrases_sql(
-        testing $t, sql_db $db_con, verb_list $vrb_lst, phrase $phr, string $direction
+    private function assert_sql_by_linked_phrases(
+        test_cleanup $t, sql_db $db_con, verb_list $vrb_lst, phrase $phr, foaf_direction $direction
     ): void
     {
         // check the Postgres query syntax

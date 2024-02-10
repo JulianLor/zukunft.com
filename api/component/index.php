@@ -5,7 +5,7 @@
   api/component/index.php - the component API controller: send a component component to the frontend
   -----------------------
   
-  This file is part of zukunft.com - calc with values
+  This file is part of zukunft.com - calc with words
 
   zukunft.com is free software: you can redistribute it and/or modify it
   under the terms of the GNU General Public License as
@@ -29,13 +29,24 @@
   
 */
 
-use api\view_cmp_api;
+use api\component\component as component_api;
+use cfg\component\component;
+use cfg\user;
 use controller\controller;
 
 // standard zukunft header for callable php files to allow debugging and lib loading
-const ROOT_PATH = __DIR__ . '/../../';
-include_once ROOT_PATH . 'src/main/php/zu_lib.php';
-$debug = $_GET[controller::URL_VAR_DEBUG] ?? 0;
+global $debug;
+$debug = $_GET['debug'] ?? 0;
+const ROOT_PATH = __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR;
+const PHP_PATH = ROOT_PATH . 'src' . DIRECTORY_SEPARATOR . 'main' . DIRECTORY_SEPARATOR . 'php' . DIRECTORY_SEPARATOR;
+include_once PHP_PATH . 'zu_lib.php';
+
+include_once API_PATH . 'api.php';
+include_once API_PATH . 'controller.php';
+include_once API_PATH . 'api_message.php';
+include_once MODEL_USER_PATH . 'user.php';
+include_once MODEL_COMPONENT_PATH . 'component.php';
+include_once API_VIEW_PATH . 'view_cmp.php';
 
 // open database
 $db_con = prg_start("api/component", "", false);
@@ -45,7 +56,7 @@ $cmp_id = $_GET[controller::URL_VAR_ID] ?? 0;
 $cmp_name = $_GET[controller::URL_VAR_NAME] ?? '';
 
 $msg = '';
-$result = new view_cmp_api(); // reset the html code var
+$result = new component_api(); // reset the html code var
 
 // load the session user parameters
 $usr = new user;
@@ -54,7 +65,7 @@ $msg .= $usr->get();
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
 if ($usr->id() > 0) {
 
-    $cmp = new view_cmp($usr);
+    $cmp = new component($usr);
     if ($cmp_id > 0) {
         $cmp->load_by_id($cmp_id);
         $result = $cmp->api_obj();

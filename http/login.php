@@ -32,6 +32,7 @@
 // standard zukunft header for callable php files to allow debugging and lib loading
 use html\api;
 use html\html_base;
+use cfg\user;
 
 $debug = $_GET['debug'] ?? 0;
 const ROOT_PATH = __DIR__ . '/../';
@@ -39,6 +40,7 @@ include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 
 // open database 
 $db_con = prg_start("login", "center_form");
+$html = new html_base();
 
 // load the session user parameters
 $usr = new user;
@@ -52,10 +54,10 @@ if ($usr->id() > 0) {
 
     $_SESSION['logged'] = FALSE;
     // the original calling page that should be shown after the login is finished
-    if (isset($_POST['back'])) {
-        $back = $_POST['back'];
+    if (isset($_POST[controller::API_BACK])) {
+        $back = $_POST[controller::API_BACK];
     } else {
-        $back = $_GET['back'];
+        $back = $_GET[controller::API_BACK];
     }
 
     if (isset($_POST['submit'])) {
@@ -87,14 +89,14 @@ if ($usr->id() > 0) {
             //header("Location: ../view.php?sid=".SID."");
             exit;
         } else {
-            $msg .= dsp_err('Login failed. ' .  $html->ref($html->url(api::LOGIN_RESET), 'Forgot password?', 'Send a new password via email.'));
+            $msg .= $html->dsp_err('Login failed. ' .  $html->ref($html->url(api::LOGIN_RESET), 'Forgot password?', 'Send a new password via email.'));
         }
     }
 }
 
 if (!$_SESSION['logged']) {
     $html = new html_base();
-    $result .= dsp_form_center();
+    $result .= $html->dsp_form_center();
     $result .= $html->logo_big();
     $result .= '<br><br>';
     $result .= '<form action="login.php" method="post">';

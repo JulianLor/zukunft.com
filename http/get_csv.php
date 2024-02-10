@@ -31,6 +31,9 @@
 */
 
 use controller\controller;
+use cfg\formula_list;
+use cfg\user;
+use cfg\word_list;
 
 $debug = $_GET['debug'] ?? 0;
 const ROOT_PATH = __DIR__ . '/../';
@@ -46,7 +49,7 @@ $result = $usr->get();
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
 if ($usr->id() > 0) {
 
-    load_usr_data();
+    $usr->load_usr_data();
 
     // sample "Nestlé 2 country weight"
     $words = $_GET[controller::URL_VAR_WORD];
@@ -69,7 +72,7 @@ if ($usr->id() > 0) {
     $frm_lst->load_by_names($word_names);
     foreach ($frm_lst AS $frm) {
         if ($frm->ref_text <> '') {
-            $val_lst = $frm->get_fv_lst();
+            $val_lst = $frm->get_res_lst();
             if (!$val_lst->is_empty()) {
                 $result .= $frm->ref_text . ',name' . "\r\n<br>";
                 foreach ($val_lst as $val) {

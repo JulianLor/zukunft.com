@@ -30,6 +30,11 @@
 */
 
 // standard zukunft header for callable php files to allow debugging and lib loading
+use cfg\view;
+use controller\controller;
+use html\view\view as view_dsp;
+use cfg\user;
+
 $debug = $_GET['debug'] ?? 0;
 const ROOT_PATH = __DIR__ . '/../';
 include_once ROOT_PATH . 'src/main/php/zu_lib.php';
@@ -46,17 +51,17 @@ $result .= $usr->get();
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
 if ($usr->id() > 0) {
 
-    load_usr_data();
+    $usr->load_usr_data();
 
     // prepare the display
-    $dsp = new view_dsp_old($usr);
-    $dsp->load_by_code_id(view::VALUE_ADD);
+    $msk = new view($usr);
+    $msk->load_by_code_id(controller::DSP_VALUE_ADD);
     /*
         // get the fixed parameters
         $new_tbl   = $_GET['table'];    // the value table as pasted by the user
         $src_id    = $_GET['source'];   // the source id as changed by the user
         $confirm   = $_GET['confirm'];  // 1 if the user has pressed "save"
-        $back = $_GET['back'];     // the word id from which this value change has been called (maybe later any page)
+        $back = $_GET[controller::API_BACK];     // the word id from which this value change has been called (maybe later any page)
 
         // get the linked words from url
         $wrd_pos  = 1;
