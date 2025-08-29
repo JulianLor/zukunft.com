@@ -5,6 +5,7 @@
     model/ref/ref_list.php - al list of ref objects
     ----------------------
 
+
     This file is part of zukunft.com - calc with words
 
     zukunft.com is free software: you can redistribute it and/or modify it
@@ -29,12 +30,34 @@
   
 */
 
-namespace cfg;
+namespace cfg\ref;
 
-global $refs;
+use cfg\const\paths;
 
-use api\ref\ref as ref_api;
+include_once paths::DB . 'sql_db.php';
+//include_once paths::MODEL_HELPER . 'type_list.php';
+include_once paths::MODEL_HELPER . 'type_object.php';
+//include_once paths::MODEL_IMPORT . 'import.php';
+//include_once paths::MODEL_REF . 'ref.php';
+include_once paths::MODEL_USER . 'user.php';
+include_once paths::MODEL_USER . 'user_message.php';
+include_once paths::MODEL_VIEW . 'view.php';
+include_once paths::MODEL_VERB . 'verb.php';
+include_once paths::SHARED_CONST . 'refs.php';
+include_once paths::SHARED_CONST . 'triples.php';
+include_once paths::SHARED_CONST . 'words.php';
+include_once paths::SHARED_ENUM . 'messages.php';
+
 use cfg\db\sql_db;
+use cfg\helper\type_list;
+use cfg\helper\type_object;
+use cfg\import\import;
+use cfg\user\user;
+use cfg\user\user_message;
+use cfg\view\view;
+use shared\const\refs;
+use shared\const\triples;
+use shared\const\words;
 
 class ref_list extends type_list
 {
@@ -43,6 +66,9 @@ class ref_list extends type_list
 
     // search and load fields
     public ?array $ids = array(); // list of the ref ids to load a list from the database
+
+    private ?array $key_lst = [];
+    private bool $key_lst_dirty = false;
 
     /*
      * construct and map
@@ -54,6 +80,7 @@ class ref_list extends type_list
      */
     function __construct(?user $usr = null)
     {
+        parent::__construct();
         $this->set_user($usr);
     }
 
@@ -81,6 +108,18 @@ class ref_list extends type_list
         return $this->usr;
     }
 
+    function key_list(): array
+    {
+        if ($this->key_lst_dirty) {
+            foreach ($this->key_lst as $key) {
+                $this->key_lst[] = $key;
+            }
+            $this->key_lst_dirty = false;
+        }
+        return $this->key_lst;
+    }
+
+
     /*
      * load
      */
@@ -89,53 +128,71 @@ class ref_list extends type_list
      * force to reload the complete list of refs from the database
      *
      * @param sql_db $db_con the database connection that can be either the real database connection or a simulation used for testing
-     * @param string $db_type the database name e.g. the table name without s
-     * @return array the list of types
+     * @param string $class the database name e.g. the table name without s
+     * @return bool true if at least one ref has been loaded
      */
-    private function load_list(sql_db $db_con, string $db_type): array
+    function load(sql_db $db_con, string $class = ref::class): bool
     {
-        global $usr;
-        $this->reset();
-        $qp = $this->load_sql_all($db_con->sql_creator(), $db_type);
-        $db_lst = $db_con->get($qp);
-        if ($db_lst != null) {
-            foreach ($db_lst as $db_row) {
-                $ref = new ref($usr);
-                $ref->row_mapper_sandbox($db_row);
-                $this->lst()[$db_row[$db_con->get_id_field_name($db_type)]] = $ref;
-            }
+        $result = false;
+        $this->set_lst($this->load_list($db_con, $class));
+        if ($this->count() > 0) {
+            $result = true;
         }
-        return $this->lst();
+        return $result;
     }
 
     /**
      * force to reload the complete list of refs from the database
      *
      * @param sql_db $db_con the database connection that can be either the real database connection or a simulation used for testing
-     * @param string $db_type the database name e.g. the table name without s
-     * @return bool true if at least one ref has been loaded
+     * @param string $class the class of the related object e.g. phrase_type or formula_type
+     * @return array the list of types
      */
-    function load(sql_db $db_con, string $db_type = sql_db::TBL_VERB): bool
+    protected function load_list(sql_db $db_con, string $class): array
     {
-        $result = false;
-        $this->set_lst($this->load_list($db_con, $db_type));
-        if ($this->count() > 0) {
-            $result = true;
+        global $usr;
+        $this->reset();
+        $qp = $this->load_sql_all($db_con->sql_creator(), $class);
+        $db_lst = $db_con->get($qp);
+        if ($db_lst != null) {
+            foreach ($db_lst as $db_row) {
+                $ref = new ref($usr);
+                $ref->row_mapper_sandbox($db_row);
+                $this->lst()[$db_row[$db_con->get_id_field_name($class)]] = $ref;
+            }
         }
-        return $result;
+        return $this->lst();
+    }
 
+    /**
+     * load a list of sources by the names
+     * @param array $keys a named object used for selection e.g. a source type
+     * @return bool true if at least one source found
+     */
+    function load_by_keys(array $keys): bool
+    {
+        global $db_con;
+        $qp = $this->load_sql_by_names($db_con->sql_creator(), $keys);
+        return $this->load($qp);
+    }
+
+    function load_sql_by_names(): sql_db
+    {
+        $qp = new sql_db();
+        return $qp;
     }
 
     /**
      * adding the refs used for unit tests to the dummy list
+     * TODO Prio 3: load from csv
      */
     function load_dummy(): void
     {
         global $usr;
         $type = new ref($usr);
         $type->set_id(1);
-        $type->set_name(ref_api::TN_READ);
-        $type->code_id = ref_api::TN_READ;
+        $type->set_name(refs::WIKIDATA_TYPE);
+        $type->set_code_id_db(refs::WIKIDATA_TYPE);
         $this->add($type);
     }
 
@@ -152,8 +209,8 @@ class ref_list extends type_list
         $result = array();
         if ($this->lst() != null) {
             foreach ($this->lst() as $ref) {
-                if ($ref->id()  > 0) {
-                    $result[] = $ref->id() ;
+                if ($ref->id() > 0) {
+                    $result[] = $ref->id();
                 }
             }
         }
@@ -164,6 +221,94 @@ class ref_list extends type_list
             }
         }
         return $result;
+    }
+
+
+    /*
+     * modify
+     */
+
+    /**
+     * add a reference to the list that does not yet have an id but has the phrase name, the type and the external key set
+     * @param ref|null $to_add the named user sandbox object that should be added
+     * @returns bool true if the object has been added
+     */
+    function add_by_name_type_and_key(ref|null $to_add): bool
+    {
+        $result = false;
+        if ($to_add != null) {
+            if (!in_array($to_add->key(), array_keys($this->key_list()))) {
+                // add only objects that have all mandatory values
+                $result = $to_add->can_be_ready()->is_ok();
+
+                if ($result) {
+                    $this->add_direct($to_add);
+                }
+            }
+        } else {
+            $this->add_direct($to_add);
+            $result = true;
+        }
+        return $result;
+    }
+
+    function add_direct(ref|type_object|view|null $item): void
+    {
+        parent::add_direct($item);
+        $this->key_lst[] = $item->key();
+    }
+
+
+    /*
+     * save
+     */
+
+    /**
+     * store all references from this list in the database using grouped calls of predefined sql functions
+     *
+     * @param import $imp the import object with the estimate of the total save time
+     * @param float $est_per_sec the expected number of sources that can be updated in the database per second
+     * @return user_message
+     */
+    function save(import $imp, float $est_per_sec = 0.0): user_message
+    {
+        global $cfg;
+
+        $usr_msg = new user_message();
+
+        $load_per_sec = $cfg->get_by([words::REFERENCES, words::LOAD, triples::OBJECTS_PER_SECOND, triples::EXPECTED_TIME, words::IMPORT], 1);
+        $save_per_sec = $cfg->get_by([words::REFERENCES, words::STORE, triples::OBJECTS_PER_SECOND, triples::EXPECTED_TIME, words::IMPORT], 1);
+
+        // TODO replace this slow solution
+        foreach ($this->lst() as $ref) {
+            $usr_msg->add($ref->save());
+        }
+        /*
+        if ($this->is_empty()) {
+            $usr_msg->add_info('no references to save');
+        } else {
+            // load the references that are already in the database
+            $step_time = $this->count() / $load_per_sec;
+            $imp->step_start(msg_id::LOAD, ref::class, $this->count(), $step_time);
+            $db_lst = new ref_list($this->user());
+            $db_lst->load_by_names($this->names());
+            $imp->step_end($this->count(), $load_per_sec);
+
+            // create any missing sql functions and insert the missing references
+            $step_time = $this->count() / $save_per_sec;
+            $imp->step_start(msg_id::SAVE, ref::class, $this->count(), $step_time);
+            $usr_msg->add($this->insert($db_lst, true, $imp, ref::class));
+            $imp->step_end($this->count(), $save_per_sec);
+
+            // update the existing references
+            // TODO create a test that fields not included in the import message are not updated, but e.g. an empty description is updated
+            // loop over the references and check if all needed functions exist
+            // create the missing functions
+            // create blocks of update function calls
+        }
+        */
+
+        return $usr_msg;
     }
 
 }

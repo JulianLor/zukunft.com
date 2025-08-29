@@ -32,30 +32,38 @@
 
 */
 
-use cfg\formula_list;
-use cfg\library;
-use cfg\result_list;
-use cfg\db\sql_db;
-use cfg\user;
+use cfg\formula\formula;
+use cfg\formula\formula_list;
+use cfg\result\result_list;
+use cfg\user\user;
+use shared\api;
+use shared\const\triples;
+use shared\const\words;
+use shared\library;
 
 $debug = $_GET['debug'] ?? 0;
-const ROOT_PATH = __DIR__ . '/../';
-include_once ROOT_PATH . 'src/main/php/zu_lib.php';
+const ROOT_PATH = __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR;
+const PHP_PATH = ROOT_PATH . 'src' . DIRECTORY_SEPARATOR . 'main' . DIRECTORY_SEPARATOR . 'php' . DIRECTORY_SEPARATOR;
+include_once PHP_PATH . 'zu_lib.php';
 
 // open database
 $db_con = prg_start("calculate");
 
+// get the parameters
+$back = $_GET[api::URL_VAR_BACK] ?? ''; // the original calling page that should be shown after the change if finished
+
 // load the requesting user
 $usr = new user;
-$usr_id = $_GET['user']; // to force another user view for testing the formula calculation
+$usr_id = $_GET[api::URL_VAR_USER] ?? 0; // to force another user view for testing the formula calculation
 
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
 if ($usr->id() > 0) {
 
+    global $cfg;
+    $ui_response_time = $cfg->get_by([triples::RESPONSE_TIME, words::MIN, words::FRONTEND, words::BEHAVIOUR]);
+
     $usr->load_usr_data();
     $lib = new library();
-
-    $back = $_GET[controller::API_BACK]; // the original calling page that should be shown after the change if finished
 
     // start displaying while calculating
     $calc_pos = 0;
@@ -65,7 +73,7 @@ if ($usr->id() > 0) {
     log_debug("create the calculation queue ... ");
 
     // estimate the block size for useful UI updates
-    $total_formulas = $db_con->count(sql_db::TBL_FORMULA);
+    $total_formulas = $db_con->count(formula::class);
     $calc_blocks = (new formula_list($usr))->calc_blocks($db_con, $total_formulas);
     $block_size = max(1, round($total_formulas / $calc_blocks, 0));
 
@@ -90,7 +98,7 @@ if ($usr->id() > 0) {
                 $res_lst = $frm->calc($r->wrd_lst);
 
                 // show the user the progress every two seconds
-                if ($last_msg_time + UI_MIN_RESPONSE_TIME < time()) {
+                if ($last_msg_time + $ui_response_time < time()) {
                     $calc_pct = ($calc_pos / sizeof($calc_lst->lst())) * 100;
                     echo "" . round($calc_pct, 2) . "% calculated (" . $r->frm->name . " for " . $r->wrd_lst->name_linked() . " = " . $res_lst->names() . ")<br>";
                     ob_flush();

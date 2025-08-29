@@ -30,30 +30,24 @@
   
 */
 
-namespace cfg;
+namespace cfg\language;
 
-use cfg\db\sql_db;
+use cfg\const\paths;
 
-include_once DB_PATH . 'sql_db.php';
-include_once MODEL_LANGUAGE_PATH . 'language.php';
+include_once paths::MODEL_HELPER . 'type_object.php';
+include_once paths::MODEL_HELPER . 'type_list.php';
+include_once paths::DB . 'sql_db.php';
+include_once paths::MODEL_LANGUAGE . 'language.php';
 
-global $languages;
+use cfg\helper\type_list;
+use cfg\helper\type_object;
 
 class language_list extends type_list
 {
 
     /**
-     * overwrite the general user type list load function to keep the link to the table type capsuled
-     * @param sql_db $db_con the database connection that can be either the real database connection or a simulation used for testing
-     * @return bool true if load was successful
-     */
-    function load(sql_db $db_con, string $db_type = sql_db::TBL_LANGUAGE): bool
-    {
-        return parent::load($db_con, $db_type);
-    }
-
-    /**
      * create dummy type list for the unit tests without database connection
+     * TODO Prio 3: load from csv
      */
     function load_dummy(): void
     {

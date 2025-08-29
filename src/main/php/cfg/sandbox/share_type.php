@@ -29,17 +29,24 @@
 
 */
 
-namespace cfg;
+namespace cfg\sandbox;
+
+use cfg\const\paths;
+
+include_once paths::MODEL_HELPER . 'type_object.php';
+
+use cfg\helper\type_object;
 
 class share_type extends type_object
 {
-    // the field name used for the JSON im- and export
-    const JSON_FLD = 'share';
 
-    // list of the ref types that have a coded functionality
-    const PUBLIC = "public";
-    const PERSONAL = "personal";
-    const GROUP = "group";
-    const PRIVATE = "private";
+    /*
+     * database link
+     */
+
+    // comments used for the database creation
+    const TBL_COMMENT = 'for the read access control';
+    const FLD_NAME_COM = 'the name of the share type as displayed for the user';
+    const FLD_DESCRIPTION_COM = 'to explain the code action of the share type';
 
 }

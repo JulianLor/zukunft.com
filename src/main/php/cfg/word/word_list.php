@@ -13,6 +13,17 @@
     TODO: look at a word list and remove the general word, if there is a more specific word also part of the list
           e.g. remove "Country", but keep "Switzerland"
 
+    The main sections of this object are
+    - construct and map: including the mapping of the db row to this word object
+    - cast:              create an api object and set the vars from an api json
+    - load:              database access object (DAO) functions
+    - sql:               to create sql statements e.g. for load word from the sql database
+    - tree building      create foaf trees
+    - im- and export:    create an export object and set the vars from an import object
+    - modify:            change potentially all object and all variables of this list with one function call
+    - filter:            filter this list
+    - convert:           more complex cast
+
 
     This file is part of zukunft.com - calc with words
 
@@ -38,26 +49,74 @@
 
 */
 
-namespace cfg;
+namespace cfg\word;
 
-include_once DB_PATH . 'sql_par_type.php';
-include_once MODEL_HELPER_PATH . 'foaf_direction.php';
-include_once API_WORD_PATH . 'word_list.php';
+use cfg\const\paths;
 
-use api\word\word_list as word_list_api;
-use cfg\db\sql;
+include_once paths::MODEL_SANDBOX . 'sandbox_list_named.php';
+include_once paths::DB . 'sql_creator.php';
+include_once paths::DB . 'sql_db.php';
+include_once paths::DB . 'sql_par.php';
+include_once paths::DB . 'sql_par_type.php';
+include_once paths::MODEL_GROUP . 'group.php';
+include_once paths::MODEL_GROUP . 'group_id.php';
+include_once paths::MODEL_HELPER . 'combine_named.php';
+include_once paths::MODEL_HELPER . 'data_object.php';
+include_once paths::MODEL_IMPORT . 'import.php';
+include_once paths::MODEL_PHRASE . 'phr_ids.php';
+include_once paths::MODEL_PHRASE . 'phrase.php';
+include_once paths::MODEL_PHRASE . 'phrase_list.php';
+include_once paths::MODEL_PHRASE . 'term_list.php';
+include_once paths::MODEL_SANDBOX . 'sandbox.php';
+include_once paths::MODEL_SANDBOX . 'sandbox_link_named.php';
+include_once paths::MODEL_SANDBOX . 'sandbox_named.php';
+include_once paths::MODEL_USER . 'user.php';
+include_once paths::MODEL_USER . 'user_message.php';
+//include_once paths::MODEL_VALUE . 'value.php';
+include_once paths::MODEL_VALUE . 'value_base.php';
+include_once paths::MODEL_VALUE . 'value_list.php';
+include_once paths::MODEL_VERB . 'verb.php';
+include_once paths::MODEL_VERB . 'verb_db.php';
+include_once paths::SHARED_CONST . 'triples.php';
+include_once paths::SHARED_CONST . 'words.php';
+include_once paths::SHARED_ENUM . 'foaf_direction.php';
+include_once paths::SHARED_ENUM . 'messages.php';
+include_once paths::SHARED_TYPES . 'phrase_type.php';
+include_once paths::SHARED_TYPES . 'verbs.php';
+include_once paths::SHARED . 'library.php';
+
+use cfg\db\sql_creator;
 use cfg\db\sql_db;
 use cfg\db\sql_par;
 use cfg\db\sql_par_type;
 use cfg\group\group;
 use cfg\group\group_id;
-use cfg\group\group_link;
+use cfg\helper\combine_named;
+use cfg\helper\data_object;
+use cfg\import\import;
+use cfg\phrase\phr_ids;
+use cfg\phrase\phrase;
+use cfg\phrase\phrase_list;
+use cfg\phrase\term_list;
+use cfg\sandbox\sandbox;
+use cfg\sandbox\sandbox_link_named;
+use cfg\sandbox\sandbox_list_named;
+use cfg\sandbox\sandbox_named;
+use cfg\user\user;
+use cfg\user\user_message;
 use cfg\value\value;
 use cfg\value\value_list;
-use html\word\word as word_dsp;
-use html\word\word_list as word_list_dsp;
+use cfg\verb\verb;
+use cfg\verb\verb_db;
+use shared\const\triples;
+use shared\const\words;
+use shared\types\phrase_type as phrase_type_shared;
+use shared\enum\foaf_direction;
+use shared\enum\messages as msg_id;
+use shared\library;
+use shared\types\verbs;
 
-class word_list extends sandbox_list
+class word_list extends sandbox_list_named
 {
     // $lst of base_list is the array of the loaded word objects
     // (key is at the moment the database id, but it looks like this has no advantages,
@@ -72,7 +131,6 @@ class word_list extends sandbox_list
     /**
      * fill the word list based on a database records
      * actually just add the single word object to the parent function
-     * TODO check that a similar function is used for all lists
      *
      * @param array $db_rows is an array of an array with the database values
      * @param bool $load_all force to include also the excluded phrases e.g. for admins
@@ -85,52 +143,88 @@ class word_list extends sandbox_list
 
 
     /*
-     * cast
+     * load
      */
 
+    // TODO add a list of word where the user has changed the standard
+
     /**
-     * @return word_list_api the word list object with the display interface functions
+     * load words with the given pattern
+     *
+     * @param string $pattern the text part that should be used to select the words
+     * @return bool true if at least one word has been loaded
+     * TODO filter by type while loading e.g. to exclude formula words
      */
-    function api_obj(): word_list_api
+    function load_like(string $pattern): bool
     {
-        $api_obj = new word_list_api();
-        foreach ($this->lst() as $wrd) {
-            $api_obj->add($wrd->api_obj());
-        }
-        return $api_obj;
+        global $db_con;
+        $qp = $this->load_sql_like($db_con->sql_creator(), $pattern);
+        return $this->load($qp);
     }
 
     /**
-     * @returns string the api json message for the object as a string
+     * load a list of words by the ids
+     * @param array $wrd_ids a list of int values with the word ids
+     * @return bool true if at least one word found
      */
-    function api_json(): string
+    function load_by_ids(array $wrd_ids): bool
     {
-        return $this->api_obj()->get_json();
+        global $db_con;
+        $qp = $this->load_sql_by_ids($db_con->sql_creator(), $wrd_ids);
+        return $this->load($qp);
     }
 
     /**
-     * @return word_list_dsp the word list object with the display interface functions
+     * load a list of word names
+     * @param string $pattern the pattern to filter the words
+     * @param int $limit the number of rows to return
+     * @param int $offset jump over these number of pages
+     * @return bool true if at least one word found
      */
-    function dsp_obj(): word_list_dsp
+    function load_names(string $pattern = '', int $limit = 0, int $offset = 0): bool
     {
-        $dsp_obj = new word_list_dsp();
-        foreach ($this->lst() as $wrd) {
-            $wrd_dsp = new word_dsp($wrd->api_json());
-            $dsp_obj->add($wrd_dsp);
-        }
-        return $dsp_obj;
+        return parent::load_sbx_names(new word($this->user()), $pattern, $limit, $offset);
+    }
+
+    /**
+     * load a list of words by the phrase group id
+     * TODO needs to be checked if really needed
+     *
+     * @param int|string $grp_id the id of the phrase group
+     * @return bool true if at least one word found
+     */
+    function load_by_grp_id(int|string $grp_id): bool
+    {
+        $grp_id_obj = new group_id();
+        $ids = $grp_id_obj->get_array($grp_id);
+        $phr_ids_obj = new phr_ids($ids);
+        $wrd_ids = $phr_ids_obj->wrd_ids();
+        return $this->load_by_ids($wrd_ids);
+    }
+
+    /**
+     * load a list of words by the word type id
+     *
+     * @param int $type_id the id of the word type
+     * @return bool true if at least one word found
+     */
+    function load_by_type(int $type_id): bool
+    {
+        global $db_con;
+        $qp = $this->load_sql_by_type($db_con->sql_creator(), $type_id);
+        return $this->load($qp);
     }
 
 
     /*
-     * load
+     * load sql
      */
 
     /**
      * add formula word filter to
      * the SQL statement to load only the word id and name
      *
-     * @param sql $sc with the target db_type set
+     * @param sql_creator $sc with the target db_type set
      * @param sandbox_named|sandbox_link_named|combine_named $sbx the single child object
      * @param string $pattern the pattern to filter the words
      * @param int $limit the number of rows to return
@@ -138,18 +232,18 @@ class word_list extends sandbox_list
      * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
      */
     function load_sql_names(
-        sql                                            $sc,
+        sql_creator                                    $sc,
         sandbox_named|sandbox_link_named|combine_named $sbx,
         string                                         $pattern = '',
         int                                            $limit = 0,
         int                                            $offset = 0
     ): sql_par
     {
-        global $phrase_types;
+        global $phr_typ_cac;
 
         $qp = $this->load_sql_names_pre($sc, $sbx, $pattern, $limit, $offset);
 
-        $sc->add_where(phrase::FLD_TYPE, $phrase_types->id(phrase_type::FORMULA_LINK), sql_par_type::CONST_NOT);
+        $sc->add_where(phrase::FLD_TYPE, $phr_typ_cac->id(phrase_type_shared::FORMULA_LINK), sql_par_type::CONST_NOT);
 
         $qp->sql = $sc->sql();
         $qp->par = $sc->get_par();
@@ -159,36 +253,45 @@ class word_list extends sandbox_list
 
     /**
      * set the SQL query parameters to load a list of words
-     * @param sql $sc with the target db_type set
+     * @param sql_creator $sc with the target db_type set
      * @param string $query_name the name extension to make the query name unique
      * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
      */
-    function load_sql(sql $sc, string $query_name = ''): sql_par
+    function load_sql(sql_creator $sc, string $query_name = ''): sql_par
     {
         $sc->set_class(word::class);
         $qp = new sql_par(self::class);
         $qp->name .= $query_name;
         $sc->set_name($qp->name);
         $sc->set_usr($this->user()->id());
-        $sc->set_fields(word::FLD_NAMES);
-        $sc->set_usr_fields(word::FLD_NAMES_USR);
-        $sc->set_usr_num_fields(word::FLD_NAMES_NUM_USR);
-        $sc->set_order_text(sql_db::STD_TBL . '.' . $sc->name_sql_esc(word::FLD_VALUES) . ' DESC, '
-            . word::FLD_NAME);
+        $sc->set_fields(word_db::FLD_NAMES);
+        $sc->set_usr_fields(word_db::FLD_NAMES_USR);
+        $sc->set_usr_num_fields(word_db::FLD_NAMES_NUM_USR);
+        $sc->set_order_text(sql_db::STD_TBL . '.' . $sc->name_sql_esc(word_db::FLD_VALUES) . ' DESC, '
+            . word_db::FLD_NAME);
         return $qp;
     }
 
     /**
      * set the SQL query parameters to load a list of words by the ids
-     * @param sql $sc with the target db_type set
+     * used also for load by group because the ids can be extracted directly from the group id
+     *
+     * @param sql_creator $sc with the target db_type set
      * @param array $wrd_ids a list of int values with the word ids
+     * @param int $limit the number of rows to return
+     * @param int $offset jump over these number of pages
      * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
      */
-    function load_sql_by_ids(sql $sc, array $wrd_ids): sql_par
+    function load_sql_by_ids(
+        sql_creator $sc,
+        array       $wrd_ids,
+        int         $limit = 0,
+        int         $offset = 0
+    ): sql_par
     {
         $qp = $this->load_sql($sc, 'ids');
         if (count($wrd_ids) > 0) {
-            $sc->add_where(word::FLD_ID, $wrd_ids);
+            $sc->add_where(word_db::FLD_ID, $wrd_ids);
             $qp->sql = $sc->sql();
         } else {
             $qp->name = '';
@@ -199,57 +302,27 @@ class word_list extends sandbox_list
 
     /**
      * set the SQL query parameters to load a list of words by the names
-     * @param sql $sc with the target db_type set
-     * @param array $wrd_names a list of strings with the word names
+     * @param sql_creator $sc with the target db_type set
+     * @param array $names a list of strings with the word names
+     * @param string $fld the name of the name field
      * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
      */
-    function load_sql_by_names(sql $sc, array $wrd_names): sql_par
+    function load_sql_by_names(
+        sql_creator $sc,
+        array       $names,
+        string      $fld = word_db::FLD_NAME
+    ): sql_par
     {
-        $qp = $this->load_sql($sc, 'names');
-        if (count($wrd_names) > 0) {
-            $sc->add_where(word::FLD_NAME, $wrd_names, sql_par_type::TEXT_LIST);
-            $qp->sql = $sc->sql();
-        } else {
-            $qp->name = '';
-        }
-        $qp->par = $sc->get_par();
-        return $qp;
-    }
-
-    /**
-     * set the SQL query parameters to load a list of words by the phrase group id
-     * @param sql $sc with the target db_type set
-     * @param int $grp_id the id of the phrase group
-     * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
-     */
-    function load_sql_by_grp_id(sql $sc, int $grp_id): sql_par
-    {
-        $qp = $this->load_sql($sc, 'group');
-        if ($grp_id > 0) {
-
-            // create the sub query
-            $sub_sc = clone $sc;
-            $sub_sc->set_class(group_link::class);
-            $sub_sc->set_fields(array(phrase::FLD_ID));
-            $sub_sc->add_where(group::FLD_ID, $grp_id);
-
-            // use the sub query
-            $sc->add_where(word::FLD_ID, $sub_sc->sql(1, false), sql_par_type::INT_SUB_IN);
-            $qp->sql = $sc->sql();
-            $qp->par = array_merge($sc->get_par(), $sub_sc->get_par());
-        } else {
-            $qp->name = '';
-        }
-        return $qp;
+        return parent::load_sql_by_names($sc, $names, $fld);
     }
 
     /**
      * set the SQL query parameters to load a list of words by the type
-     * @param sql $sc with the target db_type set
+     * @param sql_creator $sc with the target db_type set
      * @param int $type_id the id of the word type
      * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
      */
-    function load_sql_by_type(sql $sc, int $type_id): sql_par
+    function load_sql_by_type(sql_creator $sc, int $type_id): sql_par
     {
         $qp = $this->load_sql($sc, 'type');
         if ($type_id > 0) {
@@ -264,15 +337,15 @@ class word_list extends sandbox_list
 
     /**
      * set the SQL query parameters to load a list of words by a word pattern
-     * @param sql $sc with the target db_type set
+     * @param sql_creator $sc with the target db_type set
      * @param string $pattern the text part that should be used to select the words
      * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
      */
-    function load_sql_like(sql $sc, string $pattern = ''): sql_par
+    function load_sql_like(sql_creator $sc, string $pattern = ''): sql_par
     {
         $qp = $this->load_sql($sc, 'name_like');
         if ($pattern != '') {
-            $sc->add_where(word::FLD_NAME, $pattern, sql_par_type::LIKE_R);
+            $sc->add_where(word_db::FLD_NAME, $pattern, sql_par_type::LIKE_R);
             $qp->sql = $sc->sql();
         } else {
             $qp->name = '';
@@ -285,12 +358,12 @@ class word_list extends sandbox_list
      * create the sql statement to select the related words
      * the relation can be narrowed with a verb id
      *
-     * @param sql $sc with the target db_type set
+     * @param sql_creator $sc with the target db_type set
      * @param verb|null $vrb if set to select only words linked with this verb
      * @param foaf_direction $direction to define the link direction
      * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
      */
-    function load_sql_linked_words(sql $sc, ?verb $vrb, foaf_direction $direction): sql_par
+    function load_sql_linked_words(sql_creator $sc, ?verb $vrb, foaf_direction $direction): sql_par
     {
         $qp = $this->load_sql($sc);
         $join_field = '';
@@ -300,24 +373,24 @@ class word_list extends sandbox_list
         } else {
             if ($direction == foaf_direction::UP) {
                 $qp->name .= 'parents';
-                $sc->add_where(sql_db::LNK_TBL . '.' . triple::FLD_FROM, $this->ids(), sql_par_type::INT_LIST);
-                $join_field = triple::FLD_TO;
+                $sc->add_where(triple_db::FLD_FROM, $this->ids(), sql_par_type::INT_LIST, sql_db::LNK_TBL);
+                $join_field = triple_db::FLD_TO;
             } elseif ($direction == foaf_direction::DOWN) {
                 $qp->name .= 'children';
-                $sc->add_where(sql_db::LNK_TBL . '.' . triple::FLD_TO, $this->ids(), sql_par_type::INT_LIST);
-                $join_field = triple::FLD_FROM;
+                $sc->add_where(triple_db::FLD_TO, $this->ids(), sql_par_type::INT_LIST, sql_db::LNK_TBL);
+                $join_field = triple_db::FLD_FROM;
             } else {
                 log_err('Unknown direction ' . $direction->value);
             }
             $sc->set_join_fields(
-                array(verb::FLD_ID),
-                sql_db::TBL_TRIPLE,
-                word::FLD_ID,
+                array(verb_db::FLD_ID),
+                triple::class,
+                word_db::FLD_ID,
                 $join_field);
             // verbs can have a negative id for the reverse selection
             if ($vrb != null) {
                 $qp->name .= '_verb_select';
-                $sc->add_where(sql_db::LNK_TBL . '.' . verb::FLD_ID, $vrb->id());
+                $sc->add_where(verb_db::FLD_ID, $vrb->id(), null, sql_db::LNK_TBL);
             }
             $sc->set_name($qp->name);
             $qp->sql = $sc->sql();
@@ -339,7 +412,7 @@ class word_list extends sandbox_list
     {
         $qp = $this->load_sql($db_con->sql_creator(), 'user_changes');
         if ($usr->id() > 0) {
-            $qp->sql = $db_con->select_by_field(word::FLD_ID);
+            $qp->sql = $db_con->select_by_field(word_db::FLD_ID);
         } else {
             $qp->name = '';
         }
@@ -376,85 +449,6 @@ class word_list extends sandbox_list
     }
 
     /**
-     * load a list of word names
-     * @param string $pattern the pattern to filter the words
-     * @param int $limit the number of rows to return
-     * @param int $offset jump over these number of pages
-     * @return bool true if at least one word found
-     */
-    function load_names(string $pattern = '', int $limit = 0, int $offset = 0): bool
-    {
-        return parent::load_sbx_names(new word($this->user()), $pattern, $limit, $offset);
-    }
-
-    /**
-     * load a list of words by the ids
-     * @param array $wrd_ids a list of int values with the word ids
-     * @return bool true if at least one word found
-     */
-    function load_by_ids(array $wrd_ids): bool
-    {
-        global $db_con;
-        $qp = $this->load_sql_by_ids($db_con->sql_creator(), $wrd_ids);
-        return $this->load($qp);
-    }
-
-    /**
-     * load a list of words by the names
-     * @param array $wrd_names a named object used for selection e.g. a word type
-     * @return bool true if at least one word found
-     */
-    function load_by_names(array $wrd_names): bool
-    {
-        global $db_con;
-        $qp = $this->load_sql_by_names($db_con->sql_creator(), $wrd_names);
-        return $this->load($qp);
-    }
-
-    /**
-     * load words with the given pattern
-     *
-     * @param string $pattern the text part that should be used to select the words
-     * @return bool true if at least one word has been loaded
-     * TODO filter by type while loading e.g. to exclude formula words
-     */
-    function load_like(string $pattern): bool
-    {
-        global $db_con;
-        $qp = $this->load_sql_like($db_con->sql_creator(), $pattern);
-        return $this->load($qp);
-    }
-
-    /**
-     * load a list of words by the phrase group id
-     * TODO needs to be checked if really needed
-     *
-     * @param int|string $grp_id the id of the phrase group
-     * @return bool true if at least one word found
-     */
-    function load_by_grp_id(int|string $grp_id): bool
-    {
-        $grp_id_obj = new group_id();
-        $ids = $grp_id_obj->get_array($grp_id);
-        $phr_ids_obj = new phr_ids($ids);
-        $wrd_ids = $phr_ids_obj->wrd_ids();
-        return $this->load_by_ids($wrd_ids);
-    }
-
-    /**
-     * load a list of words by the word type id
-     *
-     * @param int $type_id the id of the word type
-     * @return bool true if at least one word found
-     */
-    function load_by_type(int $type_id): bool
-    {
-        global $db_con;
-        $qp = $this->load_sql_by_type($db_con->sql_creator(), $type_id);
-        return $this->load($qp);
-    }
-
-    /**
      * add the direct linked words to the list
      * and remember which words have be added
      *
@@ -478,12 +472,12 @@ class word_list extends sandbox_list
             if ($db_wrd_lst) {
                 log_debug('got ' . $lib->dsp_count($db_wrd_lst));
                 foreach ($db_wrd_lst as $db_wrd) {
-                    if (is_null($db_wrd[sandbox::FLD_EXCLUDED]) or $db_wrd[sandbox::FLD_EXCLUDED] == 0) {
-                        if ($db_wrd[word::FLD_ID] > 0 and !in_array($db_wrd[word::FLD_ID], $this->ids())) {
+                    if (is_null($db_wrd[sql_db::FLD_EXCLUDED]) or $db_wrd[sql_db::FLD_EXCLUDED] == 0) {
+                        if ($db_wrd[word_db::FLD_ID] > 0 and !in_array($db_wrd[word_db::FLD_ID], $this->ids())) {
                             $new_word = new word($this->user());
                             $new_word->row_mapper_sandbox($db_wrd);
                             $additional_added->add($new_word);
-                            log_debug('added "' . $new_word->dsp_id() . '" for verb (' . $db_wrd[verb::FLD_ID] . ')');
+                            log_debug('added "' . $new_word->dsp_id() . '" for verb (' . $db_wrd[verb_db::FLD_ID] . ')');
                         }
                     }
                 }
@@ -491,6 +485,57 @@ class word_list extends sandbox_list
             }
         }
         return $additional_added;
+    }
+
+
+    /*
+     * im- and export
+     */
+
+    /**
+     * import a word list object from a JSON array object
+     *
+     * @param array $json_obj an array with the data of the json object
+     * @param user $usr_req the user how has initiated the import mainly used to prevent any user to gain additional rights
+     * @param data_object|null $dto cache of the objects imported until now for the primary references
+     * @param object|null $test_obj if not null the unit test object to get a dummy seq id
+     * @return user_message the status of the import and if needed the error messages that should be shown to the user
+     */
+    function import_obj(
+        array        $json_obj,
+        user         $usr_req,
+        ?data_object $dto = null,
+        object       $test_obj = null
+    ): user_message
+    {
+        $usr_msg = new user_message();
+        foreach ($json_obj as $value) {
+            $wrd = new word($this->user());
+            $usr_msg->add($wrd->import_obj($value, $usr_req, $dto, $test_obj));
+            $this->add($wrd);
+        }
+
+        return $usr_msg;
+    }
+
+    /**
+     * create an array with the export json fields
+     * @param bool $do_load to switch off the database load for unit tests
+     * @return array the filled array used to create the user export json
+     */
+    function export_json(bool $do_load = true): array
+    {
+        $wrd_lst = [];
+        foreach ($this->lst() as $wrd) {
+            if (get_class($wrd) == word::class) {
+                if ($wrd->has_cfg()) {
+                    $wrd_lst[] = $wrd->export_json($do_load);
+                }
+            } else {
+                log_err('The function wrd_lst->export_json returns ' . $wrd->dsp_id() . ', which is ' . get_class($wrd) . ', but not a word.', 'export->get');
+            }
+        }
+        return $wrd_lst;
     }
 
 
@@ -589,7 +634,7 @@ class word_list extends sandbox_list
     {
         $level = 0;
         $added_wrd_lst = new word_list($this->user()); // list of the added word ids
-        $added_wrd_lst = $this->foaf_level($level, $added_wrd_lst, $vrb, foaf_direction::UP, 0);
+        $added_wrd_lst = $this->foaf_level($level, $added_wrd_lst, $vrb, foaf_direction::UP);
 
         log_debug($added_wrd_lst->dsp_id());
         return $added_wrd_lst;
@@ -651,8 +696,8 @@ class word_list extends sandbox_list
      */
     function is(): word_list
     {
-        global $verbs;
-        $wrd_lst = $this->foaf_parents($verbs->get_verb(verb::IS));
+        global $vrb_cac;
+        $wrd_lst = $this->foaf_parents($vrb_cac->get_verb(verbs::IS));
         log_debug($this->dsp_id() . ' is ' . $wrd_lst->name());
         return $wrd_lst;
     }
@@ -665,9 +710,9 @@ class word_list extends sandbox_list
      */
     function are(): word_list
     {
-        global $verbs;
+        global $vrb_cac;
         log_debug('for ' . $this->dsp_id());
-        $wrd_lst = $this->children($verbs->get_verb(verb::IS));
+        $wrd_lst = $this->children($vrb_cac->get_verb(verbs::IS));
         $wrd_lst->merge($this);
         log_debug($this->dsp_id() . ' are ' . $wrd_lst->name());
         return $wrd_lst;
@@ -679,8 +724,8 @@ class word_list extends sandbox_list
      */
     function contains(): word_list
     {
-        global $verbs;
-        $wrd_lst = $this->children($verbs->get_verb(verb::IS_PART_OF));
+        global $vrb_cac;
+        $wrd_lst = $this->children($vrb_cac->get_verb(verbs::PART_NAME));
         $wrd_lst->merge($this);
         log_debug($this->dsp_id() . ' contains ' . $wrd_lst->name());
         return $wrd_lst;
@@ -732,8 +777,8 @@ class word_list extends sandbox_list
      */
     function differentiators(): word_list
     {
-        global $verbs;
-        $wrd_lst = $this->foaf_parents($verbs->get_verb(verb::CAN_CONTAIN));
+        global $vrb_cac;
+        $wrd_lst = $this->foaf_parents($vrb_cac->get_verb(verbs::CAN_CONTAIN));
         $wrd_lst->merge($this);
         return $wrd_lst;
     }
@@ -745,10 +790,10 @@ class word_list extends sandbox_list
      */
     function differentiators_all(): word_list
     {
-        global $verbs;
+        global $vrb_cac;
         // this first time get all related items
         // parents and not children because the verb is "can contain", but here the question is for "can be split by"
-        $wrd_lst = $this->foaf_parents($verbs->get_verb(verb::CAN_CONTAIN));
+        $wrd_lst = $this->foaf_parents($vrb_cac->get_verb(verbs::CAN_CONTAIN));
         return $wrd_lst->are_and_contains();
     }
 
@@ -783,23 +828,10 @@ class word_list extends sandbox_list
         return $result;
     }
 
-    /*
-     * modification
-     */
 
-    /**
-     * add one word to the word list, but only if it is not yet part of the word list
-     * @param word $wrd_to_add the word object that should be added
+    /*
+     * modify
      */
-    function add(word $wrd_to_add): void
-    {
-        log_debug('->add ' . $wrd_to_add->dsp_id());
-        if (!in_array($wrd_to_add->id(), $this->ids())) {
-            if ($wrd_to_add->id() > 0) {
-                $this->add_obj($wrd_to_add);
-            }
-        }
-    }
 
     /**
      * add one word by the id to the word list, but only if it is not yet part of the word list
@@ -813,7 +845,7 @@ class word_list extends sandbox_list
         if (!in_array($wrd_id_to_add, $this->ids())) {
             if ($wrd_id_to_add > 0) {
                 $wrd_to_add = new word($this->user());
-                $wrd_to_add->load_by_id($wrd_id_to_add, word::class);
+                $wrd_to_add->load_by_id($wrd_id_to_add);
 
                 $this->add($wrd_to_add);
                 $result = true;
@@ -835,7 +867,7 @@ class word_list extends sandbox_list
             log_err("The user must be set.", "word_list->add_name");
         } else {
             $wrd_to_add = new word($this->user());
-            $wrd_to_add->load_by_name($wrd_name_to_add, word::class);
+            $wrd_to_add->load_by_name($wrd_name_to_add);
 
             $this->add($wrd_to_add);
             $result = true;
@@ -844,24 +876,8 @@ class word_list extends sandbox_list
     }
 
     /**
-     * merge as a function, because the array_merge does not create an object
-     * @param word_list $new_wrd_lst with the words that should be added
-     * @return bool true if at least one word has been added that has not yet been in the list
-     */
-    function merge(word_list $new_wrd_lst): bool
-    {
-        $result = false;
-        log_debug('->merge ' . $new_wrd_lst->name() . ' to ' . $this->dsp_id() . '"');
-        foreach ($new_wrd_lst->lst() as $new_wrd) {
-            log_debug('->merge add ' . $new_wrd->name() . ' (' . $new_wrd->id() . ')');
-            $this->add($new_wrd);
-            $result = true;
-        }
-        return $result;
-    }
-
-    /**
      * diff as a function, because it seems the array_diff does not work for an object list
+     * TODO rename to del or intersect
      *
      * e.g. if the $this word list is "January, February, March, April, May, June, Juli, August, September, October, November, December"
      * and the $del_wrd_lst is "May, June, Juli, August"
@@ -904,8 +920,8 @@ class word_list extends sandbox_list
             if ($del_wrd_id > 0) {
                 if (in_array($del_wrd_id, $this->ids())) {
                     $del_pos = array_search($del_wrd_id, $this->ids());
-                    log_debug('exclude (' . $this->get_by_id($del_pos)->name() . ')');
-                    $this->unset_by_id($del_pos);
+                    log_debug('exclude (' . $this->get_by_id($del_pos)?->name() . ')');
+                    $this->unset($del_pos);
                 }
             }
         }
@@ -1037,9 +1053,9 @@ class word_list extends sandbox_list
         log_debug('for words "' . $this->dsp_id() . '"');
         $lib = new library();
 
-        global $phrase_types;
+        global $phr_typ_cac;
         $result = new word_list($this->user());
-        $time_type = $phrase_types->id(phrase_type::TIME);
+        $time_type = $phr_typ_cac->id(phrase_type_shared::TIME);
         // loop over the word ids and add only the time ids to the result array
         foreach ($this->lst() as $wrd) {
             if ($wrd->type_id() == $time_type) {
@@ -1093,13 +1109,13 @@ class word_list extends sandbox_list
      */
     function measure_lst(): word_list
     {
-        global $phrase_types;
+        global $phr_typ_cac;
         $lib = new library();
 
         log_debug($this->dsp_id());
 
         $result = new word_list($this->user());
-        $measure_type = $phrase_types->id(phrase_type::MEASURE);
+        $measure_type = $phr_typ_cac->id(phrase_type_shared::MEASURE);
         // loop over the word ids and add only the time ids to the result array
         foreach ($this->lst() as $wrd) {
             if ($wrd->type_id == $measure_type) {
@@ -1119,14 +1135,14 @@ class word_list extends sandbox_list
      */
     function scaling_lst(): word_list
     {
-        global $phrase_types;
+        global $phr_typ_cac;
         $lib = new library();
 
         log_debug($this->dsp_id());
 
         $result = new word_list($this->user());
-        $scale_type = $phrase_types->id(phrase_type::SCALING);
-        $scale_hidden_type = $phrase_types->id(phrase_type::SCALING_HIDDEN);
+        $scale_type = $phr_typ_cac->id(phrase_type_shared::SCALING);
+        $scale_hidden_type = $phr_typ_cac->id(phrase_type_shared::SCALING_HIDDEN);
         // loop over the word ids and add only the time ids to the result array
         foreach ($this->lst() as $wrd) {
             if ($wrd->type_id == $scale_type or $wrd->type_id == $scale_hidden_type) {
@@ -1147,13 +1163,13 @@ class word_list extends sandbox_list
      */
     function percent_lst(): word_list
     {
-        global $phrase_types;
+        global $phr_typ_cac;
         $lib = new library();
 
         log_debug($this->dsp_id());
 
         $result = new word_list($this->user());
-        $percent_type = $phrase_types->id(phrase_type::PERCENT);
+        $percent_type = $phr_typ_cac->id(phrase_type_shared::PERCENT);
         // loop over the word ids and add only the time ids to the result array
         foreach ($this->lst() as $wrd) {
             if ($wrd->type_id == $percent_type) {
@@ -1164,69 +1180,6 @@ class word_list extends sandbox_list
             }
         }
         log_debug($lib->dsp_count($result->ids()));
-        return $result;
-    }
-
-
-    /*
-     * im- and export
-     */
-
-    /**
-     * import a word list object from a JSON array object
-     *
-     * @param array $json_obj an array with the data of the json object
-     * @param object|null $test_obj if not null the unit test object to get a dummy seq id
-     * @return user_message the status of the import and if needed the error messages that should be shown to the user
-     */
-    function import_obj(array $json_obj, object $test_obj = null): user_message
-    {
-        $result = new user_message();
-        foreach ($json_obj as $value) {
-            $wrd = new word($this->user());
-            $result->add($wrd->import_obj($value, $test_obj));
-            $this->add($wrd);
-        }
-
-        return $result;
-    }
-
-    /**
-     * create a list of word objects for the export
-     * @param bool $do_load to switch off the database load for unit tests
-     * @return array with the reduced word objects that can be used to create a JSON message
-     */
-    function export_obj(bool $do_load = true): array
-    {
-        $exp_words = array();
-        foreach ($this->lst() as $wrd) {
-            if (get_class($wrd) == word::class or get_class($wrd) == word_dsp::class) {
-                if ($wrd->has_cfg()) {
-                    $exp_words[] = $wrd->export_obj($do_load);
-                }
-            } else {
-                log_err('The function wrd_lst->export_obj returns ' . $wrd->dsp_id() . ', which is ' . get_class($wrd) . ', but not a word.', 'export->get');
-            }
-        }
-        return $exp_words;
-    }
-
-
-    /*
-     * extract
-     */
-
-    /**
-     * @return array list of the word ids
-     */
-    function ids(int $limit = null): array
-    {
-        $result = array();
-        foreach ($this->lst() as $wrd) {
-            if ($wrd->id() > 0) {
-                $result[] = $wrd->id();
-            }
-        }
         return $result;
     }
 
@@ -1255,12 +1208,12 @@ class word_list extends sandbox_list
         /*
         TODO check if a new group is not created
         $result = $grp->get_id();
-        if ($result->id > 0) {
+        if ($result->id() > 0) {
           zu_debug('word_list->get_grp <'.$result->id.'> for "'.$this->name().'" and user '.$this->user()->name);
         } else {
           zu_debug('word_list->get_grp create for "'.implode(",",$grp->wrd_lst->names()).'" ('.implode(",",$grp->wrd_lst->ids()).') and user '.$grp->usr->name);
           $result = $grp->get_id();
-          if ($result->id > 0) {
+          if ($result->id() > 0) {
             zu_debug('word_list->get_grp created <'.$result->id.'> for "'.$this->name().'" and user '.$this->user()->name);
           }
         }
@@ -1273,13 +1226,11 @@ class word_list extends sandbox_list
      * convert the word list object into a phrase list object
      * @return phrase_list with all words of this list
      */
-    function phrase_lst(): phrase_list
+    function phrase_list(): phrase_list
     {
-        log_debug($this->dsp_id());
-        $lib = new library();
         $phr_lst = new phrase_list($this->user());
         foreach ($this->lst() as $phr) {
-            if (get_class($phr) == word::class or get_class($phr) == word_dsp::class) {
+            if (get_class($phr) == word::class) {
                 $phr_lst->add($phr->phrase());
             } elseif (get_class($phr) == phrase::class) {
                 $phr_lst->add($phr);
@@ -1288,7 +1239,27 @@ class word_list extends sandbox_list
             }
         }
         $phr_lst->id_lst();
-        log_debug('done ' . $lib->dsp_count($phr_lst->lst()));
+        return $phr_lst;
+    }
+
+    /**
+     * convert the word list object into a phrase list object
+     * and use the word name instead of the database id as the unique key
+     * @return phrase_list with all words of this list
+     */
+    function phrase_lst_of_names(): phrase_list
+    {
+        $phr_lst = new phrase_list($this->user());
+        foreach ($this->lst() as $phr) {
+            if (get_class($phr) == word::class) {
+                $phr_lst->add_by_name($phr->phrase());
+            } elseif (get_class($phr) == phrase::class) {
+                $phr_lst->add_by_name($phr);
+            } else {
+                log_err('unexpected object type ' . get_class($phr));
+            }
+        }
+        $phr_lst->id_lst();
         return $phr_lst;
     }
 
@@ -1299,7 +1270,7 @@ class word_list extends sandbox_list
     function value(): value
     {
         $val = new value($this->user());
-        $phr_lst = $this->phrase_lst();
+        $phr_lst = $this->phrase_list();
         $phr_grp = new group($this->user());
         $phr_grp->load_by_phr_lst($phr_lst);
         $val->load_by_grp($phr_grp);
@@ -1502,7 +1473,7 @@ class word_list extends sandbox_list
         if ($trm_lst == null) {
             // load the list of all value related to the word list
             $val_lst = new value_list($this->user());
-            $val_lst->load_by_phr_lst($this->phrase_lst());
+            $val_lst->load_by_phr_lst($this->phrase_list());
             log_debug($lib->dsp_count($val_lst->lst()) . ' values for ' . $this->dsp_id());
 
             $time_ids = array();
@@ -1601,14 +1572,12 @@ class word_list extends sandbox_list
         } else {
             // get the time of the last "real" (reported) value for the word list
             $wrd_max_time = $this->max_val_time($trm_lst);
-            if ($wrd_max_time != null) {
-                $phr = $wrd_max_time->phrase();
-            }
+            $phr = $wrd_max_time?->phrase();
         }
 
         if ($phr != null) {
             log_debug('time used "' . $phr->name() . '" (' . $phr->id() . ')');
-            if (get_class($phr) == word::class or get_class($phr) == word_dsp::class) {
+            if (get_class($phr) == word::class) {
                 $result = $phr->phrase();
             } else {
                 $result = $phr;
@@ -1617,6 +1586,22 @@ class word_list extends sandbox_list
             log_debug('no time found');
         }
         return $result;
+    }
+
+
+    /*
+     * save
+     */
+
+    /**
+     * store all words from this list in the database using grouped calls of predefined sql functions
+     *
+     * @param import|null $imp the import object with the estimate of the total save time
+     * @return user_message in case of an issue the problem description what has failed and a suggested solution
+     */
+    function save(import $imp = null): user_message
+    {
+        return parent::save_block_wise($imp, words::WORDS, word::class, new word_list($this->user()));
     }
 
 }

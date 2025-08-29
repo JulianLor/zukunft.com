@@ -1,0 +1,739 @@
+{
+  "version": "0.0.3",
+  "time": "2024-03-26 19:58:00",
+  "user": "zukunft.com system batch job",
+  "selection": [
+    "solution priorities"
+  ],
+  "words": [
+    {
+      "name": "problem",
+      "comment": "A problem is if someone is getting unhappy. This can be measured with \"happy time points\".",
+      "refs": [
+        {
+          "name": "Problem_solving",
+          "type": "wikipedia"
+        }
+      ]
+    },
+    {
+      "name": "global",
+      "comment": "here more a something that effects all people on earth (wikipedia does not really match)",
+      "refs": [
+        {
+          "name": "Globalization",
+          "type": "wikipedia"
+        }
+      ]
+    },
+    {
+      "name": "solution",
+      "refs": [
+        {
+          "name": "Problem solving",
+          "type": "wikipedia"
+        },
+        {
+          "name": "Q730920",
+          "type": "wikidata"
+        }
+      ]
+    },
+    {
+      "name": "priority",
+      "refs": [
+        {
+          "name": "Prioritization",
+          "type": "wikipedia"
+        },
+        {
+          "name": "Q11888847",
+          "type": "wikidata"
+        }
+      ]
+    },
+    {
+      "name": "potential",
+      "refs": [
+        {
+          "name": "Potential",
+          "type": "wikipedia"
+        },
+        {
+          "name": "Q1202245",
+          "type": "wikidata"
+        }
+      ]
+    },
+    {
+      "name": "gain",
+      "refs": [
+        {
+          "name": "Utility",
+          "type": "wikipedia"
+        },
+        {
+          "name": "Q466707",
+          "type": "wikidata"
+        }
+      ]
+    },
+    {
+      "name": "loss",
+      "refs": [
+        {
+          "name": "Loss",
+          "type": "wikipedia"
+        }
+      ]
+    },
+    {
+      "name": "percent",
+      "comment": "to specify numbers in percent",
+      "type": "percent",
+      "protection": "admin_protection"
+    },
+    {
+      "name": "climate",
+      "refs": [
+        {
+          "name": "Climate",
+          "type": "wikipedia"
+        },
+        {
+          "name": "Q7937",
+          "type": "wikidata"
+        }
+      ]
+    },
+    {
+      "name": "warm",
+      "refs": [
+        {
+          "name": "heating",
+          "type": "wikipedia"
+        },
+        {
+          "name": "Q4311765",
+          "type": "wikidata"
+        }
+      ]
+    },
+    {
+      "name": "warming"
+    },
+    {
+      "name": "warmer"
+    },
+    {
+      "name": "reduce"
+    },
+    {
+      "name": "gas",
+      "refs": [
+        {
+          "name": "gas",
+          "type": "wikipedia"
+        },
+        {
+          "name": "Q11432",
+          "type": "wikidata"
+        }
+      ]
+    },
+    {
+      "name": "global",
+      "refs": [
+        {
+          "name": "Globalization",
+          "type": "wikipedia"
+        },
+        {
+          "name": "Q7181",
+          "type": "wikidata"
+        }
+      ]
+    },
+    {
+      "name": "emissions"
+    },
+    {
+      "name": "populism",
+      "refs": [
+        {
+          "name": "Populism",
+          "type": "wikipedia"
+        },
+        {
+          "name": "Q180490",
+          "type": "wikidata"
+        }
+      ]
+    },
+    {
+      "name": "right",
+      "refs": [
+        {
+          "name": "Right_(direction)",
+          "type": "wikipedia"
+        }
+      ]
+    },
+    {
+      "name": "left",
+      "refs": [
+        {
+          "name": "Left_(direction)",
+          "type": "wikipedia"
+        }
+      ]
+    },
+    {
+      "name": "wing"
+    },
+    {
+      "name": "simple"
+    },
+    {
+      "name": "ordinary"
+    },
+    {
+      "name": "least"
+    },
+    {
+      "name": "square"
+    },
+    {
+      "name": "OLS"
+    },
+    {
+      "name": "aftermath"
+    },
+    {
+      "name": "5-year"
+    },
+    {
+      "name": "15-year"
+    },
+    {
+      "name": "avoid"
+    },
+    {
+      "name": "wrong"
+    },
+    {
+      "name": "decisions"
+    },
+    {
+      "name": "artificial"
+    },
+    {
+      "name": "intelligence"
+    },
+    {
+      "name": "health"
+    },
+    {
+      "name": "research"
+    },
+    {
+      "name": "poverty"
+    },
+    {
+      "name": "taxes"
+    },
+    {
+      "name": "education"
+    },
+    {
+      "name": "spending"
+    },
+    {
+      "name": "pension",
+      "refs": [
+        {
+          "name": "Pension",
+          "type": "wikipedia"
+        },
+        {
+          "name": "Q156223",
+          "type": "wikidata"
+        }
+      ]
+    },
+    {
+      "name": "happy"
+    },
+    {
+      "name": "unhappy"
+    },
+    {
+      "name": "time"
+    },
+    {
+      "name": "points"
+    },
+    {
+      "name": "DALY",
+      "refs": [
+        {
+          "name": "Disability-adjusted life year",
+          "type": "wikipedia"
+        },
+        {
+          "name": "Q55627",
+          "type": "wikidata"
+        }
+      ]
+    },
+    {
+      "name": "human",
+      "refs": [
+        {
+          "name": "Homo",
+          "type": "wikipedia"
+        },
+        {
+          "name": "Q15978631",
+          "type": "wikidata"
+        }
+      ]
+    },
+    {
+      "name": "population",
+      "refs": [
+        {
+          "name": "Population",
+          "type": "wikipedia"
+        },
+        {
+          "name": "Q2625603",
+          "type": "wikidata"
+        }
+      ]
+    },
+    {
+      "name": "htp"
+    },
+    {
+      "name": "million",
+      "comment": "to specify numbers in millions",
+      "type": "scaling",
+      "protection": "admin_protection"
+    },
+    {
+      "name": "billion",
+      "comment": "to specify numbers in billion",
+      "type": "scaling",
+      "protection": "admin_protection"
+    },
+    {
+      "name": "trillion",
+      "comment": "to specify numbers in trillion",
+      "type": "scaling",
+      "protection": "admin_protection"
+    },
+    {
+      "name": "mio"
+    },
+    {
+      "name": "m"
+    },
+    {
+      "name": "b"
+    },
+    {
+      "name": "CHF",
+      "type": "measure"
+    },
+    {
+      "name": "USD",
+      "type": "measure"
+    },
+    {
+      "name": "world"
+    },
+    {
+      "name": "annual"
+    },
+    {
+      "name": "GDP"
+    },
+    {
+      "name": "decline"
+    },
+    {
+      "name": "2024"
+    }
+  ],
+  "triples": [
+    {
+      "name": "global problem",
+      "from": "problem",
+      "verb": "can be",
+      "to": "global",
+      "comment": "here more a personal issue (wikipedia does not really match)",
+      "refs": [
+        {
+          "name": "List_of_global_issues",
+          "type": "wikipedia"
+        },
+        {
+          "name": "Q65117122",
+          "type": "wikidata"
+        }
+      ]
+    },
+    {
+      "from": "warmer",
+      "verb": "is a",
+      "to": "warm"
+    },
+    {
+      "from": "warming",
+      "verb": "is a",
+      "to": "warm"
+    },
+    {
+      "name": "global warming",
+      "from": "climate",
+      "verb": "can get",
+      "to": "warmer",
+      "refs": [
+        {
+          "name": "Climate_change",
+          "type": "wikipedia"
+        },
+        {
+          "name": "Q7942",
+          "type": "wikidata"
+        }
+      ]
+    },
+    {
+      "name": "global warming potential",
+      "from": "warming",
+      "verb": "can use",
+      "to": "potential"
+    },
+    {
+      "name": "climate gas",
+      "from": "gas",
+      "verb": "can cause",
+      "to": "warming",
+      "refs": [
+        {
+          "name": "Climate_change",
+          "type": "wikipedia"
+        },
+        {
+          "name": "Q7942",
+          "type": "wikidata"
+        }
+      ]
+    },
+    {
+      "name": "world population",
+      "from": "population",
+      "verb": "of",
+      "to": "human",
+      "refs": [
+        {
+          "name": "World population",
+          "type": "wikipedia"
+        },
+        {
+          "name": "Q11188",
+          "type": "wikidata"
+        }
+      ]
+    },
+    {
+      "name": "time points",
+      "from": "points",
+      "verb": "is measure type for",
+      "to": "time",
+      "description": "a value multiplied by the time e.g. used for the UN Disability-adjusted life year (DALYs)"
+    },
+    {
+      "name": "happy time points",
+      "from": "happy",
+      "verb": "and",
+      "to": "time points",
+      "description": "To measure the \"happy points\" ask the person how happy he feels let's say on a scale from 1 (least happy) to 10 (most happy). If you sum the number of happy points over a period, you get the \"happy time points\". "
+    },
+    {
+      "from": "htp",
+      "verb": "is symbol for",
+      "to": "happy time points"
+    },
+    {
+      "from": "m",
+      "verb": "is symbol for",
+      "to": "million"
+    },
+    {
+      "from": "mio",
+      "verb": "is symbol for",
+      "to": "million"
+    },
+    {
+      "from": "b",
+      "verb": "is symbol for",
+      "to": "billion"
+    },
+    {
+      "from": "global warming",
+      "verb": "is a",
+      "to": "global problem"
+    },
+    {
+      "from": "populism",
+      "verb": "is a",
+      "to": "global problem"
+    },
+    {
+      "name": "health can be a global problem",
+      "from": "health",
+      "verb": "can be",
+      "to": "global problem"
+    },
+    {
+      "name": "GDP decline",
+      "from": "GDP",
+      "verb": "can",
+      "to": "decline"
+    },
+    {
+      "from": "poverty",
+      "verb": "is a",
+      "to": "global problem"
+    },
+    {
+      "from": "education",
+      "verb": "can be",
+      "to": "global problem"
+    },
+    {
+      "name": "least squares",
+      "from": "square",
+      "verb": "can be",
+      "to": "least"
+    },
+    {
+      "name": "ordinary least squares",
+      "from": "least squares",
+      "verb": "can be",
+      "to": "ordinary"
+    },
+    {
+      "from": "OLS",
+      "verb": "is symbol for",
+      "to": "ordinary least squares"
+    },
+    {
+      "from": "populism",
+      "verb": "can cause",
+      "to": "GDP decline"
+    }
+  ],
+  "sources": [
+    {
+      "name": "Populist Leaders and the Economy (Kiel Working Paper)",
+      "description": "Journal Article\nPopulist Leaders and the Economy\n\nAmerican Economic Review, 113 (2): 3249-3288 ",
+      "url": "https://www.ifw-kiel.de/fileadmin/Dateiverwaltung/IfW-Publications/fis-import/63738460-817f-4a88-837b-794a7c021251-KWP_2169_update_june_2022.pdf",
+      "type": "pdf"
+    }
+  ],
+  "values": [
+    {
+      "words": [
+        "global",
+        "human",
+        "population",
+        "billion"
+      ],
+      "number": "8.5"
+    },
+    {
+      "words": [
+        "world",
+        "GDP",
+        "million",
+        "USD",
+        "2024"
+      ],
+      "number": "110047109"
+    },
+    {
+      "words": [
+        "global warming",
+        "potential",
+        "loss",
+        "percent",
+        "htp"
+      ],
+      "number": "-37"
+    },
+    {
+      "words": [
+        "global warming",
+        "potential",
+        "loss",
+        "percent",
+        "GDP"
+      ],
+      "number": "-32"
+    },
+    {
+      "words": [
+        "populism",
+        "potential",
+        "loss",
+        "percent",
+        "htp"
+      ],
+      "number": "-28"
+    },
+    {
+      "words": [
+        "populism",
+        "potential",
+        "loss",
+        "percent",
+        "GDP"
+      ],
+      "number": "-31"
+    },
+    {
+      "words": [
+        "health",
+        "potential",
+        "loss",
+        "percent",
+        "htp"
+      ],
+      "number": "-24"
+    },
+    {
+      "words": [
+        "health",
+        "potential",
+        "loss",
+        "percent",
+        "GDP"
+      ],
+      "number": "-31"
+    },
+    {
+      "words": [
+        "poverty",
+        "potential",
+        "loss",
+        "percent",
+        "htp"
+      ],
+      "number": "-16"
+    },
+    {
+      "words": [
+        "poverty",
+        "potential",
+        "loss",
+        "percent",
+        "GDP"
+      ],
+      "number": "-8"
+    },
+    {
+      "words": [
+        "education",
+        "potential",
+        "loss",
+        "percent",
+        "htp"
+      ],
+      "number": "-11"
+    },
+    {
+      "words": [
+        "education",
+        "potential",
+        "loss",
+        "percent",
+        "GDP"
+      ],
+      "number": "-13"
+    },
+    {
+      "words": [
+        "populism",
+        "annual",
+        "GDP",
+        "decline",
+        "percent",
+        "5-year",
+        "aftermath",
+        "OLS"
+      ],
+      "number": "-0.97",
+      "source": "Populist Leaders and the Economy (Kiel Working Paper)"
+    },
+    {
+      "words": [
+        "populism",
+        "annual",
+        "GDP",
+        "decline",
+        "percent",
+        "15-year",
+        "aftermath",
+        "OLS"
+      ],
+      "number": "-1.04",
+      "source": "Populist Leaders and the Economy (Kiel Working Paper)"
+    }
+  ],
+  "formulas": [
+    {
+      "name": "scale million to one",
+      "expression": "\"one\" = \"million\" * 1000000",
+      "assigned_word": "million"
+    },
+    {
+      "name": "scale billion to one",
+      "expression": "\"one\" = \"billion\" * 1000000000",
+      "assigned_word": "billion"
+    },
+    {
+      "name": "scale trillion to one",
+      "expression": "\"one\" = \"trillion\" * 1000000000000",
+      "assigned_word": "trillion"
+    },
+    {
+      "name": "global happy time points",
+      "expression": "\"htp\" = \"htp\",\"percent\" * \"global\",\"human\",\"population\"",
+      "assigned_word": "htp"
+    }
+  ],
+  "results": [
+    {
+      "context": [
+        "global warming",
+        "potential",
+        "loss",
+        "percent",
+        "htp"
+      ],
+      "formula": "global happy time points",
+      "words": [
+        "global warming",
+        "potential",
+        "loss",
+        "htp"
+      ],
+      "number": "31.5"
+    }
+  ]
+}
+

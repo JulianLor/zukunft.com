@@ -5,6 +5,7 @@
     model/view/view_type_list.php - to link coded functionality to a view
     -----------------------------
 
+
     This file is part of zukunft.com - calc with words
 
     zukunft.com is free software: you can redistribute it and/or modify it
@@ -29,38 +30,28 @@
   
 */
 
-namespace cfg;
+namespace cfg\view;
 
-use cfg\db\sql_db;
+use cfg\const\paths;
 
-include_once DB_PATH . 'sql_db.php';
-include_once MODEL_HELPER_PATH . 'type_list.php';
-include_once MODEL_HELPER_PATH . 'type_object.php';
+include_once paths::MODEL_HELPER . 'type_list.php';
+include_once paths::MODEL_HELPER . 'type_object.php';
+include_once paths::SHARED_TYPES . 'view_type.php';
 
-global $view_types;
+use cfg\helper\type_list;
+use shared\types\view_type as view_type_shared;
 
 class view_type_list extends type_list
 {
-    /**
-     * overwrite the general user type list load function to keep the link to the table type capsuled
-     * @param sql_db $db_con the database connection that can be either the real database connection or a simulation used for testing
-     * @return bool true if load was successful
-     */
-    function load(sql_db $db_con, string $db_type = sql_db::TBL_VIEW_TYPE): bool
-    {
-        return parent::load($db_con, $db_type);
-    }
 
     /**
      * adding the view types used for unit tests to the dummy list
      */
     function load_dummy(): void
     {
-        parent::load_dummy();
-        $type = new type_object(view_type::DEFAULT, view_type::DEFAULT, '', 2);
-        $this->add($type);
-        $type = new type_object(view_type::SYSTEM, view_type::SYSTEM, '', 7);
-        $this->add($type);
+        $this->reset();
+        // read the corresponding names and description from the internal config csv files
+        $this->read_from_config_csv($this);
     }
 
     /**
@@ -68,7 +59,7 @@ class view_type_list extends type_list
      */
     function default_id(): int
     {
-        return parent::id(view_type::DEFAULT);
+        return parent::id(view_type_shared::DEFAULT);
     }
 
 }

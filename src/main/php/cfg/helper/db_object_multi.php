@@ -5,7 +5,7 @@
     model/helper/db_object_multi.php - a base object for all db objects which use more than one table to store the data
     --------------------------------
 
-    like db_object_seq_id but not using a auto sequence as db index
+    like db_object_seq_id but not using an auto sequence as db index
 
 
     This file is part of zukunft.com - calc with words
@@ -32,17 +32,33 @@
 
 */
 
-namespace cfg;
+namespace cfg\helper;
 
-include_once MODEL_HELPER_PATH . 'db_object.php';
+use cfg\const\paths;
 
-use api\system\db_object as db_object_api;
-use cfg\db\sql;
+include_once paths::MODEL_HELPER . 'db_object_key.php';
+include_once paths::API_OBJECT . 'api_message.php';
+include_once paths::API_OBJECT . 'api_message.php';
+include_once paths::DB . 'sql_creator.php';
+include_once paths::DB . 'sql_par.php';
+//include_once paths::MODEL_GROUP . 'group_id.php';
+include_once paths::MODEL_USER . 'user.php';
+include_once paths::MODEL_USER . 'user_message.php';
+include_once paths::SHARED_ENUM . 'messages.php';
+include_once paths::SHARED_TYPES . 'api_type_list.php';
+include_once paths::SHARED . 'json_fields.php';
+
+use cfg\db\sql_creator;
 use cfg\db\sql_par;
-use cfg\group\group;
 use cfg\group\group_id;
+use cfg\user\user;
+use cfg\user\user_message;
+use controller\api_message;
+use shared\enum\messages as msg_id;
+use shared\types\api_type_list;
+use shared\json_fields;
 
-class db_object_multi extends db_object
+class db_object_multi extends db_object_key
 {
 
     /*
@@ -64,6 +80,7 @@ class db_object_multi extends db_object
      */
     function __construct()
     {
+        parent::__construct();
         $this->id = 0;
     }
 
@@ -124,41 +141,22 @@ class db_object_multi extends db_object
 
 
     /*
-     * cast
-     */
-
-    /**
-     * @return db_object_api the source frontend api object
-     */
-    function api_db_obj(): db_object_api
-    {
-        return new db_object_api($this->id());
-    }
-
-    /**
-     * @returns string the api json message for the object as a string
-     */
-    function api_json(): string
-    {
-        return $this->api_db_obj()->get_json();
-    }
-
-
-    /*
      * load
      */
 
     /**
      * create an SQL statement to retrieve a user sandbox object by id from the database
      *
-     * @param sql $sc with the target db_type set
+     * @param sql_creator $sc with the target db_type set
      * @param int|string $id the id of the user sandbox object
-     * @param string $class the name of the child class from where the call has been triggered
      * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
      */
-    function load_sql_by_id(sql $sc, int|string $id, string $class = self::class): sql_par
+    function load_sql_by_id(
+        sql_creator $sc,
+        int|string  $id
+    ): sql_par
     {
-        return parent::load_sql_by_id_str($sc, $id, $class);
+        return parent::load_sql_by_id_str($sc, $id);
     }
 
     /**
@@ -174,6 +172,55 @@ class db_object_multi extends db_object
 
 
     /*
+     * api
+     */
+
+    /**
+     * create the api json message string of this database object based on more than one table for the frontend
+     * @param api_type_list|array $typ_lst configuration for the api message e.g. if phrases should be included
+     * @param user|null $usr the user for whom the api message should be created which can differ from the session user
+     * @returns string the api json message for the object as a string
+     */
+    function api_json(api_type_list|array $typ_lst = [], user|null $usr = null): string
+    {
+        if (is_array($typ_lst)) {
+            $typ_lst = new api_type_list($typ_lst);
+        }
+
+        // null values are not needed in the api message to the frontend
+        // but in the api message to the backend null values are relevant
+        // e.g. to remove empty string overwrites
+        $vars = $this->api_json_array($typ_lst, $usr);
+        $vars = array_filter($vars, fn($value) => !is_null($value) && $value !== '');
+
+        // add header if requested
+        if ($typ_lst->use_header()) {
+            global $db_con;
+            $api_msg = new api_message();
+            $msg = $api_msg->api_header_array($db_con, $this::class, $usr, $vars);
+        } else {
+            $msg = $vars;
+        }
+
+        return json_encode($msg);
+    }
+
+    /**
+     * create an array for the api json creation
+     * differs from the export array by using the internal id instead of the names
+     * @param api_type_list $typ_lst configuration for the api message e.g. if phrases should be included
+     * @param user|null $usr the user for whom the api message should be created which can differ from the session user
+     * @return array the filled array used to create the api json message to the frontend
+     */
+    function api_json_array(api_type_list $typ_lst, user|null $usr = null): array
+    {
+        $vars = [];
+        $vars[json_fields::ID] = $this->id();
+        return $vars;
+    }
+
+
+    /*
      * im- and export
      */
 
@@ -185,17 +232,45 @@ class db_object_multi extends db_object
      */
     function import_db_obj(db_object_multi $db_obj, object $test_obj = null): user_message
     {
-        $result = new user_message();
+        $usr_msg = new user_message();
         // add a dummy id for unit testing
         if ($test_obj) {
             $db_obj->set_id($test_obj->seq_id());
         }
-        return $result;
+        return $usr_msg;
     }
 
 
     /*
-     * information
+     * modify
+     */
+
+    /**
+     * fill this seq id object based on the given object
+     * if the given id is zero or an empty string the id is never overwritten
+     * if the given id is valid the id of this object is set if not yet done
+     * similar to db_object_seq_id->fill
+     *
+     * @param db_object_multi $obj object with the values that should be updated e.g. based on the import
+     * @param user $usr_req the user who has requested the fill
+     * @return user_message a warning in case of a conflict e.g. due to a missing change time
+     */
+    function fill(db_object_multi $obj, user $usr_req): user_message
+    {
+        $usr_msg = new user_message();
+        if ($obj->id() !== 0 and $obj->id() !== '' ) {
+            if ($this->id() === 0 or $this->id() === '') {
+                $this->set_id($obj->id());
+            } elseif ($obj->id() != $this->id()) {
+                $usr_msg->add_id_with_vars(msg_id::CONFLICT_DB_ID, [msg_id::VAR_ID => $this->dsp_id()]);
+            }
+        }
+        return $usr_msg;
+    }
+
+
+    /*
+     * info
      */
 
     /**
@@ -203,23 +278,41 @@ class db_object_multi extends db_object
      */
     function isset(): bool
     {
-        if ($this->id == null) {
+        if ($this->id() == null) {
             return false;
         } else {
-            if (is_string($this->id)) {
-                if ($this->id != '') {
+            if (is_string($this->id())) {
+                if ($this->id() != '') {
                     return true;
                 } else {
                     return false;
                 }
             } else {
-                if ($this->id != 0) {
+                if ($this->id() != 0) {
                     return true;
                 } else {
                     return false;
                 }
             }
         }
+    }
+
+    /**
+     * create human-readable messages of the differences between the db id objects
+     * @param db_object_multi $obj which might be different to this db id object
+     * @return user_message the human-readable messages of the differences between the db id objects
+     */
+    function diff_msg(db_object_multi $obj): user_message
+    {
+        $usr_msg = new user_message();
+        if ($this->id() != $obj->id()) {
+            $usr_msg->add_id_with_vars(msg_id::DIFF_ID, [
+                msg_id::VAR_ID => $obj->id(),
+                msg_id::VAR_ID_CHK => $this->id(),
+                msg_id::VAR_NAME => $this->dsp_id(),
+            ]);
+        }
+        return $usr_msg;
     }
 
 
@@ -242,7 +335,9 @@ class db_object_multi extends db_object
      * @param int|string $id the id of the word, triple, formula, verb, view or view component
      * @return int|string the id of the object found and zero if nothing is found
      */
-    function load_by_id(int|string $id): int|string
+    function load_by_id(
+        int|string $id
+    ): int|string
     {
         global $db_con;
 

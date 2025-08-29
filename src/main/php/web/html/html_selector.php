@@ -33,7 +33,11 @@
 
 namespace html;
 
-include_once WEB_SYSTEM_PATH . 'messages.php';
+use cfg\const\paths;
+use html\const\paths as html_paths;
+include_once paths::SHARED_ENUM . 'messages.php';
+
+use shared\enum\messages as msg_id;
 
 class html_selector
 {
@@ -54,10 +58,11 @@ class html_selector
 
     function display(): string
     {
+        global $mtr;
         $result = $this->start_selector();
 
         if ($this->dummy_text == '') {
-            $this->dummy_text = (new msg())->txt(msg::PLEASE_SELECT);
+            $this->dummy_text = $mtr->txt(msg_id::PLEASE_SELECT);
         }
 
         if ($this->selected == 0) {
@@ -99,7 +104,7 @@ class html_selector
           $label == $this->name;
         }
         */
-        if (UI_USE_BOOTSTRAP) {
+        if (html_base::UI_USE_BOOTSTRAP) {
             $result .= '<div class="form-group ' . $this->bs_class . '">';
             if ($this->label != "") {
                 $result .= '<label for="' . $this->name . '">' . $this->label . '</label>';
@@ -111,7 +116,7 @@ class html_selector
             }
             */
             if ($this->type == self::TYPE_DATALIST) {
-                $result .= '<input type="text" list="' . $this->name . '_list" class="' . $bs_class . '" name="' . $this->name . '" form="' . $this->form . '" id="' . $this->name . '" ' . $this->attribute . '>';
+                $result .= '<input type="' . html_base::INPUT_TEXT . '" list="' . $this->name . '_list" class="' . $bs_class . '" name="' . $this->name . '" form="' . $this->form . '" id="' . $this->name . '" ' . $this->attribute . '>';
                 $result .= '<datalist id="' . $this->name . '_list">';
             } else {
                 if ($this->form != "") {
@@ -144,7 +149,7 @@ class html_selector
         } else {
             $result = '</select>';
         }
-        if (UI_USE_BOOTSTRAP) {
+        if (html_base::UI_USE_BOOTSTRAP) {
             $result .= '</div>';
         }
         return $result;

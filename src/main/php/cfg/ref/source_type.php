@@ -33,15 +33,25 @@
    
 */
 
-namespace cfg;
+namespace cfg\ref;
+
+use cfg\const\paths;
+
+include_once paths::MODEL_HELPER . 'type_object.php';
+
+use cfg\helper\type_object;
 
 class source_type extends type_object
 {
-    // list of the source types that have a coded functionality
-    const XBRL = "xbrl";
-    const CSV = "csv";
-    const PDF = "pdf";
 
     // the url that can be used to receive data if the external key is added
     // public ?string $url = null;
+
+    /*
+     * database link
+     */
+
+    // comments used for the database creation
+    const TBL_COMMENT = 'to link predefined behaviour to a source';
+
 }

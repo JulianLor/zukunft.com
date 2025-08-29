@@ -2,8 +2,9 @@
 
 /*
 
-    /model/dp/sql_par_type.php - enum of the sql where parameter types
-    ---------------------------
+    model/db/sql_par_type.php - enum of the sql where parameter types
+    ------------------------
+
 
     This file is part of zukunft.com - calc with words
 
@@ -54,20 +55,61 @@ enum sql_par_type: string
     case TEXT = 'text';
     case TEXT_LIST = 'text_list';
     case TEXT_OR = 'text_or';
+    case KEY_512 = 'key512';
     case TEXT_USR = 'text_usr'; // a name that can be user specific e.g. the word or triple name
     case LIKE_R = 'like_start_with'; // add a wildcard to the right to fine the values that start with the given text
     case LIKE = 'like';
-    case LIKE_OR = 'like_or';
+    case LIKE_OR = 'like_or'; // connect with the previous condition with OR and like
     case CONST = 'const';
     case CONST_NOT = 'const_not';
+    case CONST_OR_NULL = 'const_or_null';
     case CONST_NOT_IN = 'const_not_in';
     case IS_NULL = 'is_null';
     case NOT_NULL = 'not_null';
     case TIME = 'timestamp'; // e.g. for now()
+    case POINT = 'point'; // e.g. for geolocations
 
     // parameter types to calculate the result for a group
     case MIN = 'min';
     case MAX = 'max';
     case COUNT = 'count';
+
+    function is_function(): bool
+    {
+        return match($this) {
+            self::MIN, self::MAX, self::COUNT, self::LIMIT, self::OFFSET => true,
+            default => false,
+        };
+    }
+
+    function is_or(): bool
+    {
+        return match($this) {
+            self::TEXT_OR, self::INT_OR, self::INT_LIST_OR, self::LIKE_OR, self::INT_SAME_OR => true,
+            default => false,
+        };
+    }
+
+    /**
+     * @return bool true if the selection is based on a list e.g. "IN (1,2,3)"
+     */
+    function is_list(): bool
+    {
+        return match($this) {
+            self::INT_LIST, self::INT_LIST_OR, self::TEXT_LIST => true,
+            default => false,
+        };
+    }
+
+    /**
+     * @return bool true if the selection is based on a list e.g. "IN (1,2,3)"
+     */
+    function is_text(): bool
+    {
+        return match($this) {
+            self::TEXT, self::TEXT_USR, self::TEXT_OR, self::INT_SUB, self::INT_SUB_IN, self::KEY_512 => true,
+            default => false,
+        };
+    }
 
 }

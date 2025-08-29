@@ -30,21 +30,141 @@
 
 */
 
-namespace cfg;
+namespace cfg\helper;
 
-include_once DB_PATH . 'sql_db.php';
-include_once DB_PATH . 'sql_par.php';
-include_once MODEL_HELPER_PATH . 'library.php';
-include_once MODEL_VERB_PATH . 'verb.php';
-include_once API_SYSTEM_PATH . 'type_list.php';
-include_once WEB_USER_PATH . 'user_type_list.php';
+use cfg\const\paths;
 
-use api\system\type_list as type_list_api;
+include_once paths::API_OBJECT . 'api_message.php';
+include_once paths::MODEL_CONST . 'def.php';
+include_once paths::MODEL_CONST . 'files.php';
+include_once paths::MODEL_COMPONENT . 'component_link_type.php';
+include_once paths::MODEL_COMPONENT . 'component_link_type_list.php';
+include_once paths::MODEL_COMPONENT . 'component_type.php';
+include_once paths::MODEL_COMPONENT . 'component_type_list.php';
+include_once paths::MODEL_COMPONENT . 'position_type.php';
+include_once paths::MODEL_COMPONENT . 'position_type_list.php';
+include_once paths::MODEL_COMPONENT . 'view_style.php';
+include_once paths::MODEL_COMPONENT . 'view_style_list.php';
+include_once paths::DB . 'sql.php';
+include_once paths::DB . 'sql_creator.php';
+include_once paths::DB . 'sql_db.php';
+include_once paths::DB . 'sql_field_type.php';
+include_once paths::DB . 'sql_par.php';
+include_once paths::MODEL_ELEMENT . 'element_type.php';
+include_once paths::MODEL_ELEMENT . 'element_type_list.php';
+include_once paths::MODEL_FORMULA . 'formula_link_type.php';
+include_once paths::MODEL_FORMULA . 'formula_link_type_list.php';
+include_once paths::MODEL_FORMULA . 'formula_type.php';
+include_once paths::MODEL_FORMULA . 'formula_type_list.php';
+include_once paths::MODEL_REF . 'ref_type.php';
+include_once paths::MODEL_REF . 'ref_type_list.php';
+include_once paths::MODEL_REF . 'source_type.php';
+include_once paths::MODEL_REF . 'source_type_list.php';
+include_once paths::MODEL_SYSTEM . 'job_type.php';
+include_once paths::MODEL_SYSTEM . 'job_type_list.php';
+include_once paths::MODEL_LANGUAGE . 'language.php';
+include_once paths::MODEL_LANGUAGE . 'language_form.php';
+include_once paths::MODEL_LANGUAGE . 'language_form_list.php';
+include_once paths::MODEL_LANGUAGE . 'language_list.php';
+include_once paths::MODEL_LOG . 'change_action.php';
+include_once paths::MODEL_LOG . 'change_action_list.php';
+include_once paths::MODEL_LOG . 'change_field.php';
+include_once paths::MODEL_LOG . 'change_field_list.php';
+include_once paths::MODEL_LOG . 'change_table.php';
+include_once paths::MODEL_LOG . 'change_table_field.php';
+include_once paths::MODEL_LOG . 'change_table_list.php';
+include_once paths::MODEL_PHRASE . 'phrase_type.php';
+include_once paths::MODEL_PHRASE . 'phrase_types.php';
+include_once paths::MODEL_REF . 'ref.php';
+include_once paths::MODEL_SANDBOX . 'protection_type_list.php';
+include_once paths::MODEL_SANDBOX . 'sandbox_named.php';
+include_once paths::MODEL_SANDBOX . 'share_type_list.php';
+include_once paths::MODEL_SYSTEM . 'sys_log_function.php';
+include_once paths::MODEL_SYSTEM . 'sys_log_function_list.php';
+include_once paths::MODEL_SYSTEM . 'sys_log_status_list.php';
+include_once paths::MODEL_SYSTEM . 'sys_log_status.php';
+include_once paths::MODEL_USER . 'user_profile.php';
+include_once paths::MODEL_USER . 'user_profile_list.php';
+include_once paths::MODEL_VERB . 'verb.php';
+include_once paths::MODEL_VERB . 'verb_db.php';
+include_once paths::MODEL_VERB . 'verb_list.php';
+include_once paths::MODEL_VIEW . 'view.php';
+include_once paths::MODEL_VIEW . 'view_link_type.php';
+include_once paths::MODEL_VIEW . 'view_link_type_list.php';
+include_once paths::MODEL_VIEW . 'view_type.php';
+include_once paths::MODEL_VIEW . 'view_type_list.php';
+include_once paths::MODEL_USER . 'user.php';
+include_once paths::SHARED_TYPES . 'api_type_list.php';
+include_once paths::SHARED_TYPES . 'protection_type.php';
+include_once paths::SHARED_TYPES . 'share_type.php';
+include_once paths::SHARED . 'json_fields.php';
+include_once paths::SHARED . 'library.php';
+
+use cfg\component\component_link_type;
+use cfg\component\component_link_type_list;
+use cfg\component\component_type;
+use cfg\component\component_type_list;
+use cfg\component\position_type;
+use cfg\component\position_type_list;
+use cfg\component\view_style;
+use cfg\component\view_style_list;
+use cfg\const\def;
+use cfg\const\files;
 use cfg\db\sql;
+use cfg\db\sql_creator;
 use cfg\db\sql_db;
+use cfg\db\sql_field_type;
 use cfg\db\sql_par;
-use html\user\user_type_list as type_list_dsp;
-use model\db_cl;
+use cfg\element\element_type;
+use cfg\element\element_type_list;
+use cfg\formula\formula_link_type;
+use cfg\formula\formula_link_type_list;
+use cfg\formula\formula_type;
+use cfg\formula\formula_type_list;
+use cfg\ref\ref_type;
+use cfg\ref\ref_type_list;
+use cfg\ref\source_type;
+use cfg\ref\source_type_list;
+use cfg\system\job_type;
+use cfg\system\job_type_list;
+use cfg\language\language;
+use cfg\language\language_form;
+use cfg\language\language_form_list;
+use cfg\language\language_list;
+use cfg\log\change_action;
+use cfg\log\change_action_list;
+use cfg\log\change_field;
+use cfg\log\change_field_list;
+use cfg\log\change_table;
+use cfg\log\change_table_field;
+use cfg\log\change_table_list;
+use cfg\phrase\phrase_type;
+use cfg\phrase\phrase_types;
+use cfg\ref\ref;
+use cfg\sandbox\protection_type_list;
+use cfg\sandbox\sandbox_named;
+use cfg\sandbox\share_type_list;
+use cfg\system\sys_log_function;
+use cfg\system\sys_log_function_list;
+use cfg\system\sys_log_status_list;
+use cfg\system\sys_log_status;
+use cfg\user\user;
+use cfg\user\user_profile;
+use cfg\user\user_profile_list;
+use cfg\verb\verb;
+use cfg\verb\verb_db;
+use cfg\verb\verb_list;
+use cfg\view\view;
+use cfg\view\view_link_type;
+use cfg\view\view_link_type_list;
+use cfg\view\view_type;
+use cfg\view\view_type_list;
+use controller\api_message;
+use shared\json_fields;
+use shared\library;
+use shared\types\api_type_list;
+use shared\types\protection_type;
+use shared\types\share_type;
 
 class type_list
 {
@@ -55,6 +175,7 @@ class type_list
 
     // database and export JSON object field names
     const FLD_NAME = 'sys_log_function_name';
+    const FLD_NAME_SQL_TYP = sql_field_type::NAME;
 
     // error return codes
     const CODE_ID_NOT_FOUND = -1;
@@ -70,44 +191,25 @@ class type_list
 
     private array $lst = [];  // a list of type objects
     private array $hash = []; // hash list with the code id for fast selection
+    private array $name_hash = []; // if the user can add new type the hash list of the names for fast selection
+    private bool $usr_can_add = false; // true if the user can add new types that does not yet have a code id
 
 
     /*
      * construct and map
      */
 
+    /**
+     * @param bool $usr_can_add true if some types might not yet have a code id
+     */
+    function __construct(bool $usr_can_add = false)
+    {
+        $this->usr_can_add = $usr_can_add;
+    }
+
     function reset(): void
     {
         $this->set_lst(array());
-    }
-
-
-    /*
-     * cast
-     */
-
-    /**
-     * @return type_list_api the object type list frontend api object
-     */
-    function api_obj(): object
-    {
-        return new type_list_api($this->lst);
-    }
-
-    /**
-     * @returns string the api json message for the object as a string
-     */
-    function api_json(): string
-    {
-        return $this->api_obj()->get_json();
-    }
-
-    /**
-     * @return type_list_dsp the word frontend api object
-     */
-    function dsp_obj(): object
-    {
-        return new type_list_dsp($this->lst);
     }
 
 
@@ -122,6 +224,9 @@ class type_list
     {
         $this->lst = $lst;
         $this->get_hash($lst);
+        if ($this->usr_can_add) {
+            $this->get_name_hash($lst);
+        }
         return true;
     }
 
@@ -148,9 +253,24 @@ class type_list
 
     function add(type_object|ref|view $item): void
     {
-        $this->lst[$item->id()] = $item;
-        $this->hash[$item->code_id] = $item->id();
+        if ($item->id() <= 0) {
+            log_err('Type id ' . $item->id() . ' not expected');
+        } elseif ($item->code_id() == '' and !$this->usr_can_add) {
+            log_err('Type code id for ' . $item->id() . ' cannot be empty');
+        } else {
+            $this->lst[$item->id()] = $item;
+            $this->hash[$item->code_id()] = $item->id();
+        }
+        if ($this->usr_can_add) {
+            $this->name_hash[$item->name] = $item->id();
+        }
     }
+
+    function add_direct(type_object|ref|view $item): void
+    {
+        $this->lst[] = $item;
+    }
+
 
     /*
      * database (dao) functions
@@ -166,28 +286,34 @@ class type_list
      * a 'database type' is a group of type used for the same objects
      * e.g. a db_type is phrase_type or view type
      *
-     * @param sql $sc with the target db_type set
+     * @param sql_creator $sc with the target db_type set
      * @param string $class the class of the related object e.g. phrase_type or formula_type
      * @param string $query_name the name extension to make the query name unique
      * @param string $order_field set if the type list should e.g. be sorted by the name instead of the id
      * @return sql_par the sql statement with the parameters and the name
      */
     function load_sql(
-        sql    $sc,
-        string $class,
-        string $query_name = 'all',
-        string $order_field = ''): sql_par
+        sql_creator $sc,
+        string      $class,
+        string      $query_name = sql::NAME_ALL,
+        string      $order_field = ''
+    ): sql_par
     {
         $lib = new library();
         $db_type = $lib->class_to_name($class);
-        $sc->set_class($db_type);
+        $sc->set_class($class);
         $qp = new sql_par($db_type);
-        $qp->name = $db_type . '_' . $query_name;
+        $qp->name = $db_type . sql::NAME_SEP . $query_name;
         $sc->set_name($qp->name);
-        //TODO check if $db_con->set_usr($this->user()->id()); is needed
-        $sc->set_fields(array(sandbox_named::FLD_DESCRIPTION, sql_db::FLD_CODE_ID));
+        if ($class == verb::class) {
+            $sc->set_fields(verb_db::FLD_NAMES);
+        } elseif ($class == ref_type::class) {
+            $sc->set_fields(array(sql_db::FLD_DESCRIPTION, sql_db::FLD_CODE_ID, ref_type_list::FLD_URL));
+        } else {
+            $sc->set_fields(array(sql_db::FLD_DESCRIPTION, sql_db::FLD_CODE_ID));
+        }
         if ($order_field == '') {
-            $order_field = $sc->get_id_field_name($db_type);
+            $order_field = $sc->get_id_field_name($class);
         }
         $sc->set_order($order_field);
 
@@ -204,13 +330,21 @@ class type_list
      * a 'database type' is a group of type used for the same objects
      * e.g. a db_type is phrase_type or view type
      *
-     * @param sql $sc with the target db_type set
-     * @param string $db_type the class of the related object e.g. phrase_type or formula_type
+     * TODO create a warning if number of rows is above the sql_db::ROW_MAX limit
+     *
+     * @param sql_creator $sc with the target db_type set
+     * @param string $class the class of the related object e.g. phrase_type or formula_type
      * @return sql_par the sql statement with the parameters and the name
      */
-    function load_sql_all(sql $sc, string $db_type): sql_par
+    function load_sql_all(sql_creator $sc, string $class = ''): sql_par
     {
-        $qp = $this->load_sql($sc, $db_type);
+        if ($class == '') {
+            $class = $this::class;
+            // replace the type list class with the type class because the load is done from the list object instead of the type object
+            $class = $this->list_class_to_type($class);
+        }
+        $qp = $this->load_sql($sc, $class);
+        // TODO add a warning if the list gets (too) long
         $sc->set_page(sql_db::ROW_MAX, 0);
         $qp->sql = $sc->sql();
         $qp->par = $sc->get_par();
@@ -219,36 +353,75 @@ class type_list
     }
 
     /**
+     * get the type class for a given type list class
+     *
+     * @param string $class a list class name
+     * @return string the corresponding type class name
+     */
+    private function list_class_to_type(string $class): string
+    {
+        return match ($class) {
+            sys_log_function_list::class => sys_log_function::class,
+            sys_log_status_list::class => sys_log_status::class,
+            user_profile_list::class => user_profile::class,
+            change_action_list::class => change_action::class,
+            change_table_list::class => change_table::class,
+            change_field_list::class => change_table_field::class,
+            share_type_list::class => share_type::class,
+            protection_type_list::class => protection_type::class,
+            job_type_list::class => job_type::class,
+            language_form_list::class => language_form::class,
+            language_list::class => language::class,
+            verb_list::class => verb::class,
+            ref_type_list::class => ref_type::class,
+            source_type_list::class => source_type::class,
+            formula_type_list::class => formula_type::class,
+            formula_link_type_list::class => formula_link_type::class,
+            element_type_list::class => element_type::class,
+            phrase_types::class => phrase_type::class,
+            view_type_list::class => view_type::class,
+            view_style_list::class => view_style::class,
+            view_link_type_list::class => view_link_type::class,
+            component_type_list::class => component_type::class,
+            component_link_type_list::class => component_link_type::class,
+            position_type_list::class => position_type::class,
+            default => $class,
+        };
+    }
+
+    /**
      * force to reload the type names and translations from the database
      * @param sql_db $db_con the database connection that can be either the real database connection or a simulation used for testing
-     * @param string $db_type the database name e.g. the table name without s
+     * @param string $class the database name e.g. the table name without s
      * @return array the list of types
      */
-    private function load_list(sql_db $db_con, string $db_type): array
+    protected function load_list(sql_db $db_con, string $class): array
     {
         $this->lst = [];
-        $qp = $this->load_sql_all($db_con->sql_creator(), $db_type);
+        $qp = $this->load_sql_all($db_con->sql_creator(), $class);
         $db_lst = $db_con->get($qp);
         if ($db_lst != null) {
             foreach ($db_lst as $db_row) {
-                $type_id = $db_row[$db_con->get_id_field_name($db_type)];
+                $type_id = $db_row[$db_con->get_id_field_name($class)];
                 $type_code_id = strval($db_row[sql_db::FLD_CODE_ID]);
                 // database field name exceptions
-                $type_name = '';
-                if ($db_type == db_cl::LOG_ACTION) {
+                if ($class == change_action::class) {
                     $type_name = strval($db_row[type_object::FLD_ACTION]);
-                } elseif ($db_type == db_cl::LOG_TABLE) {
+                } elseif ($class == change_table::class) {
                     $type_name = strval($db_row[type_object::FLD_TABLE]);
-                } elseif ($db_type == sql_db::VT_TABLE_FIELD) {
+                } elseif ($class == change_table_field::class) {
                     $type_name = strval($db_row[type_object::FLD_FIELD]);
-                } elseif ($db_type == sql_db::TBL_LANGUAGE) {
-                    $type_name = strval($db_row[language::FLD_NAME]);
-                } elseif ($db_type == sql_db::TBL_LANGUAGE_FORM) {
+                } elseif ($class == language_form::class) {
                     $type_name = strval($db_row[language_form::FLD_NAME]);
+                } elseif ($class == language::class) {
+                    $type_name = strval($db_row[language::FLD_NAME]);
+                } elseif ($class == view_style::class) {
+                    $type_name = strval($db_row[$db_con->get_name_field($class)]);
                 } else {
+                    // TODO use a unique type name for each type
                     $type_name = strval($db_row[sql_db::FLD_TYPE_NAME]);
                 }
-                $type_comment = strval($db_row[sandbox_named::FLD_DESCRIPTION]);
+                $type_comment = strval($db_row[sql_db::FLD_DESCRIPTION]);
                 $type_obj = new type_object($type_code_id, $type_name, $type_comment, $type_id);
                 $this->add($type_obj);
             }
@@ -266,33 +439,216 @@ class type_list
         $this->hash = [];
         if ($type_list != null) {
             foreach ($type_list as $key => $type) {
-                $this->hash[$type->code_id] = $key;
+                $this->hash[$type->code_id()] = $key;
             }
         }
         return $this->hash;
     }
 
     /**
+     * recreate the hash table of the names to get the database id for a name
+     * @param array $type_list the list of the code_id indexed by the database id
+     * @return array with the database ids indexed by the code_id
+     */
+    function get_name_hash(array $type_list): array
+    {
+        $this->name_hash = [];
+        if ($type_list != null) {
+            if ($this->usr_can_add) {
+                foreach ($type_list as $key => $type) {
+                    $this->name_hash[$type->name] = $key;
+                }
+            }
+        }
+        return $this->name_hash;
+    }
+
+    /**
      * reload a type list from the database e.g. because a translation has changed and fill the hash table
-     * @param string $db_type the database table type name to select either word, formula, view, ...
+     * @param string $class the child object class for the database table type name to select either word, formula, view, ...
      * @param sql_db $db_con the database connection that can be either the real database connection or a simulation used for testing
      * @return bool true if load was successful
      */
-    function load(sql_db $db_con, string $db_type): bool
+    function load(sql_db $db_con, string $class = ''): bool
     {
         $result = false;
-        $this->lst = $this->load_list($db_con, $db_type);
+        if ($class == '') {
+            $class = $this::class;
+            // replace the type list class with the type class because the load is done from the list object instead of the type object
+            $class = $this->list_class_to_type($class);
+        }
+        $this->lst = $this->load_list($db_con, $class);
         $this->hash = $this->get_hash($this->lst);
+        if ($this->usr_can_add) {
+            $this->name_hash = $this->get_name_hash($this->lst);
+        }
         if (count($this->hash) > 0) {
             $result = true;
         }
         return $result;
     }
 
+
+    /*
+     * api
+     */
+
+    /**
+     * create the api json message string for this list
+     * @param api_type_list|array $typ_lst configuration for the api message e.g. if phrases should be included
+     * @param user|null $usr the user for whom the api message should be created which can differ from the session user
+     * @returns string the api json message for the object as a string
+     */
+    function api_json(api_type_list|array $typ_lst = [], user|null $usr = null): string
+    {
+        if (is_array($typ_lst)) {
+            $typ_lst = new api_type_list($typ_lst);
+        }
+
+        // null values are not needed in the api message to the frontend
+        // but in the api message to the backend null values are relevant
+        // e.g. to remove empty string overwrites
+        $vars = $this->api_json_array($typ_lst, $usr);
+        $vars = array_filter($vars, fn($value) => !is_null($value) && $value !== '');
+
+        // add header if requested
+        if ($typ_lst->use_header()) {
+            global $db_con;
+            $api_msg = new api_message();
+            $msg = $api_msg->api_header_array($db_con,  $this::class, $usr, $vars);
+        } else {
+            $msg = $vars;
+        }
+
+        return json_encode($msg);
+    }
+
+    function api_json_array(): array
+    {
+        $vars = [];
+        foreach ($this->lst() as $typ) {
+            // TODO undo this exception
+            if ($typ::class == ref_type::class
+                or $typ::class == verb::class
+                or $typ::class == view::class) {
+                $typ_vars = $typ->api_json_array(new api_type_list([]));
+            } else {
+                $typ_vars[json_fields::NAME] = $typ->name();
+                $typ_vars[json_fields::CODE_ID] = $typ->code_id();
+                $typ_vars[json_fields::DESCRIPTION] = $typ->description();
+                $typ_vars[json_fields::ID] = $typ->id();
+            }
+            $vars[] = $typ_vars;
+        }
+        return $vars;
+    }
+
+
+    /*
+     * im- and export
+     */
+
+    /**
+     * fill the list base on the csv resource file
+     *
+     * @param type_list $list the type list that should be filled
+     * @return type_list the filled type list
+     */
+    public function read_from_config_csv(type_list $list): type_list
+    {
+        $lib = new library();
+
+        // load the csv
+        $csv_path = $this->config_csv_get_file($list);
+        if ($csv_path != '') {
+            $row = 1;
+            $code_id_col = 0;
+            $id_col = 0;
+            $name_col = 0;
+            $desc_col = 0;
+            // change log field specific
+            $table_col = 0;
+            if (($handle = fopen($csv_path, "r")) !== FALSE) {
+                while (($data = fgetcsv($handle, 0, ",", "'")) !== FALSE) {
+                    if ($row == 1) {
+                        $col_names = $lib->array_trim($data);
+                        if (in_array(json_fields::ID, $col_names)) {
+                            $id_col = array_search(json_fields::ID, $col_names);
+                        } elseif (in_array(change_table::FLD_ID, $col_names)) {
+                            $id_col = array_search(change_table::FLD_ID, $col_names);
+                        } elseif (in_array(change_field::FLD_ID, $col_names)) {
+                            $id_col = array_search(change_field::FLD_ID, $col_names);
+                        }
+                        if (in_array(json_fields::CODE_ID, $col_names)) {
+                            $code_id_col = array_search(json_fields::CODE_ID, $col_names);
+                        }
+                        if (in_array(type_object::FLD_NAME, $col_names)) {
+                            $name_col = array_search(type_object::FLD_NAME, $col_names);
+                        } elseif (in_array(change_table::FLD_NAME, $col_names)) {
+                            $name_col = array_search(change_table::FLD_NAME, $col_names);
+                        } elseif (in_array(change_field::FLD_NAME, $col_names)) {
+                            $name_col = array_search(change_field::FLD_NAME, $col_names);
+                        } elseif (in_array(language_form::FLD_NAME, $col_names)) {
+                            $name_col = array_search(language_form::FLD_NAME, $col_names);
+                        }
+
+                        if (in_array(change_field::FLD_TABLE, $col_names)) {
+                            $table_col = array_search(change_field::FLD_TABLE, $col_names);
+                        }
+                        if (in_array(json_fields::DESCRIPTION, $col_names)) {
+                            $desc_col = array_search(json_fields::DESCRIPTION, $col_names);
+                        }
+                    } else {
+                        if ($table_col > 0) {
+                            $typ_obj = new type_object($data[$table_col] . $data[$name_col]);
+                        } else {
+                            $typ_obj = new type_object($data[$name_col]);
+                        }
+                        $typ_obj->set_id($data[$id_col]);
+                        $typ_obj->set_name($data[$name_col]);
+                        if ($code_id_col > 0) {
+                            $typ_obj->set_code_id_db($data[$code_id_col]);
+                        }
+                        if (array_key_exists($desc_col, $data)) {
+                            $typ_obj->set_description($data[$desc_col]);
+                        } else {
+                            log_err($desc_col . ' is missing in ' . $lib->dsp_array($data));
+                        }
+                        $list->add($typ_obj);
+                    }
+                    $row++;
+                }
+                fclose($handle);
+            }
+        }
+        return $list;
+    }
+
+    private function config_csv_get_file(type_list $list): string
+    {
+        $csv_path = '';
+        $lib = new library();
+        $type = $lib->class_to_name($list::class);
+        foreach (def::BASE_CODE_LINK_FILES as $csv_class) {
+            $csv_file_name = $lib->class_to_name($csv_class);
+            if (str_ends_with($type, '_list')) {
+                $csv_list_type = $csv_file_name . '_list';
+            } else {
+                $csv_list_type = $csv_file_name;
+            }
+            $csv_file_name .= sql_db::TABLE_EXTENSION;
+            if ($csv_list_type == $type) {
+                $csv_path = files::CODE_LINK_PATH . $csv_file_name . files::CODE_LINK_TYPE;
+            }
+        }
+        return $csv_path;
+    }
+
     /**
      * return the database row id based on the code_id
+     * and if code id is not found, use the name
      *
-     * @param string $code_id
+     * @param string $code_id or the name
      * @return int the database id for the given code_id
      */
     function id(string $code_id): int
@@ -300,15 +656,25 @@ class type_list
         $lib = new library();
         $result = 0;
         if ($code_id != '' and $code_id != null) {
-            if (array_key_exists($code_id, $this->hash)) {
+            if ($this->has_code_id($code_id)) {
                 $result = $this->hash[$code_id];
             } else {
-                $result = self::CODE_ID_NOT_FOUND;
-                log_debug('Type id not found for "' . $code_id . '" in ' . $lib->dsp_array_keys($this->hash));
+                if ($this->usr_can_add) {
+                    if (array_key_exists($code_id, $this->name_hash)) {
+                        $result = $this->name_hash[$code_id];
+                    } else {
+                        $result = self::CODE_ID_NOT_FOUND;
+                        log_err('Type id not found for name "' . $code_id . '" in ' . $lib->dsp_array_keys($this->name_hash));
+                    }
+                } else {
+                    $result = self::CODE_ID_NOT_FOUND;
+                    log_warning('Type id not found for "' . $code_id . '" in ' . $lib->dsp_array_keys($this->hash));
+                }
             }
         } else {
             log_debug('Type code id not not set');
         }
+
         return $result;
     }
 
@@ -332,6 +698,30 @@ class type_list
         return $result;
     }
 
+    function names(): array
+    {
+        $result = [];
+        foreach ($this->lst as $item) {
+            $result[] = $item->name();
+        }
+        return $result;
+    }
+
+    /**
+     * return user specific type name based on the database row id
+     *
+     * @param int|null $id
+     * @return string|null
+     */
+    function name_or_null(?int $id): ?string
+    {
+        if ($id == null) {
+            return null;
+        } else {
+            return $this->name($id);
+        }
+    }
+
     /**
      * pick a type from the preloaded object list
      * @param int $id the database id of the expected type
@@ -352,12 +742,26 @@ class type_list
         return $result;
     }
 
+    function has_code_id(string $code_id): bool
+    {
+        return array_key_exists($code_id, $this->hash);
+    }
+
     /**
      * TODO to rename to get and rename get to get_by_id
      */
-    function get_by_code_id(string $code_id): type_object
+    function get_by_code_id(string $code_id): ?type_object
     {
         return $this->get($this->id($code_id));
+    }
+
+    function get_by_name(string $name): ?type_object
+    {
+        $result = null;
+        if (array_key_exists($name, $this->name_hash)) {
+            $result = $this->get($this->name_hash[$name]);
+        }
+        return $result;
     }
 
     function code_id(int $id): string
@@ -401,6 +805,7 @@ class type_list
     {
         $this->lst = array();
         $this->hash = array();
+        $this->name_hash = array();
         $type = new type_object(type_list::TEST_TYPE, type_list::TEST_NAME, '', 1);
         $this->add($type);
     }
@@ -411,11 +816,11 @@ class type_list
      */
     function view_id_list(array $code_id_list): array
     {
-        global $view_types;
+        global $msk_typ_cac;
 
         $result = [];
         foreach ($code_id_list as $code_id) {
-            $result[] = $view_types->id($code_id);
+            $result[] = $msk_typ_cac->id($code_id);
         }
         return $result;
     }
@@ -426,11 +831,11 @@ class type_list
      */
     function component_id_list(array $code_id_list): array
     {
-        global $component_types;
+        global $cmp_typ_cac;
 
         $result = [];
         foreach ($code_id_list as $code_id) {
-            $result[] = $component_types->id($code_id);
+            $result[] = $cmp_typ_cac->id($code_id);
         }
         return $result;
     }

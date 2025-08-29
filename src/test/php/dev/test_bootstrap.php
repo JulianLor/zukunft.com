@@ -31,7 +31,7 @@
 
 
 $debug = $_GET['debug'] ?? 0;
-const ROOT_PATH = __DIR__ . '/../';
+const ROOT_PATH = __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR;
 include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 
 $db_con = prg_start("start test.php");
@@ -221,11 +221,11 @@ $db_con = prg_start("start test.php");
 
   // check if the user is permitted (e.g. to exclude google from doing stupid stuff)
   if ($usr->id() > 0) {
-    $dsp = new view_dsp;
-    $dsp->id = cl(SQL_VIEW_LINK_EDIT);
-    $dsp->usr = $usr;
-    $dsp->load();
-    $back = $_GET[controller::API_BACK]; // the original calling page that should be shown after the change if finished
+    $msk = new view_dsp;
+    $msk->id = cl(SQL_VIEW_LINK_EDIT);
+    $msk->usr = $usr;
+    $msk->load();
+    $back = $_GET[api::URL_VAR_BACK] = ''; // the original calling page that should be shown after the change if finished
 
     $result .= $dsp->dsp_navbar($back);
 
@@ -245,7 +245,7 @@ Test bootstrap
 */
 
 // Free result set
-mysqli_free_result();
+//mysqli_free_result();
 
 // Closing connection
 prg_end($db_con);

@@ -5,6 +5,7 @@
     model/view/view_list.php - list of predefined system views
     ------------------------
 
+
     This file is part of zukunft.com - calc with words
 
     zukunft.com is free software: you can redistribute it and/or modify it
@@ -29,21 +30,48 @@
 
 */
 
-namespace cfg;
+namespace cfg\view;
 
-include_once API_VIEW_PATH . 'view_list.php';
-include_once MODEL_SANDBOX_PATH . 'sandbox_list.php';
+use cfg\const\paths;
 
-use api\view\view_list as view_list_api;
+include_once paths::MODEL_SANDBOX . 'sandbox_list_named.php';
+include_once paths::DB . 'sql_creator.php';
+include_once paths::DB . 'sql_db.php';
+include_once paths::DB . 'sql_par.php';
+include_once paths::DB . 'sql_par_type.php';
+include_once paths::MODEL_COMPONENT . 'component.php';
+include_once paths::MODEL_COMPONENT . 'component_link.php';
+include_once paths::MODEL_HELPER . 'combine_named.php';
+include_once paths::MODEL_HELPER . 'data_object.php';
+include_once paths::MODEL_HELPER . 'type_list.php';
+include_once paths::MODEL_IMPORT . 'import.php';
+include_once paths::MODEL_SANDBOX . 'sandbox_link_named.php';
+include_once paths::MODEL_SANDBOX . 'sandbox_named.php';
+include_once paths::MODEL_USER . 'user.php';
+include_once paths::MODEL_USER . 'user_message.php';
+include_once paths::MODEL_VIEW . 'view.php';
+include_once paths::MODEL_VIEW . 'view_db.php';
+include_once paths::MODEL_VIEW . 'view_type.php';
+include_once paths::SHARED_CONST . 'words.php';
+
 use cfg\component\component;
-use cfg\db\sql;
+use cfg\component\component_link;
+use cfg\db\sql_creator;
 use cfg\db\sql_db;
 use cfg\db\sql_par;
 use cfg\db\sql_par_type;
+use cfg\helper\combine_named;
+use cfg\helper\data_object;
+use cfg\helper\type_list;
+use cfg\import\import;
+use cfg\sandbox\sandbox_link_named;
+use cfg\sandbox\sandbox_list_named;
+use cfg\sandbox\sandbox_named;
+use cfg\user\user;
+use cfg\user\user_message;
+use shared\const\words;
 
-global $system_views;
-
-class view_list extends sandbox_list
+class view_list extends sandbox_list_named
 {
 
     public user $usr;   // the user object of the person for whom the verb list is loaded, so to say the viewer
@@ -92,31 +120,6 @@ class view_list extends sandbox_list
 
 
     /*
-     * cast
-     */
-
-    /**
-     * @return view_list_api the view list object with the display interface functions
-     */
-    function api_obj(): view_list_api
-    {
-        $api_obj = new view_list_api();
-        foreach ($this->lst() as $dsp) {
-            $api_obj->add($dsp->api_obj());
-        }
-        return $api_obj;
-    }
-
-    /**
-     * @returns string the api json message for the object as a string
-     */
-    function api_json(): string
-    {
-        return $this->api_obj()->get_json();
-    }
-
-
-    /*
      * load
      */
 
@@ -124,7 +127,7 @@ class view_list extends sandbox_list
      * add system view filter to
      * the SQL statement to load only the view id and name
      *
-     * @param sql $sc with the target db_type set
+     * @param sql_creator $sc with the target db_type set
      * @param sandbox_named|sandbox_link_named|combine_named $sbx the single child object
      * @param string $pattern the pattern to filter the views
      * @param int $limit the number of rows to return
@@ -132,7 +135,7 @@ class view_list extends sandbox_list
      * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
      */
     function load_sql_names(
-        sql                                            $sc,
+        sql_creator                                    $sc,
         sandbox_named|sandbox_link_named|combine_named $sbx,
         string                                         $pattern = '',
         int                                            $limit = 0,
@@ -143,7 +146,7 @@ class view_list extends sandbox_list
 
         $typ_lst = new type_list();
         $sc->add_where(
-            view::FLD_TYPE,
+            view_db::FLD_TYPE,
             implode(',', $typ_lst->view_id_list(view_type::SYSTEM_TYPES)),
             sql_par_type::CONST_NOT_IN);
 
@@ -154,42 +157,60 @@ class view_list extends sandbox_list
     }
 
     /**
-     * set the SQL query parameters to load a list of views
-     * @param sql_db $db_con the db connection object as a function parameter for unit testing
-     * @param string $class the name of this class from where the call has been triggered
+     * set the SQL query parameters to load a list of views by the names
+     * TODO use name_field() function to avoid overwrites
+     * @param sql_creator $sc with the target db_type set
+     * @param array $names a list of strings with the word names
+     * @param string $fld the name of the name field
      * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
      */
-    function load_sql(sql_db $db_con, string $class = self::class): sql_par
+    function load_sql_by_names(
+        sql_creator $sc,
+        array $names,
+        string $fld = view_db::FLD_NAME
+    ): sql_par
     {
-        $qp = new sql_par($class);
-        $db_con->set_class(sql_db::TBL_VIEW);
-        $db_con->set_name($qp->name); // assign incomplete name to force the usage of the user as a parameter
-        $db_con->set_usr($this->user()->id());
-        $db_con->set_fields(view::FLD_NAMES);
-        $db_con->set_usr_fields(view::FLD_NAMES_USR);
-        $db_con->set_usr_num_fields(view::FLD_NAMES_NUM_USR);
+        return parent::load_sql_by_names($sc, $names, $fld);
+    }
+
+    /**
+     * set the SQL query parameters to load a list of views
+     * @param sql_creator $sc with the target db_type set
+     * @param string $query_name the name extension to make the query name unique
+     * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
+     */
+    function load_sql(sql_creator $sc, string $query_name = ''): sql_par
+    {
+        $sc->set_class(view::class);
+        $qp = new sql_par(self::class);
+        $qp->name .= $query_name;
+        $sc->set_name($qp->name); // assign incomplete name to force the usage of the user as a parameter
+        $sc->set_usr($this->user()->id());
+        $sc->set_fields(view_db::FLD_NAMES);
+        $sc->set_usr_fields(view_db::FLD_NAMES_USR);
+        $sc->set_usr_num_fields(view_db::FLD_NAMES_NUM_USR);
         return $qp;
     }
 
     /**
      * set the SQL query parameters to load a list of views by the component id
-     * @param sql_db $db_con the db connection object as a function parameter for unit testing
+     * @param sql_creator $sc with the target db_type set
      * @param int $id the id of the component to which the views should be loaded
      * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
      */
-    function load_sql_by_component_id(sql_db $db_con, int $id): sql_par
+    function load_sql_by_component_id(sql_creator $sc, int $id): sql_par
     {
-        $qp = $this->load_sql($db_con);
-        $qp->name .= 'component_id';
-        $db_con->set_name($qp->name);
-        $db_con->set_join_fields(
+        $qp = $this->load_sql($sc, 'component_id');
+        $sc->set_name($qp->name);
+        $sc->set_join_fields(
             component_link::FLD_NAMES,
-            sql_db::TBL_COMPONENT_LINK,
-            view::FLD_ID,
-            view::FLD_ID);
-        $db_con->set_order(component_link::FLD_ORDER_NBR, '', sql_db::LNK_TBL);
-        $qp->sql = $db_con->select_by_join_field(component::FLD_ID, $id);
-        $qp->par = $db_con->get_par();
+            component_link::class,
+            view_db::FLD_ID,
+            view_db::FLD_ID);
+        $sc->set_order(component_link::FLD_ORDER_NBR, '', sql_db::LNK_TBL);
+        $sc->add_where(component::FLD_ID, $id, sql_par_type::INT, sql_db::LNK_TBL);
+        $qp->sql = $sc->sql();
+        $qp->par = $sc->get_par();
 
         return $qp;
     }
@@ -216,24 +237,8 @@ class view_list extends sandbox_list
         global $db_con;
 
         log_debug($id);
-        $qp = $this->load_sql_by_component_id($db_con, $id);
+        $qp = $this->load_sql_by_component_id($db_con->sql_creator(), $id);
         return parent::load($qp);
-    }
-
-    /**
-     * add one view to the view list, but only if it is not yet part of the phrase list
-     * @param view $dsp_to_add the view that should be added to the list
-     */
-    function add(view $dsp_to_add): void
-    {
-        log_debug($dsp_to_add->dsp_id());
-        if (!in_array($dsp_to_add->id(), $this->ids())) {
-            if ($dsp_to_add->id() <> 0) {
-                $this->add_obj($dsp_to_add);
-            }
-        } else {
-            log_debug($dsp_to_add->dsp_id() . ' not added, because it is already in the list');
-        }
     }
 
 
@@ -245,32 +250,45 @@ class view_list extends sandbox_list
      * import a list of views from a JSON array object
      *
      * @param array $json_obj an array with the data of the json object
+     * @param user $usr_req the user how has initiated the import mainly used to prevent any user to gain additional rights
+     * @param data_object|null $dto cache of the objects imported until now for the primary references
      * @param object|null $test_obj if not null the unit test object to get a dummy seq id
      * @return user_message the status of the import and if needed the error messages that should be shown to the user
      */
-    function import_obj(array $json_obj, object $test_obj = null): user_message
+    function import_obj(
+        array        $json_obj,
+        user         $usr_req,
+        ?data_object $dto = null,
+        object       $test_obj = null
+    ): user_message
     {
-        $result = new user_message();
+        $usr_msg = new user_message();
         foreach ($json_obj as $dsp_json) {
-            $dsp = new view($this->user());
-            $result->add($dsp->import_obj($dsp_json, $test_obj));
-            $this->add($dsp);
+            $msk = new view($this->user());
+            $usr_msg->add($msk->import_obj($dsp_json, $usr_req, $dto, $test_obj));
+            $this->add($msk);
         }
 
-        return $result;
+        return $usr_msg;
     }
 
     /**
-     * create a list of views for the export
-     * @return array with the reduced results that can be used to create a JSON message
+     * save all views of this list
+     * TODO create one SQL and commit statement for faster execution
+     *
+     * @param import|null $imp the import object with the estimate of the total save time
+     * @return user_message the message shown to the user why the action has failed or an empty string if everything is fine
      */
-    function export_obj(bool $do_load = true): array
+    function save(import $imp = null): user_message
     {
-        $exp_views = array();
-        foreach ($this->lst() as $dsp) {
-            $exp_views[] = $dsp->export_obj($do_load);
+        $usr_msg = parent::save_block_wise($imp, words::VIEWS, view::class, new view_list($this->user()));
+        // TODO Prio 2 use list based saving of the component links
+        foreach ($this->lst() as $msk) {
+            if ($msk->has_components()) {
+                $usr_msg->add($msk->save_component_links());
+            }
         }
-        return $exp_views;
+        return $usr_msg;
     }
 
 }

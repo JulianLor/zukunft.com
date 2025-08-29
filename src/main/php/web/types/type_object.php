@@ -2,8 +2,8 @@
 
 /*
 
-    /model/phrase/type_object.php - the superclass for word, formula and view types
-    -----------------------------
+    model/phrase/type_object.php - the superclass for word, formula and view types
+    ----------------------------
 
     a base type object that can be used to link program code to single objects
     e.g. if a value is classified by a phrase of type percent the value by default is formatted in percent
@@ -41,10 +41,6 @@
 
 namespace html\types;
 
-include_once API_SANDBOX_PATH . 'type_object.php';
-
-use api\sandbox\type_object as type_object_api;
-
 class type_object
 {
 
@@ -67,7 +63,13 @@ class type_object
     {
         $this->set_id($id);
         $this->set_name($name);
-        $this->set_code_id($code_id);
+        if ($code_id != null) {
+            $this->set_code_id($code_id);
+        } else {
+            $this->set_code_id('');
+            // TODO create an action e.g. to add a code id to the new verb
+            log_warning('code id is missing for type ' . $name . ' (' . $id . ')');
+        }
         if ($comment != null) {
             if ($comment != '') {
                 $this->set_comment($comment);

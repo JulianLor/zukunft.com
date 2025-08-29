@@ -29,16 +29,23 @@
   
 */
 
-use controller\controller;
+// standard zukunft header for callable php files to allow debugging and lib loading
+$debug = $_GET['debug'] ?? 0;
+const ROOT_PATH = __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR;
+const PHP_PATH = ROOT_PATH . 'src' . DIRECTORY_SEPARATOR . 'main' . DIRECTORY_SEPARATOR . 'php' . DIRECTORY_SEPARATOR;
+include_once PHP_PATH . 'zu_lib.php';
+
+use cfg\const\paths;
+
+include_once paths::SHARED_CONST . 'views.php';
+
+use cfg\user\user;
+use cfg\view\view;
+use cfg\word\triple;
 use html\html_base;
 use html\view\view as view_dsp;
-use cfg\triple;
-use cfg\user;
-use cfg\view;
-
-$debug = $_GET['debug'] ?? 0;
-const ROOT_PATH = __DIR__ . '/../';
-include_once ROOT_PATH . 'src/main/php/zu_lib.php';
+use shared\api;
+use shared\const\views as view_shared;
 
 // open database
 $db_con = prg_start("link_del");
@@ -59,11 +66,11 @@ if ($usr->id() > 0) {
 
     // prepare the display
     $msk = new view($usr);
-    $msk->load_by_code_id(controller::DSP_TRIPLE_DEL);
-    $back = $_GET[controller::API_BACK]; // the original calling page that should be shown after the change if finished
+    $msk->load_by_code_id(view_shared::TRIPLE_DEL);
+    $back = $_GET[api::URL_VAR_BACK] = ''; // the original calling page that should be shown after the change if finished
 
     // get the parameters
-    $link_id = $_GET[controller::URL_VAR_ID];
+    $link_id = $_GET[api::URL_VAR_ID] ?? 0;
     $confirm = $_GET['confirm'];
 
     // delete the link or ask for confirmation

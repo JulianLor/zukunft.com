@@ -29,19 +29,22 @@
 
 */
 
-namespace cfg;
+namespace cfg\sandbox;
 
-include_once MODEL_HELPER_PATH . 'type_object.php';
+use cfg\const\paths;
+
+include_once paths::MODEL_HELPER . 'type_object.php';
+
+use cfg\helper\type_object;
 
 class protection_type extends type_object
 {
-    // the field name used for the JSON im- and export
-    const JSON_FLD = 'protection';
 
-    // list of the protection types that have a coded functionality
-    const NO_PROTECT = "no_protection";
-    const USER = "user_protection";
-    const ADMIN = "admin_protection";
-    const NO_CHANGE = "no_change";
+    /*
+     * database link
+     */
+
+    // comments used for the database creation
+    const TBL_COMMENT = 'for the write access control';
 
 }

@@ -30,15 +30,11 @@
 
 */
 
-use api\word\word as word_api;
-use cfg\word_list;
-use test\test_cleanup;
-use const test\TIMEOUT_LIMIT_LONG;
-use const test\TW_ABB;
-use const test\TW_MIO;
-use const test\TW_SALES;
+use cfg\word\word_list;
+use shared\const\words;
+use test\all_tests;
 
-function run_math_test(test_cleanup $t)
+function run_math_test(all_tests $t): void
 {
 
     global $usr;
@@ -64,7 +60,7 @@ function run_math_test(test_cleanup $t)
     $t->display(", zuc_parse: the result for formula with id ".$formula_id, $target, $result); */
 
     // test zuc_is_text_only
-    $formula = "\"this is just a text\"";
+    $formula = "\"' . words::THIS_NAME . ' is just a text\"";
     $target = true;
     $result = $calc->is_text_only($formula);
     $t->display(", zuc_is_text_only: a text like " . $formula, $target, $result);
@@ -104,12 +100,12 @@ function run_math_test(test_cleanup $t)
     $t->display(", zut_keep_only_specific: the result for word array \"".implode(",",$word_array)."\"", $target, $result);
     */
 
-    $time_phr = $t->load_phrase(word_api::TN_2020);
+    $time_phr = $t->load_phrase(words::YEAR_2020);
 
     // test zuc_is_math_symbol_or_num
     $formula_part_text = "/{f19}";
     $wrd_lst = new word_list($usr);
-    $wrd_lst->load_by_names(array(TW_ABB, TW_SALES, TW_MIO));
+    $wrd_lst->load_by_names(array(words::ABB, words::SALES, words::MIO));
     $target = 1;
     $result = $calc->is_math_symbol_or_num($formula_part_text);
     $t->display(", zuc_is_math_symbol_or_num: the result for formula \"" . $formula_part_text . "\"", $target, $result);

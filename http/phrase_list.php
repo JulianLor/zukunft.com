@@ -29,22 +29,27 @@
 
 */
 
+// standard zukunft header for callable php files to allow debugging and lib loading
+$debug = $_GET['debug'] ?? 0;
+const ROOT_PATH = __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR;
+const PHP_PATH = ROOT_PATH . 'src' . DIRECTORY_SEPARATOR . 'main' . DIRECTORY_SEPARATOR . 'php' . DIRECTORY_SEPARATOR;
+include_once PHP_PATH . 'zu_lib.php';
 
-/* standard zukunft header for callable php files to allow debugging and lib loading */
+use cfg\const\paths;
 
-use controller\controller;
+include_once paths::SHARED_CONST . 'views.php';
+
+use cfg\phrase\term;
+use cfg\user\user;
+use cfg\view\view;
+use cfg\word\triple;
+use cfg\word\word;
 use html\html_base;
 use html\view\view as view_dsp;
 use html\word\word as word_dsp;
-use cfg\term;
-use cfg\triple;
-use cfg\user;
-use cfg\view;
-use cfg\word;
-
-$debug = $_GET['debug'] ?? 0;
-const ROOT_PATH = __DIR__ . '/../';
-include_once ROOT_PATH . 'src/main/php/zu_lib.php';
+use shared\api;
+use shared\const\views;
+use shared\const\views as view_shared;
 
 /* open database */
 $db_con = prg_start("phrase_list");
@@ -63,10 +68,10 @@ if ($usr->id() > 0) {
     $usr->load_usr_data();
 
     // prepare the display
-    $dsp_db = new view($usr);
-    $dsp_db->load_by_code_id(controller::DSP_WORD_ADD);
-    $dsp = new view_dsp($dsp_db->api_json());
-    $back = $_GET[controller::API_BACK]; // the calling page which should be displayed after saving
+    $msk_db = new view($usr);
+    $msk_db->load_by_code_id(view_shared::WORD_ADD);
+    $msk = new view_dsp($msk_db->api_json());
+    $back = $_GET[api::URL_VAR_BACK] = ''; // the calling page which should be displayed after saving
 
     // create the word object to have a place to update the parameters
     $wrd = new word($usr);
@@ -112,32 +117,32 @@ if ($usr->id() > 0) {
             if ($trm->id_obj() > 0) {
                 /*
                 // TODO: if a formula exists, suggest to create a word as a formula link, so that the formula results can be shown in parallel to the entered values
-                if (substr($id_txt, 0, strlen(expression::MAKER_FORMULA_START)) == expression::MAKER_FORMULA_START) {
+                if (substr($id_txt, 0, strlen(chars::MAKER_FORMULA_START)) == chars::MAKER_FORMULA_START) {
                   // maybe ask for confirmation
                   // change the link type to "formula link"
                   $wrd->type_id = cl(SQL_WORD_TYPE_FORMULA_LINK);
                   zu_debug('word_add -> changed type to ('.$wrd->type_id.')');
                 } else {
                 */
-                $msg .= $trm->id_used_msg($this);
+                $msg .= $html->dsp_err($trm->id_used_msg_text($this));
                 log_debug();
                 //}
             }
 
         } elseif ($phr_id > 0) {
             // check link of the existing word already exists
-            $lnk_test = new triple($usr);
-            $lnk_test->load_by_link_id($phr_id, $vrb_id, $phr_to);
-            if ($lnk_test->id() > 0) {
-                $lnk_test->load_objects();
+            $trp = new triple($usr);
+            $trp->load_by_link_id($phr_id, $vrb_id, $phr_to);
+            if ($trp->id() > 0) {
+                $trp->load_objects();
                 log_debug('forward link ' . $phr_id . ' ' . $vrb_id . ' ' . $phr_to . '');
-                $msg .= '"' . $lnk_test->from_name . ' ' . $lnk_test->verb->name() . ' ' . $lnk_test->to_name . '" already exists. ';
+                $msg .= '"' . $trp->from_name . ' ' . $trp->verb_name() . ' ' . $trp->to_name . '" already exists. ';
             }
-            $lnk_rev = new triple($usr);
-            $lnk_rev->load_by_link_id($phr_to, $vrb_id, $phr_id);
-            if ($lnk_rev->id() > 0) {
-                $lnk_rev->load_objects();
-                $msg .= 'The reverse of "' . $lnk_rev->from_name . ' ' . $lnk_rev->verb->name() . ' ' . $lnk_rev->to_name . '" already exists. Do you really want to add both sides? ';
+            $trp_rev = new triple($usr);
+            $trp_rev->load_by_link_id($phr_to, $vrb_id, $phr_id);
+            if ($trp_rev->id() > 0) {
+                $trp_rev->load_objects();
+                $msg .= 'The reverse of "' . $trp_rev->from_name . ' ' . $trp_rev->verb_name() . ' ' . $trp_rev->to_name . '" already exists. Do you really want to add both sides? ';
             }
         }
 
@@ -147,7 +152,7 @@ if ($usr->id() > 0) {
             $add_result = '';
             // ... add the new word to the database
             if ($wrd->name() <> "") {
-                $add_result .= $wrd->save();
+                $add_result .= $wrd->save()->get_last_message();
             } else {
                 $wrd->load_by_id($phr_id);
             }
@@ -156,10 +161,10 @@ if ($usr->id() > 0) {
                 // ... and link it to an existing word
                 log_debug('word ' . $wrd->id() . ' linked via ' . $vrb_id . ' to ' . $phr_to . ': ' . $add_result);
                 $lnk = new triple($usr);
-                $lnk->fob->set_id($wrd->id());
-                $lnk->verb->set_id($vrb_id);
-                $lnk->tob->set_id($phr_to);
-                $add_result .= $lnk->save();
+                $lnk->from()->set_id($wrd->id());
+                $lnk->set_verb_id($vrb_id);
+                $lnk->to()->set_id($phr_to);
+                $add_result .= $lnk->save()->get_last_message();
             }
 
             // if adding was successful ...
@@ -179,10 +184,12 @@ if ($usr->id() > 0) {
     // if nothing yet done display the add view (and any message on the top)
     if ($result == '') {
         // display the add view again
-        $result .= $dsp->dsp_navbar($back);
+        $result .= $msk->dsp_navbar($back);
         $result .= $html->dsp_err($msg);
 
         $wrd_dsp = new word_dsp($wrd->api_json());
+        //$msk_dsp = new view_dsp();
+        //$msk_dsp->load_by_id_with(views::WORD_ADD_ID);
         $result .= $wrd_dsp->dsp_add($phr_id, $phr_to, $vrb_id, $back);
     }
 }

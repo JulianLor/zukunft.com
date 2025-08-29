@@ -30,13 +30,13 @@
 
 */
 
-use controller\controller;
-use cfg\formula_list;
-use cfg\user;
-use cfg\word_list;
+use cfg\formula\formula_list;
+use cfg\user\user;
+use cfg\word\word_list;
+use shared\api;
 
 $debug = $_GET['debug'] ?? 0;
-const ROOT_PATH = __DIR__ . '/../';
+const ROOT_PATH = __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR;
 include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 
 // open database
@@ -52,7 +52,7 @@ if ($usr->id() > 0) {
     $usr->load_usr_data();
 
     // sample "Nestlé 2 country weight"
-    $words = $_GET[controller::URL_VAR_WORD];
+    $words = $_GET[api::URL_VAR_WORDS];
     log_debug("get_csv(" . $words . ")");
     $word_names = explode(",", $words);
 

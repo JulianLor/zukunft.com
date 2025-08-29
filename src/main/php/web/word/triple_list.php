@@ -31,15 +31,30 @@
 
 namespace html\word;
 
-include_once WEB_SANDBOX_PATH . 'list.php';
+use cfg\const\paths;
+use html\const\paths as html_paths;
+include_once html_paths::SANDBOX . 'list_dsp.php';
+include_once html_paths::HTML . 'html_base.php';
+include_once html_paths::HTML . 'styles.php';
+include_once html_paths::PHRASE . 'phrase_list.php';
+include_once html_paths::SANDBOX . 'list_dsp.php';
+include_once html_paths::USER . 'user_message.php';
+include_once html_paths::WORD . 'triple.php';
+include_once html_paths::WORD . 'triple_list.php';
+include_once paths::SHARED_ENUM . 'foaf_direction.php';
+include_once paths::SHARED_TYPES . 'phrase_type.php';
+include_once paths::SHARED_TYPES . 'verbs.php';
 
-
-use cfg\phrase_type;
 use html\html_base;
-use html\list_dsp;
+use html\phrase\phrase_list as phrase_list_dsp;
+use html\sandbox\list_dsp;
+use html\styles;
+use html\user\user_message;
 use html\word\triple as triple_dsp;
 use html\word\triple_list as triple_list_dsp;
-use html\phrase\phrase_list as phrase_list_dsp;
+use shared\enum\foaf_direction;
+use shared\types\phrase_type as phrase_type_shared;
+use shared\types\verbs;
 
 class triple_list extends list_dsp
 {
@@ -49,29 +64,13 @@ class triple_list extends list_dsp
      */
 
     /**
-     * set the vars of a triple object based on the given json
+     * set the triples based on the given json
      * @param array $json_array an api single object json message
-     * @return object a triple set based on the given json
+     * @return user_message ok or a warning e.g. if the server version does not match
      */
-    function set_obj_from_json_array(array $json_array): object
+    function api_mapper(array $json_array): user_message
     {
-        $wrd = new triple_dsp();
-        $wrd->set_from_json_array($json_array);
-        return $wrd;
-    }
-
-
-    /*
-     * modify
-     */
-
-    /**
-     * add a triple to the list
-     * @returns bool true if the triple has been added
-     */
-    function add(triple_dsp $phr): bool
-    {
-        return parent::add_obj($phr);
+        return parent::api_mapper_list($json_array, new triple_dsp());
     }
 
 
@@ -96,9 +95,9 @@ class triple_list extends list_dsp
     function names_linked(string $back = ''): array
     {
         $result = array();
-        foreach ($this->lst as $wrd) {
+        foreach ($this->lst() as $wrd) {
             if (!$wrd->is_hidden()) {
-                $result[] = $wrd->display_linked($back);
+                $result[] = $wrd->name_linked($back);
             }
         }
         return $result;
@@ -117,8 +116,8 @@ class triple_list extends list_dsp
         $last_trp = null;
         // TODO check if and why the next line makes sense
         // $cols = $html->td('');
-        foreach ($this->lst as $trp) {
-            $lnk = $trp->display_linked($back);
+        foreach ($this->lst() as $trp) {
+            $lnk = $trp->name_link($back);
             $cols .= $html->td($lnk);
             $last_trp = $trp;
         }
@@ -127,7 +126,138 @@ class triple_list extends list_dsp
             $add_url = $add_trp->btn_add($back);
             $cols .= $html->td($add_url);
         }
-        return $html->tbl($html->tr($cols), html_base::STYLE_BORDERLESS);
+        return $html->tbl($html->tr($cols), styles::STYLE_BORDERLESS);
+    }
+
+    /**
+     * TODO move the relevant parts to other functions
+     * shows all words the link to the given word
+     * returns the html code to select a word that can be edited
+     */
+    function graph(string $back = ''): string
+    {
+        global $vrb_cac;
+
+        $html = new html_base();
+        $result = '';
+
+        // check the all minimal input parameters
+        if (isset($this->wrd)) {
+            log_debug('graph->display for ' . $this->wrd->name() . ' called from ' . $back);
+        }
+        $prev_verb_id = 0;
+
+        // loop over the graph elements
+        foreach (array_keys($this->lst()) as $lnk_id) {
+            // reset the vars
+            $directional_link_type_id = 0;
+
+            $lnk = $this->get($lnk_id);
+            // get the next link to detect if there is more than one word linked with the same link type
+            // TODO check with a unit test if last element is used
+            if ($this->count() - 1 > $lnk_id) {
+                $next_lnk = $this->get($lnk_id + 1);
+            } else {
+                $next_lnk = $lnk;
+            }
+
+            // display type header
+            if (!$lnk->has_verb()) {
+                log_warning('graph->display type is missing');
+            } else {
+                if ($lnk->verb_id() <> $prev_verb_id) {
+                    log_debug('graph->display type "' . $lnk->verb()->name() . '"');
+
+                    // select the same side of the verb
+                    if ($this->direction == foaf_direction::DOWN) {
+                        $directional_link_type_id = $lnk->verb()->id();
+                    } else {
+                        $directional_link_type_id = $lnk->verb()->id() * -1;
+                    }
+
+                    // display the link type
+                    if ($lnk->verb()->id() == $next_lnk->verb()->id()) {
+                        if ($this->wrd != null) {
+                            $result .= $this->wrd->plural();
+                        }
+                        if ($this->direction == foaf_direction::DOWN) {
+                            $result .= " " . $lnk->verb()->rev_plural;
+                        } else {
+                            $result .= " " . $lnk->verb()->plural();
+                        }
+                    } else {
+                        $result .= $this->wrd->name();
+                        if ($this->direction == foaf_direction::DOWN) {
+                            $result .= " " . $lnk->verb()->reverse();
+                        } else {
+                            $result .= " " . $lnk->verb()->name;
+                        }
+                    }
+                }
+                $result .= $html->dsp_tbl_start_half();
+                $prev_verb_id = $lnk->verb()->id();
+
+                // display the word
+                if ($lnk->fob() == null) {
+                    log_warning('graph->display from is missing');
+                } else {
+                    log_debug('word->dsp_graph display word ' . $lnk->from_name());
+                    $result .= '  <tr>' . "\n";
+                    if ($lnk->tob() != null) {
+                        $dsp_obj = $lnk->tob()->get_dsp_obj();
+                        $result .= $dsp_obj->dsp_tbl_cell(0);
+                    }
+                    $lnk_dsp = new triple_dsp($lnk->api_json());
+                    $result .= $lnk_dsp->btn_edit($lnk->fob()->dsp_obj());
+                    if ($lnk->fob() != null) {
+                        $dsp_obj = $lnk->fob()->get_dsp_obj();
+                        $result .= $dsp_obj->dsp_unlink($lnk->id());
+                    }
+                    $result .= '  </tr>' . "\n";
+                }
+
+                // use the last word as a sample for the new word type
+                $last_linked_word_id = 0;
+                if ($lnk->verb()->id() == $vrb_cac->id(verbs::FOLLOW)) {
+                    $last_linked_word_id = $lnk->to()->id();
+                }
+
+                // in case of the verb "following" continue the series after the last element
+                $start_id = 0;
+                if ($lnk->verb()->id() == $vrb_cac->id(verbs::FOLLOW)) {
+                    $start_id = $last_linked_word_id;
+                    // and link with the same direction (looks like not needed!)
+                    /* if ($directional_link_type_id > 0) {
+                      $directional_link_type_id = $directional_link_type_id * -1;
+                    } */
+                } else {
+                    if ($lnk->fob() == null) {
+                        log_warning('graph->display from is missing');
+                    } else {
+                        $start_id = $lnk->fob()->id(); // to select a similar word for the verb following
+                    }
+                }
+
+                if ($lnk->verb()->id() <> $next_lnk->verb()->id()) {
+                    if ($lnk->fob() == null) {
+                        log_warning('graph->display from is missing');
+                    } else {
+                        $start_id = $lnk->fob()->id();
+                    }
+                    // give the user the possibility to add a similar word
+                    $result .= '  <tr>';
+                    $result .= '    <td>';
+                    $result .= '      ' . \html\btn_add("Add similar word", '/http/word_add.php?verb=' .
+                            $directional_link_type_id . '&word=' . $start_id . '&type=' . $lnk->tob()->type_id . '&back=' . $start_id);
+                    $result .= '    </td>';
+                    $result .= '  </tr>';
+
+                    $result .= $html->dsp_tbl_end();
+                    $result .= '<br>';
+                }
+            }
+        }
+        return $result;
     }
 
 
@@ -149,23 +279,12 @@ class triple_list extends list_dsp
         if (!$this->is_empty()) {
             $result = array();
             $lst_ids = $del_lst->id_lst();
-            foreach ($this->lst as $wrd) {
+            foreach ($this->lst() as $wrd) {
                 if (!in_array($wrd->id(), $lst_ids)) {
                     $result[] = $wrd;
                 }
             }
-            $this->lst = $result;
-        }
-    }
-
-    /**
-     * merge as a function, because the array_merge does not create an object
-     * @param triple_list_dsp $new_wrd_lst with the triples that should be added
-     */
-    function merge(triple_list_dsp $new_wrd_lst): void
-    {
-        foreach ($new_wrd_lst->lst as $new_wrd) {
-            $this->add($new_wrd);
+            $this->set_lst($result);
         }
     }
 
@@ -176,7 +295,7 @@ class triple_list extends list_dsp
     private function filter(string $type): triple_list_dsp
     {
         $result = new triple_list_dsp();
-        foreach ($this->lst as $wrd) {
+        foreach ($this->lst() as $wrd) {
             if ($wrd->is_type($type)) {
                 $result->add($wrd);
             }
@@ -189,7 +308,7 @@ class triple_list extends list_dsp
      */
     function time_lst(): triple_list_dsp
     {
-        return $this->filter(phrase_type::TIME);
+        return $this->filter(phrase_type_shared::TIME);
     }
 
     /**
@@ -197,7 +316,7 @@ class triple_list extends list_dsp
      */
     function measure_lst(): triple_list_dsp
     {
-        return $this->filter(phrase_type::MEASURE);
+        return $this->filter(phrase_type_shared::MEASURE);
     }
 
     /**
@@ -206,7 +325,7 @@ class triple_list extends list_dsp
     function scaling_lst(): triple_list_dsp
     {
         $result = new triple_list_dsp();
-        foreach ($this->lst as $wrd) {
+        foreach ($this->lst() as $wrd) {
             if ($wrd->is_scaling()) {
                 $result->add($wrd);
             }
@@ -231,7 +350,7 @@ class triple_list extends list_dsp
      */
     function percent_lst(): triple_list_dsp
     {
-        return $this->filter(phrase_type::PERCENT);
+        return $this->filter(phrase_type_shared::PERCENT);
     }
 
     /**
@@ -331,7 +450,7 @@ class triple_list extends list_dsp
     function names(): array
     {
         $name_lst = array();
-        foreach ($this->lst as $phr) {
+        foreach ($this->lst() as $phr) {
             if ($phr != null) {
                 $name_lst[] = $phr->name();
             }

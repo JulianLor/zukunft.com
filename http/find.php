@@ -2,8 +2,8 @@
 
 /*
 
-  find.php - general search for a word or formula by a pattern
-  --------
+    find.php - general search for a word or formula by a pattern
+    --------
 
 
     This file is part of zukunft.com - calc with words
@@ -23,26 +23,33 @@
     To contact the authors write to:
     Timon Zielonka <timon@zukunft.com>
 
-    Copyright (c) 1995-2022 zukunft.com AG, Zurich
+    Copyright (c) 1995-2024 zukunft.com AG, Zurich
     Heang Lor <heang@zukunft.com>
 
     http://zukunft.com
 
 */
 
-use controller\controller;
+// for callable php files the standard zukunft.com header to load all classes and allow debugging
+$debug = $_GET['debug'] ?? 0;
+const ROOT_PATH = __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR;
+const PHP_PATH = ROOT_PATH . 'src' . DIRECTORY_SEPARATOR . 'main' . DIRECTORY_SEPARATOR . 'php' . DIRECTORY_SEPARATOR;
+include_once PHP_PATH . 'zu_lib.php';
+
+use cfg\const\paths;
+
+include_once paths::SHARED_CONST . 'views.php';
+
+use cfg\user\user;
+use cfg\view\view;
+use cfg\word\word_list;
 use html\html_base;
 use html\view\view as view_dsp;
 use html\word\word_list as word_list_dsp;
-use cfg\user;
-use cfg\view;
-use cfg\word_list;
+use shared\api;
+use shared\const\views as view_shared;
 
-$debug = $_GET['debug'] ?? 0;
-const ROOT_PATH = __DIR__ . '/../';
-include_once ROOT_PATH . 'src/main/php/zu_lib.php';
-
-global $system_views;
+global $sys_msk_cac;
 
 $result = ''; // reset the html code var
 
@@ -56,7 +63,7 @@ $html = new html_base();
 if (!$db_con->connected()) {
     $result = log_fatal("Cannot connect to " . SQL_DB_TYPE . " database with user " . SQL_DB_USER_MYSQL, "find.php");
 } else {
-    $back = $_GET[controller::API_BACK];
+    $back = $_GET[api::URL_VAR_BACK] ?? '';
 
     // load the session user parameters
     $usr = new user;
@@ -68,8 +75,10 @@ if (!$db_con->connected()) {
         $usr->load_usr_data();
 
         // show view header
+        $view_id = $sys_msk_cac->id(view_shared::WORD_FIND);
         $msk = new view($usr);
-        $msk->set_id($system_views->id(controller::DSP_WORD_FIND));
+        $msk->load_by_id($view_id);
+        $msk->load_components();
         $msk_dsp = new view_dsp($msk->api_json());
         $result .= $msk_dsp->dsp_navbar($back);
 
@@ -89,7 +98,7 @@ if (!$db_con->connected()) {
         $wrd_lst = new word_list($usr);
         $wrd_lst->load_like($find_str);
         $dsp_lst = new word_list_dsp($wrd_lst->api_json());
-        $result .= $dsp_lst->display();
+        $result .= $dsp_lst->name_link();
 
         // show the matching terms to select
         // TODO create a term list object

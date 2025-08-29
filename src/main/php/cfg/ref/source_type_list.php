@@ -5,6 +5,7 @@
     model/ref/source_type_list.php - to link coded functionality to a source
     ------------------------------
 
+
     This file is part of zukunft.com - calc with words
 
     zukunft.com is free software: you can redistribute it and/or modify it
@@ -29,17 +30,25 @@
   
 */
 
-namespace cfg;
+namespace cfg\ref;
 
+use cfg\const\paths;
+
+include_once paths::MODEL_HELPER . 'type_list.php';
+include_once paths::DB . 'sql.php';
+include_once paths::DB . 'sql_db.php';
+include_once paths::DB . 'sql_par.php';
+include_once paths::MODEL_SANDBOX . 'sandbox_named.php';
+include_once paths::MODEL_REF . 'source_type.php';
+include_once paths::SHARED_ENUM . 'source_types.php';
+include_once paths::SHARED . 'library.php';
+
+use cfg\helper\type_list;
 use cfg\db\sql;
 use cfg\db\sql_db;
-use cfg\db\sql_par;
-
-include_once DB_PATH . 'sql_db.php';
-include_once DB_PATH . 'sql_par.php';
-include_once MODEL_REF_PATH . 'source_type.php';
-
-global $source_types;
+use cfg\sandbox\sandbox_named;
+use shared\enum\source_types;
+use shared\library;
 
 class source_type_list extends type_list
 {
@@ -53,101 +62,45 @@ class source_type_list extends type_list
     //const FLD_URL = 'base_url';
 
     /**
-     * overwrite the user_type_list function to create the SQL to load the source types
-     *
-     * @param sql $sc with the target db_type set
-     * @param string $class the database name e.g. the table name without s
-     * @param string $query_name the name extension to make the query name unique
-     * @param string $order_field set if the type list should e.g. be sorted by the name instead of the id
-     * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
-     */
-    function load_sql(
-        sql    $sc,
-        string $class,
-        string $query_name = 'all',
-        string $order_field = self::FLD_ID): sql_par
-    {
-        $sc->set_class($class);
-        $qp = new sql_par($class);
-        $qp->name = $class;
-        $sc->set_name($qp->name);
-        $sc->set_fields(array(sandbox_named::FLD_DESCRIPTION, sql_db::FLD_CODE_ID));
-        $sc->set_order($order_field);
-
-        return $qp;
-    }
-
-    /**
-     * create an SQL statement to load all source types from the database
-     *
-     * @param sql $sc with the target db_type set
-     * @param string $db_type the class name to be compatible with the user sandbox load_sql functions
-     * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
-     */
-    function load_sql_all(sql $sc, string $db_type): sql_par
-    {
-        $qp = $this->load_sql($sc, $db_type);
-        $sc->set_page(sql_db::ROW_MAX, 0);
-        $qp->sql = $sc->sql();
-        $qp->par = $sc->get_par();
-
-        return $qp;
-    }
-
-    /**
      * overwrite the user_type_list function to include the specific fields like the url
      * @param sql_db $db_con the database connection that can be either the real database connection or a simulation used for testing
-     * @param string $db_type the database name e.g. the table name without s
-     * @return void the list of source types
+     * @param string $class the database name e.g. the table name without s
+     * @return array the list of source types
      */
-    private function load_list(sql_db $db_con, string $db_type): void
+    protected function load_list(sql_db $db_con, string $class): array
     {
         $this->reset();
-        $qp = $this->load_sql_all($db_con->sql_creator(), $db_type);
+        $qp = $this->load_sql_all($db_con->sql_creator(), $class);
         $db_lst = $db_con->get($qp);
         if ($db_lst != null) {
             foreach ($db_lst as $db_entry) {
                 $type_code_id = strval($db_entry[sql_db::FLD_CODE_ID]);
                 $type_name = strval($db_entry[sql_db::FLD_TYPE_NAME]);
-                $type_comment = strval($db_entry[sandbox_named::FLD_DESCRIPTION]);
+                $type_comment = strval($db_entry[sql_db::FLD_DESCRIPTION]);
                 $type_obj = new source_type($type_code_id, $type_name, $type_comment);
                 $type_obj->set_id($db_entry[self::FLD_ID]);
-                //$type_obj->url = $db_entry[self::FLD_URL];
+                //$type_obj->set_url($db_entry[self::FLD_URL]);
                 $this->add($type_obj);
             }
         }
-    }
-
-    /**
-     * overwrite the general user type list load_by_db function to keep the link to the table type capsuled
-     * @param string $db_type the database table type name to select either word, formula, view, ...
-     * @param sql_db $db_con the database connection that can be either the real database connection or a simulation used for testing
-     * @return bool true if load was successful
-     */
-    function load(sql_db $db_con, string $db_type = sql_db::TBL_SOURCE_TYPE): bool
-    {
-        $result = false;
-        $this->load_list($db_con, $db_type);
-        if (!$this->is_empty()) {
-            $result = true;
-        }
-        return $result;
+        return $this->lst();
     }
 
     /**
      * adding the source types used for unit tests to the dummy list
+     * TODO Prio 3: load from csv
      */
     function load_dummy(): void
     {
         parent::load_dummy();
-        $type = new source_type(source_type::XBRL, source_type::XBRL);
-        $type->set_id(2);
+        $type = new source_type(source_types::XBRL, source_types::XBRL);
+        $type->set_id(source_types::XBRL_ID);
         $this->add($type);
-        $type = new source_type(source_type::CSV, source_type::CSV);
-        $type->set_id(3);
+        $type = new source_type(source_types::CSV, source_types::CSV);
+        $type->set_id(source_types::CSV_ID);
         $this->add($type);
-        $type = new source_type(source_type::PDF, source_type::PDF);
-        $type->set_id(4);
+        $type = new source_type(source_types::PDF, source_types::PDF);
+        $type->set_id(source_types::PDF_ID);
         $this->add($type);
     }
 
@@ -156,7 +109,7 @@ class source_type_list extends type_list
      */
     function default_id(): int
     {
-        return parent::id(source_type::XBRL);
+        return parent::id(source_types::XBRL);
     }
 
     /**
@@ -166,15 +119,15 @@ class source_type_list extends type_list
      */
     function get_by_id(int $id): ?source_type
     {
-        global $source_types;
+        global $src_typ_cac;
 
         $lib = new library();
         $result = null;
         if ($id > 0) {
-            if (array_key_exists($id, $source_types->lst())) {
-                $result = $source_types->get($id);
+            if (array_key_exists($id, $src_typ_cac->lst())) {
+                $result = $src_typ_cac->get($id);
             } else {
-                log_err('Source type with is ' . $id . ' not found in ' . $lib->dsp_array($source_types->lst()));
+                log_err('Source type with is ' . $id . ' not found in ' . $lib->dsp_array($src_typ_cac->lst()));
             }
         } else {
             log_debug('Source type id not not set');
@@ -190,19 +143,19 @@ class source_type_list extends type_list
  */
 function get_source_type(string $code_id): ?source_type
 {
-    global $source_types;
-    $id = $source_types->id($code_id);
-    return $source_types->get_by_id($id);
+    global $src_typ_cac;
+    $id = $src_typ_cac->id($code_id);
+    return $src_typ_cac->get_by_id($id);
 }
 
 function get_source_type_id(string $code_id): int
 {
-    global $source_types;
-    return $source_types->id($code_id);
+    global $src_typ_cac;
+    return $src_typ_cac->id($code_id);
 }
 
 function get_source_type_by_id(string $id): source_type
 {
-    global $source_types;
-    return $source_types->get_by_id($id);
+    global $src_typ_cac;
+    return $src_typ_cac->get_by_id($id);
 }

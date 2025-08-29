@@ -7,6 +7,7 @@
 
     TODO rename to phrase type
 
+
     This file is part of zukunft.com - calc with words
 
     zukunft.com is free software: you can redistribute it and/or modify it
@@ -31,13 +32,19 @@
   
 */
 
-namespace cfg;
+namespace cfg\phrase;
 
-use cfg\db\sql_db;
+use cfg\const\paths;
 
-include_once DB_PATH . 'sql_db.php';
-include_once MODEL_HELPER_PATH . 'type_list.php';
-include_once MODEL_PHRASE_PATH . 'phrase_type.php';
+include_once paths::MODEL_HELPER . 'type_object.php';
+include_once paths::DB . 'sql_db.php';
+include_once paths::MODEL_HELPER . 'type_list.php';
+include_once paths::MODEL_PHRASE . 'phrase_type.php';
+include_once paths::SHARED_TYPES . 'phrase_type.php';
+
+use cfg\helper\type_list;
+use cfg\helper\type_object;
+use shared\types\phrase_type as phrase_type_shared;
 
 class phrase_types extends type_list
 {
@@ -45,51 +52,55 @@ class phrase_types extends type_list
     // the phrase types used for unit testing
     // TODO sync this list with the csv list and write a update process for the prod database
     const TYPES = array(
-        phrase_type::NORMAL,
-        phrase_type::TIME,
-        phrase_type::MEASURE,
-        phrase_type::TIME_JUMP,
-        phrase_type::CALC,
-        phrase_type::PERCENT,
-        phrase_type::SCALING,
-        phrase_type::SCALING_HIDDEN,
-        phrase_type::LAYER,
-        phrase_type::FORMULA_LINK,
-        phrase_type::OTHER,
-        phrase_type::THIS,
-        phrase_type::NEXT,
-        phrase_type::PRIOR,
-        phrase_type::SCALING_PCT,
-        phrase_type::SCALED_MEASURE,
-        phrase_type::MATH_CONST,
-        phrase_type::MEASURE_DIVISOR,
-        phrase_type::LATEST,
-        phrase_type::KEY,
-        phrase_type::INFO,
-        phrase_type::TRIPLE_HIDDEN,
-        phrase_type::SYSTEM_HIDDEN,
-        phrase_type::GROUP
+        phrase_type_shared::NORMAL,
+        phrase_type_shared::TIME,
+        phrase_type_shared::MEASURE,
+        phrase_type_shared::TIME_JUMP,
+        phrase_type_shared::CALC,
+        phrase_type_shared::PERCENT,
+        phrase_type_shared::SCALING,
+        phrase_type_shared::SCALING_HIDDEN,
+        phrase_type_shared::LAYER,
+        phrase_type_shared::FORMULA_LINK,
+        phrase_type_shared::OTHER,
+        phrase_type_shared::THIS,
+        phrase_type_shared::NEXT,
+        phrase_type_shared::PRIOR,
+        phrase_type_shared::SCALING_PCT,
+        phrase_type_shared::SCALED_MEASURE,
+        phrase_type_shared::MATH_CONST,
+        phrase_type_shared::MEASURE_DIVISOR,
+        phrase_type_shared::LATEST,
+        phrase_type_shared::KEY,
+        phrase_type_shared::INFO,
+        phrase_type_shared::TRIPLE_HIDDEN,
+        phrase_type_shared::SYSTEM_HIDDEN,
+        phrase_type_shared::GROUP,
+        phrase_type_shared::SYMBOL,
+        phrase_type_shared::RANK,
+        phrase_type_shared::IGNORE
     );
 
-    /**
-     * overwrite the general user type list load function to keep the link to the table type capsuled
-     * @param sql_db $db_con the database connection that can be either the real database connection or a simulation used for testing
-     * @param string $db_type used only in the parent function to define the which type list should be loaded
-     * @return bool true if load was successful
+    /*
+     * construct and map
      */
-    function load(sql_db $db_con, string $db_type = sql_db::TBL_PHRASE_TYPE): bool
+
+    /**
+     * @param bool $usr_can_add true by default to allow searching by name for new added phrase types
+     */
+    function __construct(bool $usr_can_add = true)
     {
-        return parent::load($db_con, $db_type);
+        parent::__construct($usr_can_add);
     }
 
     /**
      * adding the word types used for unit tests to the dummy list
+     *  TODO Prio 3: load from csv
      */
     function load_dummy(): void
     {
         $i = 1;
-        foreach (self::TYPES as $type_name)
-        {
+        foreach (self::TYPES as $type_name) {
             $type = new type_object($type_name, $type_name, '', $i);
             $this->add($type);
             $i++;
@@ -102,7 +113,7 @@ class phrase_types extends type_list
      */
     function default_id(): int
     {
-        return parent::id(phrase_type::NORMAL);
+        return parent::id(phrase_type_shared::NORMAL);
     }
 
 }

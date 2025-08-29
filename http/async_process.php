@@ -31,15 +31,23 @@
 */
 
 // standard zukunft header for callable php files to allow debugging and lib loading
-use controller\controller;
+$debug = $_GET['debug'] ?? 0;
+const ROOT_PATH = __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR;
+const PHP_PATH = ROOT_PATH . 'src' . DIRECTORY_SEPARATOR . 'main' . DIRECTORY_SEPARATOR . 'php' . DIRECTORY_SEPARATOR;
+include_once PHP_PATH . 'zu_lib.php';
+
+use cfg\const\paths;
+
+include_once paths::SHARED_CONST . 'views.php';
+
+use cfg\import\import_file;
+use cfg\user\user;
+use cfg\view\view;
 use html\html_base;
 use html\view\view as view_dsp;
-use cfg\user;
-use cfg\view;
+use shared\api;
+use shared\const\views as view_shared;
 
-$debug = $_GET['debug'] ?? 0;
-const ROOT_PATH = __DIR__ . '/../';
-include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 if ($debug > 1) {
     echo 'lib loaded<br>';
 }
@@ -53,7 +61,7 @@ $msg = ''; // to collect all messages that should be shown to the user immediate
 // load the session user parameters
 $usr = new user;
 $result .= $usr->get();
-$back = $_GET[controller::API_BACK];     // the word id from which this value change has been called (maybe later any page)
+$back = $_GET[api::URL_VAR_BACK] = '';     // the word id from which this value change has been called (maybe later any page)
 
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
 if ($usr->id() > 0) {
@@ -64,7 +72,7 @@ if ($usr->id() > 0) {
 
     // prepare the display
     $msk = new view($usr);
-    $msk->load_by_code_id(controller::DSP_IMPORT);
+    $msk->load_by_code_id(view_shared::IMPORT);
 
     if ($usr->is_admin()) {
 
@@ -84,7 +92,8 @@ if ($usr->id() > 0) {
 
         $html->echo("loading of base configuration started<br>");
 
-        import_base_config($usr);
+        $import = new import_file();
+        $import->import_base_config($usr);
 
         $html->echo("loading of base configuration finished<br>");
 

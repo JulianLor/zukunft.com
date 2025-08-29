@@ -2,66 +2,54 @@
 
 /*
 
-  model/formula/formula_link_types.php - to link coded functionality to a formula link
-  ------------------------------------
-  
-  This file is part of zukunft.com - calc with words
+    model/formula/formula_link_type_list.php - to link coded functionality to a formula link
+    ----------------------------------------
 
-  zukunft.com is free software: you can redistribute it and/or modify it
-  under the terms of the GNU General Public License as
-  published by the Free Software Foundation, either version 3 of
-  the License, or (at your option) any later version.
-  zukunft.com is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-  GNU General Public License for more details.
-  
-  You should have received a copy of the GNU General Public License
-  along with zukunft.com. If not, see <http://www.gnu.org/licenses/agpl.html>.
-  
-  To contact the authors write to:
-  Timon Zielonka <timon@zukunft.com>
-  
-  Copyright (c) 1995-2022 zukunft.com AG, Zurich
-  Heang Lor <heang@zukunft.com>
-  
-  http://zukunft.com
+    This file is part of zukunft.com - calc with words
+
+    zukunft.com is free software: you can redistribute it and/or modify it
+    under the terms of the GNU General Public License as
+    published by the Free Software Foundation, either version 3 of
+    the License, or (at your option) any later version.
+    zukunft.com is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with zukunft.com. If not, see <http://www.gnu.org/licenses/agpl.html>.
+
+    To contact the authors write to:
+    Timon Zielonka <timon@zukunft.com>
+
+    Copyright (c) 1995-2022 zukunft.com AG, Zurich
+    Heang Lor <heang@zukunft.com>
+
+    http://zukunft.com
   
 */
 
-namespace cfg;
+namespace cfg\formula;
 
-use cfg\db\sql_db;
+use cfg\const\paths;
 
-include_once MODEL_HELPER_PATH . 'type_list.php';
-include_once MODEL_HELPER_PATH . 'type_object.php';
-include_once MODEL_FORMULA_PATH . 'formula_link.php';
+include_once paths::MODEL_HELPER . 'type_list.php';
+include_once paths::MODEL_HELPER . 'type_object.php';
+include_once paths::MODEL_FORMULA . 'formula_link.php';
 
-global $formula_link_types;
+use cfg\helper\type_list;
 
 class formula_link_type_list extends type_list
 {
-
-    /**
-     * overwrite the general user type list load function to keep the link to the table type capsuled
-     * @param sql_db $db_con the database connection that can be either the real database connection or a simulation used for testing
-     * @return bool true if load was successful
-     */
-    function load(sql_db $db_con, string $db_type = sql_db::TBL_FORMULA_LINK_TYPE): bool
-    {
-        return parent::load($db_con, $db_type);
-    }
 
     /**
      * adding the formula link types used for unit tests to the dummy list
      */
     function load_dummy(): void
     {
-        parent::load_dummy();
-        $type = new type_object(formula_link::DEFAULT, formula_link::DEFAULT, '', 2);
-        $this->add($type);
-        $type = new type_object(formula_link::TIME_PERIOD, formula_link::TIME_PERIOD, '', 3);
-        $this->add($type);
+        $this->reset();
+        // read the corresponding names and description from the internal config csv files
+        $this->read_from_config_csv($this);
     }
 
     /**
@@ -69,7 +57,7 @@ class formula_link_type_list extends type_list
      */
     function default_id(): int
     {
-        return parent::id(formula_link::DEFAULT);
+        return parent::id(formula_link_type::DEFAULT);
     }
 
 }

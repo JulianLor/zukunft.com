@@ -32,16 +32,18 @@
 
 */
 
-namespace html;
+namespace html\sandbox;
 
-use controller\controller;
-use api\api;
-use html\api as api_dsp;
-use html\word\word;
+use cfg\const\paths;
+use html\const\paths as html_paths;
+include_once html_paths::SANDBOX . 'combine_object.php';
+include_once html_paths::HTML . 'rest_ctrl.php';
+include_once paths::SHARED . 'json_fields.php';
 
-include_once WEB_SANDBOX_PATH . 'combine_object.php';
+use html\rest_ctrl as api_dsp;
+use shared\json_fields;
 
-class combine_named_dsp extends combine_object_dsp
+class combine_named extends combine_object
 {
 
     /*
@@ -60,13 +62,13 @@ class combine_named_dsp extends combine_object_dsp
     }
 
     /**
-     * @return int|string the id of the object
+     * @return int|string|null the id of the object
      * e.g. 1 for the triple Pi (math)
      * whereas the phrase has the id -1
      * the id of the phrase or term is created
      * by the function id() of phrase or term
      */
-    function obj_id(): int|string
+    function obj_id(): int|string|null
     {
         return $this->obj()?->id();
     }
@@ -106,6 +108,15 @@ class combine_named_dsp extends combine_object_dsp
     }
 
     /**
+     * @return string|null the plural of the word, triple, formula or verb
+     */
+    function plural(): ?string
+    {
+        return $this->obj()?->plural();
+    }
+
+    /**
+     * TODO review and use only frontend objects
      * @param int|null $type_id the type id of the word, triple, formula or verb
      * @return void
      */
@@ -142,7 +153,7 @@ class combine_named_dsp extends combine_object_dsp
         $api = new api_dsp();
         $json_body = $api->api_call_name($this::class, $name);
         if ($json_body) {
-            $this->set_from_json_array($json_body);
+            $this->api_mapper($json_body);
             if ($this->obj_id() != 0) {
                 $result = true;
             }
@@ -161,11 +172,16 @@ class combine_named_dsp extends combine_object_dsp
     function api_array(): array
     {
         $vars = array();
-        $vars[api::FLD_ID] = $this->obj()?->id();
-        $vars[api::FLD_NAME] = $this->name();
-        $vars[api::FLD_DESCRIPTION] = $this->description();
-        $vars[api::FLD_TYPE] = $this->type_id();
+        $vars[json_fields::ID] = $this->obj()?->id();
+        $vars[json_fields::NAME] = $this->name();
+        $vars[json_fields::DESCRIPTION] = $this->description();
+        $vars[json_fields::TYPE] = $this->type_id();
         return $vars;
     }
+
+
+    /*
+     * debug
+     */
 
 }

@@ -32,10 +32,16 @@
 
 namespace html\sandbox;
 
-use controller\controller;
-use api\api;
+use cfg\const\paths;
+use html\const\paths as html_paths;
+include_once html_paths::SANDBOX . 'sandbox_named.php';
+include_once paths::SHARED . 'api.php';
+include_once html_paths::USER . 'user_message.php';
+include_once paths::SHARED . 'json_fields.php';
 
-include_once WEB_SANDBOX_PATH . 'sandbox_named.php';
+use shared\api;
+use html\user\user_message;
+use shared\json_fields;
 
 class sandbox_typed extends sandbox_named
 {
@@ -44,27 +50,65 @@ class sandbox_typed extends sandbox_named
     // e.g. all value assigned with the percent word are per default shown as percent with two decimals
     // the frontend object just contains the id of the type
     // because the type can be fast selected from the preloaded type list
-    private ?int $type_id;
+    private ?int $type_id = null;
+
+
+    /*
+     * construct and map
+     */
+
+    /**
+     * set the vars of this object bases on the url array
+     * @param array $url_array an array based on $_GET from a form submit
+     * @return user_message ok or a warning e.g. if the server version does not match
+     */
+    function url_mapper(array $url_array): user_message
+    {
+        $usr_msg = parent::url_mapper($url_array);
+        if (array_key_exists(api::URL_VAR_TYPE, $url_array)) {
+            $this->set_type_id($url_array[api::URL_VAR_TYPE]);
+        } else {
+            $this->set_type_id();
+        }
+        return $usr_msg;
+    }
+
+    /**
+     * set the vars of this object bases on the api json array
+     * @param array $json_array an api json message
+     * @return user_message ok or a warning e.g. if the server version does not match
+     */
+    function api_mapper(array $json_array): user_message
+    {
+        $usr_msg = parent::api_mapper($json_array);
+        if (array_key_exists(json_fields::TYPE, $json_array)) {
+            $this->set_type_id($json_array[json_fields::TYPE]);
+        } else {
+            $this->set_type_id();
+        }
+        return $usr_msg;
+    }
+
+
+    /*
+     * api
+     */
+
+    /**
+     * @return array the json message array to send the updated data to the backend
+     * an array is used (instead of a string) to enable combinations of api_array() calls
+     */
+    function api_array(): array
+    {
+        $vars = parent::api_array();
+        $vars[json_fields::TYPE] = $this->type_id();
+        return $vars;
+    }
 
 
     /*
      * set and get
      */
-
-    /**
-     * set the vars of this object bases on the api json array
-     * @param array $json_array an api json message
-     * @return void
-     */
-    function set_from_json_array(array $json_array): void
-    {
-        parent::set_from_json_array($json_array);
-        if (array_key_exists(api::FLD_TYPE, $json_array)) {
-            $this->set_type_id($json_array[api::FLD_TYPE]);
-        } else {
-            $this->set_type_id();
-        }
-    }
 
     function set_type_id(?int $type_id = null): void
     {
@@ -76,21 +120,6 @@ class sandbox_typed extends sandbox_named
         return $this->type_id;
     }
 
-
-    /*
-     * interface
-     */
-
-    /**
-     * @return array the json message array to send the updated data to the backend
-     * an array is used (instead of a string) to enable combinations of api_array() calls
-     */
-    function api_array(): array
-    {
-        $vars = parent::api_array();
-        $vars[api::FLD_TYPE] = $this->type_id();
-        return $vars;
-    }
 
 }
 

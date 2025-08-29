@@ -30,24 +30,18 @@
   
 */
 
-namespace cfg;
+namespace cfg\user;
 
-global $user_profiles;
+use cfg\const\paths;
 
-use cfg\db\sql_db;
+include_once paths::MODEL_HELPER . 'type_list.php';
+include_once paths::SHARED_ENUM . 'user_profiles.php';
+
+use cfg\helper\type_list;
+use shared\enum\user_profiles;
 
 class user_profile_list extends type_list
 {
-
-    /**
-     * overwrite the general user type list load function to keep the link to the table type capsuled
-     * @param sql_db $db_con the database connection that can be either the real database connection or a simulation used for testing
-     * @return bool true if load was successful
-     */
-    function load(sql_db $db_con, string $db_type = sql_db::TBL_USER_PROFILE): bool
-    {
-        return parent::load($db_con, $db_type);
-    }
 
     /**
      * create dummy type list for the unit tests without database connection
@@ -55,10 +49,8 @@ class user_profile_list extends type_list
     function load_dummy(): void
     {
         $this->reset();
-        $type = new type_object(user_profile::NORMAL, user_profile::NORMAL, '', 2);
-        $this->add($type);
-        $type = new type_object(user_profile::ADMIN, user_profile::ADMIN, '', 3);
-        $this->add($type);
+        // read the corresponding names and description from the internal config csv files
+        $this->read_from_config_csv($this);
     }
 
     /**
@@ -66,7 +58,7 @@ class user_profile_list extends type_list
      */
     function default_id(): int
     {
-        return parent::id(user_profile::NORMAL);
+        return parent::id(user_profiles::NORMAL);
     }
 
 }

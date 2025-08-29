@@ -2,7 +2,7 @@
 
 /*
 
-    model/helper/db_object.php - a base object for all model database objects which just contains the unique id
+    model/helper/db_object.php - a base object for all model database objects contains the table and index creation
     --------------------------
 
 
@@ -30,19 +30,40 @@
 
 */
 
-namespace cfg;
+namespace cfg\helper;
+
+use cfg\const\paths;
+
+include_once paths::SHARED_HELPER . 'IdObject.php';
+include_once paths::DB . 'sql.php';
+include_once paths::DB . 'sql_creator.php';
+include_once paths::DB . 'sql_db.php';
+//include_once paths::DB . 'sql_par.php';
+include_once paths::DB . 'sql_type.php';
+include_once paths::DB . 'sql_type_list.php';
+//include_once paths::MODEL_GROUP . 'group.php';
+//include_once paths::MODEL_RESULT . 'result.php';
+//include_once paths::MODEL_SANDBOX . 'sandbox.php';
+//include_once paths::MODEL_USER . 'user.php';
+//include_once paths::MODEL_VALUE . 'value.php';
+//include_once paths::MODEL_VALUE . 'value_base.php';
+//include_once paths::SHARED . 'library.php';
 
 use cfg\db\sql;
+use cfg\db\sql_creator;
 use cfg\db\sql_db;
-use cfg\db\sql_field_default;
-use cfg\db\sql_field_type;
-use cfg\db\sql_table_type;
 use cfg\db\sql_par;
+use cfg\db\sql_type;
+use cfg\db\sql_type_list;
 use cfg\group\group;
 use cfg\result\result;
+use cfg\sandbox\sandbox;
+use cfg\user\user;
 use cfg\value\value;
+use shared\helper\IdObject;
+use shared\library;
 
-class db_object
+class db_object extends IdObject
 {
 
     // dummy const to be overwritten by the child objects
@@ -50,8 +71,19 @@ class db_object
     const TBL_COMMENT = '';
     // list of the table fields for the standard read query
     const FLD_NAMES = array();
-    // fields that can be changed by the user with the parameters for the table creation
-    const FLD_LST_CREATE_CHANGEABLE = array();
+
+    // field lists for the table creation overwritten by the child object or grand child for extra fields
+    const FLD_LST_ALL = array();
+    const FLD_LST_NAME = array();
+    const FLD_LST_EXTRA = array();
+    // list of fields that MUST be set by one user
+    const FLD_LST_MUST_BE_IN_STD = array();
+    // list of must fields that CAN be changed by the user
+    const FLD_LST_MUST_BUT_USER_CAN_CHANGE = array();
+    // fields that CAN be changed by the user with the parameters for the table creation
+    const FLD_LST_USER_CAN_CHANGE = array();
+    // fields that CANNOT be changed by the user with the parameters for the table creation
+    const FLD_LST_NON_CHANGEABLE = array();
 
 
     /*
@@ -78,56 +110,68 @@ class db_object
     /**
      * the sql statement to create the table for this (or a child) object
      *
-     * @param sql $sc with the target db_type set
-     * @param bool $usr_table true if the table should save the user specific changes
+     * @param sql_creator $sc with the target db_type set
+     * @param sql_type_list $sc_par_lst of parameters for the sql creation
      * @param array $fields array with all fields and all parameter for the table creation in a two-dimensional array
      * @param string $tbl_comment if given the comment that should be added to the sql create table statement
      * @return string the sql statement to create the table
      */
-    function sql_table_create(sql $sc, bool $usr_table = false, array $fields = [], string $tbl_comment = ''): string
+    function sql_table_create(
+        sql_creator   $sc,
+        sql_type_list $sc_par_lst = new sql_type_list(),
+        array         $fields = [],
+        string        $tbl_comment = ''
+    ): string
     {
         if ($sc->get_table() == '') {
-            $sc->set_class($this::class, $usr_table);
+            $sc->set_class($this::class, $sc_par_lst);
         }
         if ($fields == []) {
-            $fields = $this->sql_all_field_par($usr_table);
+            $fields = $this->sql_all_field_par($sc_par_lst);
         }
         if ($tbl_comment == '') {
             $tbl_comment = $this::TBL_COMMENT;
         }
-        return $sc->table_create($fields, '', $tbl_comment);
+        return $sc->table_create($fields, '', $tbl_comment, $this::class, $sc_par_lst->is_usr_tbl());
     }
 
     /**
      * the name of the sql table for this (or a child) object
      *
-     * @param sql $sc with the target db_type set
-     * @param bool $usr_table true if the table should save the user specific changes
+     * @param sql_creator $sc with the target db_type set
+     * @param sql_type_list $sc_par_lst of parameters for the sql creation
      * @return string the sql statement to create the table
      */
-    function sql_truncate_create(sql $sc, bool $usr_table = false): string
+    function sql_truncate_create(
+        sql_creator   $sc,
+        sql_type_list $sc_par_lst
+    ): string
     {
         if ($sc->get_table() == '') {
-            $sc->set_class($this::class, $usr_table);
+            $sc->set_class($this::class, $sc_par_lst);
         }
-        return 'TRUNCATE ' . $sc->get_table() . ' CASCADE; ';
+        return sql::TRUNCATE . ' ' . $sc->get_table() . ' ' . sql::CASCADE . '; ';
     }
 
     /**
      * the sql statement to create the indices for this (or a child) object
      *
-     * @param sql $sc with the target db_type set
-     * @param bool $usr_table true if the table should save the user specific changes
+     * @param sql_creator $sc with the target db_type set
+     * @param sql_type_list $sc_par_lst of parameters for the sql creation
      * @param array $fields array with all fields and all parameter for the table creation in a two-dimensional array
      * @return string the sql statement to create the table
      */
-    function sql_index_create(sql $sc, bool $usr_table = false, array $fields = []): string
+    function sql_index_create(
+        sql_creator   $sc,
+        sql_type_list $sc_par_lst = new sql_type_list(),
+        array         $fields = []
+    ): string
     {
         if ($sc->get_table() == '') {
-            $sc->set_class($this::class, $usr_table);
+            $sc->set_class($this::class, $sc_par_lst);
         }
         if ($fields == []) {
-            $fields = $this->sql_all_field_par($usr_table);
+            $fields = $this->sql_all_field_par($sc_par_lst);
         }
         return $sc->index_create($fields);
     }
@@ -135,57 +179,57 @@ class db_object
     /**
      * the sql statement to create the foreign keys for this (or a child) object
      *
-     * @param sql $sc with the target db_type set
-     * @param bool $usr_table true if the table should save the user specific changes
+     * @param sql_creator $sc with the target db_type set
+     * @param sql_type_list $sc_par_lst of parameters for the sql creation
      * @param array $fields array with all fields and all parameter for the table creation in a two-dimensional array
      * @return string the sql statement to create the table
      */
-    function sql_foreign_key_create(sql $sc, bool $usr_table = false, array $fields = []): string
+    function sql_foreign_key_create(
+        sql_creator   $sc,
+        sql_type_list $sc_par_lst = new sql_type_list(),
+        array         $fields = []
+    ): string
     {
         if ($sc->get_table() == '') {
-            $sc->set_class($this::class, $usr_table);
+            $sc->set_class($this::class, $sc_par_lst);
         }
         if ($fields == []) {
-            $fields = $this->sql_all_field_par($usr_table);
+            $fields = $this->sql_all_field_par($sc_par_lst);
         }
         return $sc->foreign_key_create($fields);
     }
 
     /**
+     * create a list of fields with the parameters for this object
+     *
+     * @param sql_type_list $sc_par_lst of parameters for the sql creation
      * @return array[] with the parameters of the table fields
      */
-    private function sql_all_field_par(bool $usr_table = false): array
+    protected function sql_all_field_par(sql_type_list $sc_par_lst): array
     {
+        $usr_tbl = $sc_par_lst->is_usr_tbl();
+        $use_sandbox = $sc_par_lst->use_sandbox_fields();
         $fields = [];
-        if (!$usr_table) {
-            $fields = array_merge($this->sql_id_field_par($usr_table), sandbox::FLD_ALL_OWNER);
-        } else {
-            $fields = array_merge($this->sql_id_field_par($usr_table), sandbox::FLD_ALL_CHANGER);
+        if (!$usr_tbl) {
+            $fields = array_merge($fields, $this::FLD_LST_NON_CHANGEABLE);
         }
-        $fields = array_merge($fields, $this::FLD_LST_CREATE_CHANGEABLE);
-        return array_merge($fields, sandbox::FLD_ALL);
-    }
-
-    /**
-     * @return array[] with the parameters of the table key field
-     */
-    private function sql_id_field_par(bool $usr_table = false): array
-    {
-        if (!$usr_table) {
-            return array([
-                $this->id_field(),
-                sql_field_type::KEY_INT,
-                sql_field_default::NOT_NULL,
-                '', '',
-                'the internal unique primary index']);
+        if (!$usr_tbl) {
+            if ($use_sandbox) {
+                $fields = array_merge($fields, sandbox::FLD_ALL_OWNER);
+                $fields = array_merge($fields, $this::FLD_LST_MUST_BE_IN_STD);
+            } else {
+                $fields = array_merge($fields, $this::FLD_LST_NAME, $this::FLD_LST_ALL);
+                $fields = array_merge($fields, $this::FLD_LST_EXTRA);
+            }
         } else {
-            return array([
-                $this->id_field(),
-                sql_field_type::KEY_PART_INT,
-                sql_field_default::NOT_NULL,
-                sql::INDEX, $this::class,
-                'with the user_id the internal unique primary index']);
+            $fields = array_merge($fields, sandbox::FLD_ALL_CHANGER);
+            $fields = array_merge($fields, $this::FLD_LST_MUST_BUT_USER_CAN_CHANGE);
         }
+        $fields = array_merge($fields, $this::FLD_LST_USER_CAN_CHANGE);
+        if ($use_sandbox) {
+            $fields = array_merge($fields, sandbox::FLD_LST_ALL);
+        }
+        return $fields;
     }
 
 
@@ -197,30 +241,37 @@ class db_object
      * parent function to create the common part of an SQL statement for group, value and result tables
      * child object sets the table and fields in the db sql builder
      *
-     * @param sql $sc with the target db_type set
+     * @param sql_creator $sc with the target db_type set
      * @param string $query_name the name of the selection fields to make the query name unique
      * @param string $class the name of the child class from where the call has been triggered
+     * @param sql_type_list $sc_par_lst the parameters for the sql statement creation
      * @param string $ext the query name extension e.g. to differentiate queries based on 1,2, or more phrases
-     * @param sql_table_type $tbl_typ the table name extension e.g. to switch between standard and prime values
-     * @param bool $usr_tbl true if a db row should be added to the user table
+     * @param string $id_ext the query name extension that indicated how many id fields are used e.g. "_p1"
      * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
      */
-    public function load_sql_multi(
-        sql            $sc,
-        string         $query_name,
-        string         $class,
-        string         $ext = '',
-        sql_table_type $tbl_typ = sql_table_type::MOST,
-        bool           $usr_tbl = false
+    function load_sql_multi(
+        sql_creator   $sc,
+        string        $query_name,
+        string        $class,
+        sql_type_list $sc_par_lst,
+        string        $ext = '',
+        string        $id_ext = ''
     ): sql_par
     {
         $lib = new library();
         $tbl_name = $lib->class_to_name($class);
-        $qp = new sql_par($tbl_name, false, false, $ext, $tbl_typ);
+        $qp = new sql_par($tbl_name, $sc_par_lst, $ext, $id_ext);
         $qp->name .= $query_name;
-        $sc->set_class($class, $usr_tbl, $tbl_typ->extension());
+        $sc->set_class($class, $sc_par_lst, $sc_par_lst->ext_ex_user());
         $sc->set_name($qp->name);
         $sc->set_fields($this::FLD_NAMES);
+        // TODO generalise this exception
+        if ($class == group::class
+            and $sc_par_lst->is_prime()
+            and $query_name == 'name'
+            and !$sc->is_MySQL()) {
+            $sc->set_id_field(group::FLD_ID . '::text');
+        }
 
         return $qp;
     }
@@ -229,34 +280,33 @@ class db_object
      * parent function to create the common part of an SQL statement
      * child object sets the table and fields in the db sql builder
      *
-     * @param sql $sc with the target db_type set
+     * @param sql_creator $sc with the target db_type set
      * @param string $query_name the name of the selection fields to make the query name unique
      * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
      */
-    function load_sql(sql $sc, string $query_name): sql_par
+    function load_sql(sql_creator $sc, string $query_name): sql_par
     {
-        return $this->load_sql_multi($sc, $query_name, $this::class);
+        return $this->load_sql_multi($sc, $query_name, $this::class, new sql_type_list([sql_type::MOST]));
     }
 
     /**
      * create an SQL statement to retrieve a user sandbox object by id from the database
      *
-     * @param sql $sc with the target db_type set
+     * @param sql_creator $sc with the target db_type set
      * @param int|string $id the id of the user sandbox object
-     * @param string $class the name of the child class from where the call has been triggered
      * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
      */
-    function load_sql_by_id_str(sql $sc, int|string $id, string $class = self::class): sql_par
+    function load_sql_by_id_str(sql_creator $sc, int|string $id): sql_par
     {
-        $ext = '';
+        $class = $this::class;
         if ($class == group::class
             or $class == value::class
             or $class == result::class) {
             $grp = new group(new user());
             $grp->set_id($id);
-            $typ = $grp->table_type();
+            $sc_par_lst = new sql_type_list([$grp->table_type()]);
             $ext = $grp->table_extension();
-            $qp = $this->load_sql_multi($sc, sql_db::FLD_ID, $class, $ext, $typ);
+            $qp = $this->load_sql_multi($sc, sql_db::FLD_ID, $class, $sc_par_lst, $ext);
         } else {
             $qp = $this->load_sql($sc, sql_db::FLD_ID);
         }
@@ -284,10 +334,11 @@ class db_object
 
 
     /*
-     * information
+     * info
      */
 
     /**
+     * name of prime index field of the table
      * function that can be overwritten by the child object
      * e.g. if the object name does not match the generated id field name
      * e.g. to group_id for values and results

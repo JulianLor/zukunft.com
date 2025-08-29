@@ -30,16 +30,23 @@
 */
 
 // standard zukunft header for callable php files to allow debugging and lib loading
-use cfg\view;
-use controller\controller;
-use html\view\view as view_dsp;
-use html\value\value as value_dsp;
-use cfg\user;
-use cfg\word_list;
-
 $debug = $_GET['debug'] ?? 0;
-const ROOT_PATH = __DIR__ . '/../';
-include_once ROOT_PATH . 'src/main/php/zu_lib.php';
+const ROOT_PATH = __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR;
+const PHP_PATH = ROOT_PATH . 'src' . DIRECTORY_SEPARATOR . 'main' . DIRECTORY_SEPARATOR . 'php' . DIRECTORY_SEPARATOR;
+include_once PHP_PATH . 'zu_lib.php';
+
+use cfg\const\paths;
+
+include_once paths::SHARED_CONST . 'views.php';
+
+use cfg\user\user;
+use cfg\view\view;
+use cfg\word\word_list;
+use html\value\value as value_dsp;
+use html\view\view as view_dsp;
+use html\word\word_list as word_list_dsp;
+use shared\api;
+use shared\const\views as view_shared;
 
 // open database
 $db_con = prg_start("value");
@@ -61,8 +68,8 @@ if ($usr->id() > 0) {
 
     // prepare the display
     $msk = new view($usr);
-    $msk->load_by_code_id(controller::DSP_VALUE_DISPLAY);
-    $back = $_GET[controller::API_BACK]; // the page (or phrase id) from which formula testing has been called
+    $msk->load_by_code_id(view_shared::VALUE_DISPLAY);
+    $back = $_GET[api::URL_VAR_BACK] = ''; // the page (or phrase id) from which formula testing has been called
 
     $msk_dsp = new view_dsp($msk->api_json());
     $result .= $msk_dsp->dsp_navbar($back);
@@ -73,11 +80,12 @@ if ($usr->id() > 0) {
         $wrd_lst = new word_list($usr);
         $wrd_lst->load_by_names(explode(",", $wrd_names));
 
-        $result .= $wrd_lst->dsp_obj()->display();
+        $wrd_lst_dsp = new word_list_dsp($wrd_lst->api_json());
+        $result .= $wrd_lst_dsp->name_link();
         $result .= ' = ';
         $val = $wrd_lst->value();
         $val_dsp = new value_dsp($val->api_json());
-        $result .= $val_dsp->display_linked($back);
+        $result .= $val_dsp->value_edit($back);
     }
 }
 

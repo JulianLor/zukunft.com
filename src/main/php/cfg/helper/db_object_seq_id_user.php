@@ -8,6 +8,13 @@
     same as db_object_user but for database objects that have an auto sequence prime id
     TODO should be merged once php allows aggregating extends e.g. sandbox extends db_object, db_user_object
 
+    The main sections of this object are
+    - object vars:       the variables of this seq id object
+    - construct and map: including the mapping of the db row to this seq id object
+    - set and get:       to capsule the single variables from unexpected changes
+    - info:              functions to make code easier to read
+    - modify:            change potentially all variables of this seq id object with one function
+
 
     This file is part of zukunft.com - calc with words
 
@@ -33,11 +40,22 @@
 
 */
 
-namespace cfg;
+namespace cfg\helper;
 
-use cfg\db\sql;
+use cfg\const\paths;
 
-include_once MODEL_HELPER_PATH . 'db_object.php';
+include_once paths::MODEL_HELPER . 'db_object_seq_id.php';
+include_once paths::MODEL_USER . 'user.php';
+include_once paths::MODEL_USER . 'user_message.php';
+include_once paths::SHARED_ENUM . 'messages.php';
+include_once paths::SHARED_HELPER . 'CombineObject.php';
+include_once paths::SHARED . 'library.php';
+
+use cfg\user\user;
+use cfg\user\user_message;
+use shared\enum\messages as msg_id;
+use shared\helper\CombineObject;
+use shared\library;
 
 class db_object_seq_id_user extends db_object_seq_id
 {
@@ -84,6 +102,61 @@ class db_object_seq_id_user extends db_object_seq_id
     function user(): user
     {
         return $this->usr;
+    }
+
+    /**
+     * @return int the id of the user or 0 if the user is not set
+     */
+    function user_id(): int
+    {
+        return $this->usr->id();
+    }
+
+
+    /*
+     * info
+     */
+
+    /**
+     * create human-readable messages of the differences between the db id objects
+     * @param CombineObject|db_object_seq_id_user|db_object_seq_id $obj which might be different to this db id object
+     * @return user_message the human-readable messages of the differences between the db id objects
+     */
+    function diff_msg(CombineObject|db_object_seq_id_user|db_object_seq_id $obj): user_message
+    {
+        $usr_msg = parent::diff_msg($obj);
+        if ($this->user_id() != $obj->user_id()) {
+            $lib = new library();
+            $usr_msg->add_id_with_vars(msg_id::DIFF_USER, [
+                msg_id::VAR_USER => $obj->user()->dsp_id(),
+                msg_id::VAR_USER_CHK => $this->user()->dsp_id(),
+                msg_id::VAR_CLASS_NAME => $lib->class_to_name($this::class),
+                msg_id::VAR_NAME => $this->dsp_id(),
+            ]);
+        }
+        return $usr_msg;
+    }
+
+
+    /*
+     * modify
+     */
+
+    /**
+     * fill this db user object based on the given object
+     * if the given user id is not set (null) the user id is set
+     *
+     * @param CombineObject|db_object_seq_id_user|db_object_seq_id $obj sandbox object with the values that should be updated e.g. based on the import
+     * @param user $usr_req the user who has requested the fill
+     * @return user_message a warning in case of a conflict e.g. due to a missing change time
+     */
+    function fill(CombineObject|db_object_seq_id_user|db_object_seq_id $obj, user $usr_req): user_message
+    {
+        $usr_msg = parent::fill($obj, $usr_req);
+        if ($obj->user_id() != null) {
+            $this->set_user($obj->user());
+        }
+        return $usr_msg;
     }
 
 

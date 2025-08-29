@@ -32,9 +32,15 @@
 
 */
 
-namespace cfg;
+namespace cfg\sandbox;
+
+use cfg\const\paths;
+
+include_once paths::EXPORT . 'export.php';
+include_once paths::MODEL_USER . 'user.php';
 
 use cfg\export\export;
+use cfg\user\user;
 
 class user_service
 {

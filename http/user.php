@@ -2,8 +2,8 @@
 
 /*
 
-  user.php - the main user page with the key settings of the user that is logged in
-  --------
+    user.php - the main user page with the key settings of the user that is logged in
+    --------
 
 
     This file is part of zukunft.com - calc with words
@@ -23,42 +23,50 @@
     To contact the authors write to:
     Timon Zielonka <timon@zukunft.com>
 
-    Copyright (c) 1995-2022 zukunft.com AG, Zurich
+    Copyright (c) 1995-2025 zukunft.com AG, Zurich
     Heang Lor <heang@zukunft.com>
 
     http://zukunft.com
 
 */
 
-use cfg\component\component;
-use cfg\component_link;
-use cfg\db\sql_db;
-use cfg\formula;
-use cfg\formula_link;
-use cfg\triple;
-use cfg\user;
-use cfg\user_profile;
-use cfg\value\value;
-use cfg\view;
-use cfg\word;
-use controller\controller;
-use html\html_base;
-use html\view\view as view_dsp;
-
+// standard zukunft header for callable php files to allow debugging and lib loading
 $debug = $_GET['debug'] ?? 0;
-const ROOT_PATH = __DIR__ . '/../';
-include_once ROOT_PATH . 'src/main/php/zu_lib.php';
+const ROOT_PATH = __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR;
+const PHP_PATH = ROOT_PATH . 'src' . DIRECTORY_SEPARATOR . 'main' . DIRECTORY_SEPARATOR . 'php' . DIRECTORY_SEPARATOR;
+include_once PHP_PATH . 'zu_lib.php';
+
+use cfg\const\paths;
+
+include_once paths::SHARED_CONST . 'views.php';
+include_once paths::SHARED_ENUM . 'user_profiles.php';
+
+use cfg\component\component;
+use cfg\component\component_link;
+use cfg\formula\formula;
+use cfg\formula\formula_link;
+use cfg\user\user;
+use cfg\value\value;
+use cfg\view\view;
+use cfg\word\triple;
+use cfg\word\word;
+use html\html_base;
+use html\user\user as user_dsp;
+use html\view\view as view_dsp;
+use shared\api;
+use shared\const\views as view_shared;
+use shared\enum\user_profiles;
 
 $db_con = prg_start("user");
 $html = new html_base();
 
-global $user_profiles;
+global $usr_pro_cac;
 
 $result = ''; // reset the html code var
 
 // get the parameters
-$id = $_GET[controller::URL_VAR_ID];
-$back = $_GET[controller::API_BACK];
+$id = $_GET[api::URL_VAR_ID];
+$back = $_GET[api::URL_VAR_BACK] = '';
 $undo_val = $_GET['undo_value'];
 $undo_wrd = $_GET['undo_word'];
 $undo_lnk = $_GET['undo_triple'];
@@ -72,8 +80,7 @@ $undo_src = $_GET['undo_source'];
 // load the session user parameters
 $usr = new user;
 $result .= $usr->get();
-$dsp_usr = $usr->dsp_obj();
-$dsp_usr_old = $usr->dsp_user();
+$dsp_usr = new user_dsp($usr->api_json());
 
 // check if the user is permitted (e.g. to exclude crawlers from doing stupid stuff)
 if ($usr->id() > 0) {
@@ -83,7 +90,7 @@ if ($usr->id() > 0) {
 
     // prepare the display
     $msk = new view($usr);
-    $msk->load_by_code_id(controller::DSP_USER);
+    $msk->load_by_code_id(view_shared::USER);
 
     // do user change
     $result .= $usr->upd_pars($_GET);
@@ -165,7 +172,7 @@ if ($usr->id() > 0) {
     }
 
     // display the user sandbox if there is something in
-    $sandbox = $dsp_usr_old->dsp_sandbox($back);
+    $sandbox = $dsp_usr->dsp_sandbox($back);
     if (trim($sandbox) <> "") {
         $result .= $html->dsp_text_h2("Your changes, which are not standard");
         $result .= $sandbox;
@@ -173,7 +180,7 @@ if ($usr->id() > 0) {
     }
 
     // display the user changes 
-    $changes = $dsp_usr_old->dsp_changes(0, sql_db::ROW_LIMIT, 1, $back);
+    $changes = $dsp_usr->dsp_changes(0, 0, 1, $back);
     if (trim($changes) <> "") {
         $result .= $html->dsp_text_h2("Your latest changes");
         $result .= $changes;
@@ -181,7 +188,7 @@ if ($usr->id() > 0) {
     }
 
     // display the program issues that the user has found if there are some
-    $errors = $dsp_usr_old->dsp_errors("", sql_db::ROW_LIMIT, 1, $back);
+    $errors = $dsp_usr->dsp_errors("", 0, 1, $back);
     if (trim($errors) <> "") {
         $result .= $html->dsp_text_h2("Program issues that you found, that have not yet been solved.");
         $result .= $errors;
@@ -189,8 +196,8 @@ if ($usr->id() > 0) {
     }
 
     // display all program issues if the user is an admin
-    if ($usr->profile_id == $user_profiles->id(user_profile::ADMIN)) {
-        $errors_all = $dsp_usr_old->dsp_errors("other", sql_db::ROW_LIMIT, 1, $back);
+    if ($usr->profile_id == $usr_pro_cac->id(user_profiles::ADMIN)) {
+        $errors_all = $dsp_usr->dsp_errors("other", 0, 1, $back);
         if (trim($errors_all) <> "") {
             $result .= $html->dsp_text_h2("Program issues that other user have found, that have not yet been solved.");
             $result .= $errors_all;

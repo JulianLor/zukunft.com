@@ -30,19 +30,23 @@
 
 */
 
-use cfg\log\change_log_table;
-use test\test_cleanup;
+use cfg\const\paths;
 
-function run_db_link_test(test_cleanup $t): void
+include_once paths::SHARED_ENUM . 'change_tables.php';
+
+use shared\enum\change_tables;
+use test\all_tests;
+
+function run_db_link_test(all_tests $t): void
 {
-    global $change_log_tables;
+    global $cng_tbl_cac;
 
-    $t->header('Test database link functions (zu_lib_sql_code_link.php)');
+    $t->header('Test database link functions');
 
     // test code link
-    $id = change_log_table::WORD;
+    $id = change_tables::WORD;
     $target = 5;
-    $result = $change_log_tables->id($id);
+    $result = $cng_tbl_cac->id($id);
     $t->display(", sql_code_link " . $id, $target, $result);
 
 }

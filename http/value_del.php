@@ -30,25 +30,33 @@
 */
 
 // standard zukunft header for callable php files to allow debugging and lib loading
-use controller\controller;
-use html\api;
+$debug = $_GET['debug'] ?? 0;
+const ROOT_PATH = __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR;
+const PHP_PATH = ROOT_PATH . 'src' . DIRECTORY_SEPARATOR . 'main' . DIRECTORY_SEPARATOR . 'php' . DIRECTORY_SEPARATOR;
+include_once PHP_PATH . 'zu_lib.php';
+
+use cfg\const\paths;
+
+include_once paths::SHARED_CONST . 'views.php';
+
+use cfg\user\user;
+use cfg\value\value;
+use cfg\view\view;
 use html\button;
 use html\html_base;
-use html\msg;
+use html\rest_ctrl;
 use html\view\view as view_dsp;
-use cfg\user;
-use cfg\value;
-use cfg\view;
-
-$debug = $_GET['debug'] ?? 0;
-const ROOT_PATH = __DIR__ . '/../';
-include_once ROOT_PATH . 'src/main/php/zu_lib.php';
+use shared\api;
+use shared\const\views as view_shared;
+use shared\enum\messages as msg_id;
 
 // to create the code for the html frontend
 $html = new html_base();
 
 // open database
 $db_con = prg_start("value_del");
+
+global $mtr;
 
 $result = ''; // reset the html code var
 
@@ -63,11 +71,11 @@ if ($usr->id() > 0) {
 
     // prepare the display
     $msk = new view($usr);
-    $msk->load_by_code_id(controller::DSP_VALUE_DEL);
-    $back = $_GET[controller::API_BACK];  // the page from which the value deletion has been called
+    $msk->load_by_code_id(view_shared::VALUE_DEL);
+    $back = $_GET[api::URL_VAR_BACK] = '';  // the page from which the value deletion has been called
 
     // get the parameters
-    $val_id = $_GET[controller::URL_VAR_ID];
+    $val_id = $_GET[api::URL_VAR_ID];
     $confirm = $_GET['confirm'];
 
     if ($val_id > 0) {
@@ -87,10 +95,9 @@ if ($usr->id() > 0) {
             $result .= $msk_dsp->dsp_navbar($back);
 
             $val->load_phrases();
-            $url = $html->url(api::VALUE . api::REMOVE, $val_id, $back);
-            $ui_msg = new msg();
-            $result .= (new button($url, $back))->yesno(
-                msg::VALUE_DEL, $val->number() . $ui_msg->txt(msg::FOR) . $val->phr_lst()->dsp_name() . '?');
+            $url = $html->url(rest_ctrl::VALUE . rest_ctrl::REMOVE, $val_id, $back);
+            $result .= (new button($url, $back))->yes_no(
+                msg_id::VALUE_DEL->value, $val->number() . $mtr->txt(msg_id::FOR) . $val->phr_lst()->dsp_name() . '?');
         }
     } else {
         $result .= $html->dsp_go_back($back, $usr);

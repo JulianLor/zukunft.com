@@ -30,14 +30,14 @@
 
 */
 
-use controller\controller;
-use im_export\json_io;
-use cfg\library;
-use cfg\phrase_list;
-use cfg\user;
+use cfg\phrase\phrase_list;
+use cfg\user\user;
+use cfg\export\json_io;
+use shared\api;
+use shared\library;
 
 $debug = $_GET['debug'] ?? 0;
-const ROOT_PATH = __DIR__ . '/../';
+const ROOT_PATH = __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR;
 include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 
 // open database
@@ -54,7 +54,7 @@ if ($usr->id() > 0) {
     $lib = new library();
 
     // get the words that are supposed to be exported, sample "Nestlé 2 country weight"
-    $phrases = $_GET[controller::URL_VAR_WORD];
+    $phrases = $_GET[api::URL_VAR_WORDS];
     log_debug("json_save(" . $phrases . ")");
     $phr_names = $lib->array_trim(explode(",", $phrases));
 

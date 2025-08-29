@@ -30,19 +30,27 @@
   
 */
 
-/* standard zukunft header for callable php files to allow debugging and lib loading */
-
-use controller\controller;
-use html\html_base;
-use html\view\view as view_dsp;
-use cfg\term;
-use cfg\user;
-use cfg\verb;
-use cfg\view;
-
+// standard zukunft header for callable php files to allow debugging and lib loading
 $debug = $_GET['debug'] ?? 0;
-const ROOT_PATH = __DIR__ . '/../';
-include_once ROOT_PATH . 'src/main/php/zu_lib.php';
+const ROOT_PATH = __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR;
+const PHP_PATH = ROOT_PATH . 'src' . DIRECTORY_SEPARATOR . 'main' . DIRECTORY_SEPARATOR . 'php' . DIRECTORY_SEPARATOR;
+include_once PHP_PATH . 'zu_lib.php';
+
+use cfg\const\paths;
+use html\const\paths as html_paths;
+
+include_once paths::SHARED_CONST . 'views.php';
+include_once html_paths::VERB . 'verb.php';
+
+use cfg\phrase\term;
+use cfg\user\user;
+use cfg\verb\verb;
+use cfg\view\view;
+use html\html_base;
+use html\verb\verb as verb_dsp;
+use html\view\view as view_dsp;
+use shared\api;
+use shared\const\views as view_shared;
 
 /* open database */
 $db_con = prg_start("link_type_add");
@@ -62,8 +70,8 @@ if ($usr->id() > 0) {
 
     // prepare the display
     $msk = new view($usr);
-    $msk->load_by_code_id(controller::DSP_VERB_ADD);
-    $back = $_GET[controller::API_BACK]; // the calling word which should be displayed after saving
+    $msk->load_by_code_id(view_shared::VERB_ADD);
+    $back = $_GET[api::URL_VAR_BACK] = ''; // the calling word which should be displayed after saving
 
     if (!$usr->is_admin()) {
         $result .= log_err("Only user with the administrator profile can add verbs (triple types).", "verb_add.php");
@@ -74,17 +82,17 @@ if ($usr->id() > 0) {
         $vrb->set_user($usr);
 
         // load the parameters to the verb object to display it again in case of an error
-        if (isset($_GET[controller::URL_VAR_NAME])) {
-            $vrb->set_name($_GET[controller::URL_VAR_NAME]);
+        if ($_GET[api::URL_VAR_NAME] != null) {
+            $vrb->set_name($_GET[api::URL_VAR_NAME]);
         }
-        if (isset($_GET['plural'])) {
-            $vrb->plural = $_GET['plural'];
+        if ($_GET[api::URL_VAR_PLURAL] != null) {
+            $vrb->set_plural($_GET[api::URL_VAR_PLURAL]);
         }
-        if (isset($_GET['reverse'])) {
-            $vrb->reverse = $_GET['reverse'];
+        if (isset($_GET[api::URL_VAR_REVERSE])) {
+            $vrb->set_reverse($_GET[api::URL_VAR_REVERSE]);
         }
-        if (isset($_GET['plural_reverse'])) {
-            $vrb->rev_plural = $_GET['plural_reverse'];
+        if (isset($_GET[api::URL_VAR_REVERSE_PLURAL])) {
+            $vrb->set_reverse_plural($_GET[api::URL_VAR_REVERSE_PLURAL]);
         }
 
         if ($_GET['confirm'] > 0) {
@@ -98,13 +106,13 @@ if ($usr->id() > 0) {
                 $trm = new term($usr);
                 $trm->load_by_name($vrb->name());
                 if ($trm->id_obj() > 0) {
-                    $msg .= $trm->id_used_msg($this);
+                    $msg .= $html->dsp_err($trm->id_used_msg_text($this));
                 }
 
                 // if the parameters are fine
                 if ($msg == '') {
                     // add the new verb
-                    $add_result = $vrb->save();
+                    $add_result = $vrb->save()->get_last_message();
 
                     // if adding was successful ...
                     if (str_replace('1', '', $add_result) == '') {
@@ -126,7 +134,8 @@ if ($usr->id() > 0) {
             $result .= $html->dsp_err($msg);
 
             // get the form to add a new verb
-            $result .= $vrb->dsp_edit($back);
+            $vrb_dsp = new verb_dsp($vrb->api_json());
+            $result .= $vrb_dsp->dsp_edit($back);
         }
     }
 }

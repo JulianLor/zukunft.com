@@ -1,0 +1,328 @@
+{
+  "version": "0.0.3",
+  "time": "2024-07-28 16:31:00",
+  "user": "zukunft.com system batch job",
+  "selection": [
+    "base views"
+  ],
+  "components": [
+    {
+      "name": "Word",
+      "description": "simply show the word or triple name",
+      "type": "phrase_name"
+    },
+    {
+      "name": "spreadsheet",
+      "description": "changeable sheet with words, number and formulas",
+      "type": "calc_sheet"
+    },
+    {
+      "name": "Expression",
+      "type": "expression"
+    },
+    {
+      "name": "Verb",
+      "description": "simply show the verb name",
+      "type": "verb_name"
+    },
+    {
+      "name": "related triples",
+      "description": "triples where this verb is used",
+      "type": "triples_related"
+    },
+    {
+      "name": "triple name",
+      "description": "simply show the name of a triple",
+      "type": "triple_name"
+    },
+    {
+      "name": "source name",
+      "description": "simply show the name of a source",
+      "type": "source_name"
+    },
+    {
+      "name": "reference name",
+      "description": "simply show the name of a reference",
+      "type": "reference_name"
+    },
+    {
+      "name": "language name",
+      "description": "simply show the name of a language",
+      "type": "language_name"
+    },
+    {
+      "name": "Term",
+      "description": "simply show the name of a word, triple, verb or formula",
+      "type": "term_name"
+    },
+    {
+      "name": "formulas",
+      "description": "simply show all related formulas",
+      "type": "formula_list"
+    },
+    {
+      "name": "related words",
+      "description": "show the most relevant and related words or triples",
+      "type": "word_list_down"
+    },
+    {
+      "name": "main value",
+      "description": "show one most relevant value",
+      "type": "main_value"
+    },
+    {
+      "name": "related values",
+      "description": "show the most relevant and related values",
+      "type": "values_related"
+    },
+    {
+      "name": "related results",
+      "description": "show the most relevant and related results",
+      "type": "results_related"
+    },
+    {
+      "name": "phrase",
+      "description": "simply show the name of a word or triple",
+      "type": "phrase_name"
+    },
+    {
+      "name": "ranking parameters",
+      "description": "the parameters used to calculate a ranking",
+      "type": "ranking_parameters"
+    },
+    {
+      "name": "ranking list",
+      "description": "list sorted by the calculated ranking",
+      "type": "ranking_list"
+    }
+  ],
+  "views": [
+    {
+      "name": "Word",
+      "description": "the default view for words",
+      "code_id": "word",
+      "components": [
+        {
+          "position": "1",
+          "name": "Word"
+        },
+        {
+          "position": "2",
+          "name": "related values"
+        }
+      ]
+    },
+    {
+      "name": "Verb",
+      "description": "the default view for verbs",
+      "code_id": "verb",
+      "components": [
+        {
+          "position": "1",
+          "name": "Verb"
+        },
+        {
+          "position": "2",
+          "name": "related triples"
+        }
+      ]
+    },
+    {
+      "name": "Triple",
+      "description": "the default view for triples",
+      "code_id": "triple",
+      "components": [
+        {
+          "position": "1",
+          "name": "triple name"
+        },
+        {
+          "position": "2",
+          "name": "related values"
+        }
+      ]
+    },
+    {
+      "name": "Source",
+      "description": "the default view for sources",
+      "code_id": "source",
+      "components": [
+        {
+          "position": "1",
+          "name": "source name"
+        },
+        {
+          "position": "2",
+          "name": "related values"
+        }
+      ]
+    },
+    {
+      "name": "Reference",
+      "description": "the default view for references",
+      "code_id": "ref",
+      "components": [
+        {
+          "position": "1",
+          "name": "reference name"
+        },
+        {
+          "position": "2",
+          "name": "related values"
+        }
+      ]
+    },
+    {
+      "name": "Language",
+      "description": "the default view for languages",
+      "code_id": "language",
+      "components": [
+        {
+          "position": "1",
+          "name": "language name"
+        },
+        {
+          "position": "2",
+          "name": "related values"
+        }
+      ]
+    },
+    {
+      "name": "Display Number",
+      "description": "the default view for values",
+      "code_id": "value",
+      "components": [
+        {
+          "position": "1",
+          "name": "main value"
+        }
+      ]
+    },
+    {
+      "name": "Formula",
+      "description": "Show a formula and the related results and words",
+      "components": [
+        {
+          "position": "1",
+          "name": "Word"
+        },
+        {
+          "position": "2",
+          "name": "Expression"
+        },
+        {
+          "position": "3",
+          "name": "related results"
+        }
+      ],
+      "assigned": [
+        "scale minute to sec",
+        "increase"
+      ]
+    },
+    {
+      "name": "Result",
+      "description": "the default view for results",
+      "code_id": "result",
+      "components": [
+        {
+          "position": "1",
+          "name": "related results"
+        }
+      ]
+    },
+    {
+      "name": "Ranking",
+      "description": "the default view for all phrases where a better could be selected",
+      "code_id": "ranking",
+      "components": [
+        {
+          "position": "1",
+          "name": "phrase"
+        },
+        {
+          "position": "2",
+          "name": "ranking parameters"
+        },
+        {
+          "position": "3",
+          "name": "ranking list"
+        }
+      ],
+      "assigned": [
+        "country"
+      ]
+    },
+    {
+      "name": "science",
+      "description": "show mainly related words that are relevant in sciences",
+      "assigned": [
+        "mathematics"
+      ]
+    },
+    {
+      "name": "Historic",
+      "description": "show the related words in historic order",
+      "assigned": [
+        "mathematics"
+      ]
+    },
+    {
+      "name": "Biological",
+      "description": "show what is relevant from the biological point of view",
+      "assigned": [
+        "Tomatoes"
+      ]
+    },
+    {
+      "name": "Education",
+      "description": "sort related topics by difficulty",
+      "assigned": [
+        "mathematics"
+      ]
+    },
+    {
+      "name": "Touristic",
+      "description": "show things to see",
+      "assigned": [
+        "mathematics"
+      ]
+    },
+    {
+      "name": "Graph",
+      "description": "show the related topics as a visual graph",
+      "assigned": [
+        "mathematics"
+      ]
+    },
+    {
+      "name": "Simple",
+      "description": "show only the most relevant facts",
+      "assigned": [
+        "mathematics"
+      ]
+    },
+    {
+      "name": "math const",
+      "description": "Show a mathematical constance and the related words and formulas",
+      "components": [
+        {
+          "position": "1",
+          "name": "Word"
+        },
+        {
+          "position": "2",
+          "name": "related words"
+        },
+        {
+          "position": "3",
+          "name": "formulas"
+        }
+      ],
+      "assigned": [
+        "Pi",
+        "Euler's constant"
+      ]
+    }
+  ]
+}

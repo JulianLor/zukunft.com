@@ -5,6 +5,15 @@
     model/sandbox/sandbox_list.php - a base object for a list of user sandbox objects
     ------------------------------
 
+    The main sections of this object are
+    - object vars:       the variables of this list object
+    - construct and map: including the mapping of the db rows to this list
+    - set and get:       to capsule the vars from unexpected changes
+    - load:              database access object (DAO) functions
+    - im- and export:    create an export object and set the vars from an import object
+    - modify:            change potentially all items of this list object
+    - debug:             internal support functions for debugging
+
 
     This file is part of zukunft.com - calc with words
 
@@ -30,17 +39,51 @@
 
 */
 
-namespace cfg;
+namespace cfg\sandbox;
 
-use cfg\db\sql;
+use cfg\const\paths;
+
+include_once paths::MODEL_SYSTEM . 'base_list.php';
+include_once paths::MODEL_SYSTEM . 'base_list.php';
+include_once paths::MODEL_HELPER . 'combine_named.php';
+include_once paths::MODEL_HELPER . 'db_object_seq_id.php';
+include_once paths::DB . 'sql_creator.php';
+include_once paths::DB . 'sql_db.php';
+include_once paths::DB . 'sql_par.php';
+include_once paths::DB . 'sql_par_type.php';
+include_once paths::DB . 'sql_type.php';
+include_once paths::DB . 'sql_type_list.php';
+//include_once paths::MODEL_PHRASE . 'term_list.php';
+include_once paths::MODEL_RESULT . 'result_list.php';
+include_once paths::MODEL_USER . 'user.php';
+include_once paths::MODEL_USER . 'user_message.php';
+//include_once paths::MODEL_VALUE . 'value_list.php';
+include_once paths::SHARED_ENUM . 'messages.php';
+include_once paths::SHARED_HELPER . 'CombineObject.php';
+include_once paths::SHARED_HELPER . 'IdObject.php';
+include_once paths::SHARED_HELPER . 'TextIdObject.php';
+include_once paths::SHARED_TYPES . 'api_type_list.php';
+include_once paths::SHARED . 'library.php';
+
+use cfg\helper\db_object_seq_id;
+use cfg\system\base_list;
+use cfg\helper\combine_named;
+use cfg\db\sql_creator;
 use cfg\db\sql_db;
 use cfg\db\sql_par;
 use cfg\db\sql_par_type;
-use cfg\db\sql_table_type;
+use cfg\db\sql_type;
+use cfg\db\sql_type_list;
+use cfg\phrase\term_list;
 use cfg\result\result_list;
+use cfg\user\user;
+use cfg\user\user_message;
 use cfg\value\value_list;
-
-include_once MODEL_SYSTEM_PATH . 'base_list.php';
+use shared\enum\messages as msg_id;
+use shared\helper\CombineObject;
+use shared\helper\IdObject;
+use shared\helper\TextIdObject;
+use shared\library;
 
 class sandbox_list extends base_list
 {
@@ -81,23 +124,24 @@ class sandbox_list extends base_list
     /**
      * add the user sandbox object to the list
      *
-     * @param object $sdb_obj the user sandbox object that should be added to the list
+     * @param IdObject|TextIdObject|CombineObject|db_object_seq_id|sandbox $sdb_obj the user sandbox object that should be added to the list
      * @param array|null $db_rows is an array of an array with the database values
      * @param bool $load_all force to include also the excluded phrases e.g. for admins
      * @return bool true if at least one object has been loaded
      */
-    protected function rows_mapper_obj(object $sdb_obj, ?array $db_rows, bool $load_all = false): bool
+    protected function rows_mapper_obj(IdObject|TextIdObject|CombineObject|db_object_seq_id|sandbox $sdb_obj, ?array $db_rows, bool $load_all = false): bool
     {
         $result = false;
         if ($db_rows != null) {
             foreach ($db_rows as $db_row) {
                 $excluded = null;
-                if (array_key_exists(sandbox::FLD_EXCLUDED, $db_row)) {
-                    $excluded = $db_row[sandbox::FLD_EXCLUDED];
+                if (array_key_exists(sql_db::FLD_EXCLUDED, $db_row)) {
+                    $excluded = $db_row[sql_db::FLD_EXCLUDED];
                 }
                 if (is_null($excluded) or $excluded == 0 or $load_all) {
                     $obj_to_add = clone $sdb_obj;
                     $obj_to_add->row_mapper_sandbox($db_row);
+                    // TODO check if object direct should be used to save time
                     $this->add_obj($obj_to_add);
                     $result = true;
                 }
@@ -141,7 +185,7 @@ class sandbox_list extends base_list
      * e.g. for words to exclude formula words
      *   or for view to exclude system views
      *
-     * @param sql $sc with the target db_type set
+     * @param sql_creator $sc with the target db_type set
      * @param sandbox_named|sandbox_link_named|combine_named $sbx the single child object
      * @param string $pattern the pattern to filter the words
      * @param int $limit the number of rows to return
@@ -149,16 +193,14 @@ class sandbox_list extends base_list
      * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
      */
     protected function load_sql_names_pre(
-        sql                                            $sc,
+        sql_creator                                    $sc,
         sandbox_named|sandbox_link_named|combine_named $sbx,
         string                                         $pattern = '',
         int                                            $limit = 0,
         int                                            $offset = 0
     ): sql_par
     {
-        $lib = new library();
-
-        $qp = new sql_par($sbx::class, false, true);
+        $qp = new sql_par($sbx::class, new sql_type_list([sql_type::COMPLETE]));
         $qp->name .= 'names';
 
         //$sc->set_class($lib->class_to_name($sbx::class));
@@ -182,7 +224,7 @@ class sandbox_list extends base_list
      * build the SQL statement to load only the id and name to save time and memory
      * without further filter
      *
-     * @param sql $sc with the target db_type set
+     * @param sql_creator $sc with the target db_type set
      * @param sandbox_named|sandbox_link_named|combine_named $sbx the single child object
      * @param string $pattern the pattern to filter the words
      * @param int $limit the number of rows to return
@@ -190,7 +232,7 @@ class sandbox_list extends base_list
      * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
      */
     function load_sql_names(
-        sql                                            $sc,
+        sql_creator                                    $sc,
         sandbox_named|sandbox_link_named|combine_named $sbx,
         string                                         $pattern = '',
         int                                            $limit = 0,
@@ -279,48 +321,126 @@ class sandbox_list extends base_list
 
 
     /*
-     * modification
+     * im- and export
+     */
+
+    /**
+     * create an array with one export json array for each list item
+     * @param bool $do_load to switch off the database load for unit tests
+     * @return array of export json arrays
+     */
+    function export_json(bool $do_load = true): array
+    {
+        $exp_lst = [];
+        foreach ($this->lst() as $sbx) {
+            $exp_lst[] = $sbx->export_json($do_load);
+        }
+        return $exp_lst;
+    }
+
+
+    /*
+     * modify
      */
 
     /**
      * add one object to the list of user sandbox objects, but only if it is not yet part of the list
-     * @param object $obj_to_add the backend object that should be added
+     * @param IdObject|TextIdObject|CombineObject|db_object_seq_id|sandbox $obj_to_add the backend object that should be added
      * @param bool $allow_duplicates true if the list can contain the same entry twice e.g. for the components
-     * @returns bool true the formula has been added
+     * @returns user_message if adding failed or something is strange the messages for the user with the suggested solutions
      */
-    function add_obj(object $obj_to_add, bool $allow_duplicates = false): bool
+    function add_obj(
+        IdObject|TextIdObject|CombineObject|db_object_seq_id|sandbox $obj_to_add,
+        bool                                                         $allow_duplicates = false
+    ): user_message
     {
-        $result = false;
+        $usr_msg = new user_message();
 
-        // check parameters
-        if ($obj_to_add->user() == null) {
-            $obj_to_add->set_user($this->user());
-        }
-        if ($obj_to_add->user() != $this->user()) {
-            if (!$this->user()->is_admin() and !$this->user()->is_system()) {
-                log_warning('Trying to add ' . $obj_to_add->dsp_id()
-                    . ' of user ' . $obj_to_add->user()->name()
-                    . ' to list of ' . $this->user()->name()
-                );
-            }
-        }
-        if ($obj_to_add->id() <> 0 or $obj_to_add->name() != '') {
+        // add only objects that have all mandatory values
+        $usr_msg->add($obj_to_add->db_ready());
+
+        // add a missing user to the object
+        // or check if the object user matches the list user
+        // and allow exceptions only for admin users
+        $usr_msg->add($this->add_user_check($obj_to_add));
+
+        if ($obj_to_add->id() <> 0) {
             if ($allow_duplicates) {
-                $result = parent::add_obj($obj_to_add, $allow_duplicates);
+                $usr_msg->add(parent::add_obj($obj_to_add, $allow_duplicates));
             } else {
-                $obj_id = $obj_to_add->id();
-                $ids = $this->ids();
-                if (!in_array($obj_to_add->id(), $this->ids())) {
-                    $result = parent::add_obj($obj_to_add);
-                } else {
-                    log_warning('Trying to add ' . $obj_to_add->dsp_id()
-                        . ' which is already part of the ' . $obj_to_add::class . 'list');
+                if ($obj_to_add->id() <> 0) {
+                    if (!array_key_exists($obj_to_add->id(), $this->id_pos_lst())) {
+                        $usr_msg->add(parent::add_obj($obj_to_add));
+                    } else {
+                        $usr_msg->add_id_with_vars(msg_id::LIST_DOUBLE_ENTRY,
+                            [
+                                msg_id::VAR_NAME => $obj_to_add->dsp_id(),
+                                msg_id::VAR_CLASS_NAME => $obj_to_add::class
+                            ]);
+                    }
                 }
             }
         }
-        return $result;
+        return $usr_msg;
     }
 
+    /**
+     * add a missing user to the object
+     * or check if the object user matches the list user
+     * and allow exceptions only for admin users
+     * @param IdObject|TextIdObject|CombineObject|db_object_seq_id|sandbox $obj_to_add the backend object that should be added
+     * @return user_message the warning or error message if the user
+     */
+    protected function add_user_check(
+        IdObject|TextIdObject|CombineObject|db_object_seq_id|sandbox $obj_to_add
+    ): user_message
+    {
+        $usr_msg = new user_message();
+        if ($obj_to_add->user() == null) {
+            $obj_to_add->set_user($this->user());
+            $usr_msg->add_id_with_vars(msg_id::USER_MISSING,
+                [msg_id::VAR_NAME => $this->dsp_id()]);
+        }
+        if ($obj_to_add->user() !== $this->user()) {
+            if (!$this->user()->is_admin() and !$this->user()->is_system()) {
+                $usr_msg->add_id_with_vars(msg_id::LIST_USER_NO_MATCH,
+                    [
+                        msg_id::VAR_NAME => $obj_to_add->dsp_id(),
+                        msg_id::VAR_USER_NAME => $obj_to_add->user()->name(),
+                        msg_id::VAR_USER_LIST_NAME => $this->user()->name(),
+                    ]);
+            }
+        }
+        return $usr_msg;
+    }
+
+
+    /*
+     * check
+     */
+
+    /**
+     * check if the user of the object to add matches the user of the list
+     * @param IdObject|TextIdObject|CombineObject|db_object_seq_id|sandbox $obj_to_add
+     * @return user_message the warning message if the user of the object does not match with the list user
+     */
+    function same_user(IdObject|TextIdObject|CombineObject|db_object_seq_id|sandbox $obj_to_add): user_message
+    {
+        $usr_msg = new user_message();
+        if ($obj_to_add->user() !== $this->user()) {
+            if ($obj_to_add->user() == null) {
+                $obj_to_add->set_user($this->user());
+            } else {
+                if (!$this->user()->is_admin() and !$this->user()->is_system()) {
+                    log_warning('Trying to add ' . $obj_to_add->dsp_id()
+                        . ' of user ' . $obj_to_add->user()->name()
+                        . ' to list of ' . $this->user()->name()
+                    );
+                }
+            }
+        }
+        return $usr_msg;
+    }
 
     /*
      * debug
@@ -340,11 +460,15 @@ class sandbox_list extends base_list
 
         // show at least 4 elements by name
         $min_names = $debug;
+        $min_num = $debug;
         if ($min_names < LIST_MIN_NAMES) {
             $min_names = LIST_MIN_NAMES;
         }
+        if ($min_num < LIST_MIN_NUM) {
+            $min_num = LIST_MIN_NUM;
+        }
 
-        $id = $this->ids_txt($min_names);
+        $id = $this->ids_txt($min_num);
         if ($this->lst() != null) {
             $id_field = $this::class . '_id';
             if ($this->count() > 0) {
@@ -356,7 +480,7 @@ class sandbox_list extends base_list
                     if ($result != '') {
                         $result .= ' / ';
                     }
-                    $result .= $val->dsp_id_entry();
+                    $result .= $val->dsp();
                 }
                 if (is_array($id_field)) {
                     $fld_dsp = ' (' . implode(', ', $id_field);
@@ -383,7 +507,7 @@ class sandbox_list extends base_list
      * @param int $pos the first list id that has not yet been shown
      * @return string a short summary of the remaining ids
      */
-    protected function dsp_id_remaining(int $pos,): string
+    protected function dsp_id_remaining(int $pos): string
     {
         global $debug;
         $lib = new library();
@@ -410,20 +534,21 @@ class sandbox_list extends base_list
      */
     function name(int $limit = null): string
     {
-        return '"' . implode('","', $this->names($limit)) . '"';
+        return '"' . implode('","', $this->names(false, $limit)) . '"';
     }
 
     /**
+     * @param bool $ignore_excluded if true also the excluded names are included
      * @param ?int $limit the max number of ids to show
      * @return array with all names of the list
      */
-    function names(int $limit = null): array
+    function names(bool $ignore_excluded = false, int $limit = null): array
     {
         $result = [];
         $pos = 0;
         foreach ($this->lst() as $sbx_obj) {
             if ($pos <= $limit or $limit == null) {
-                $result[] = $sbx_obj->name();
+                $result[] = $sbx_obj->name($ignore_excluded);
                 $pos++;
             }
         }
@@ -452,17 +577,18 @@ class sandbox_list extends base_list
         }
     }
 
+
     /*
-     * sql_table_type_list
+     * sql_type_list
      */
 
     /**
      * @param array $tbl_types list of sql table types that specifies the current case
-     * @return bool true if the list of types specifies that the value has e.g. no protection and is public
+     * @return bool true if the list of types specifies that the value or result has e.g. no protection and is public
      */
     protected function is_std(array $tbl_types): bool
     {
-        if (in_array(sql_table_type::STANDARD, $tbl_types)) {
+        if (in_array(sql_type::STANDARD, $tbl_types)) {
             return true;
         } else {
             return false;
@@ -471,11 +597,25 @@ class sandbox_list extends base_list
 
     /**
      * @param array $tbl_types list of sql table types that specifies the current case
-     * @return bool true if the list of types specifies that the value has max 4 prime phrases
+     * @return bool true if the list of types specifies that the value or result has max 4 prime phrases
      */
     protected function is_prime(array $tbl_types): bool
     {
-        if (in_array(sql_table_type::PRIME, $tbl_types)) {
+        if (in_array(sql_type::PRIME, $tbl_types)) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    /**
+     * @param array $tbl_types list of sql table types that specifies the current case
+     * @return bool true if the list of types specifies that the result has max 7 prime phrases plus the formula id
+     *              or 8 prime phrases if the table is not standard
+     */
+    protected function is_main(array $tbl_types): bool
+    {
+        if (in_array(sql_type::MAIN, $tbl_types)) {
             return true;
         } else {
             return false;
@@ -488,7 +628,7 @@ class sandbox_list extends base_list
      */
     protected function is_big(array $tbl_types): bool
     {
-        if (in_array(sql_table_type::BIG, $tbl_types)) {
+        if (in_array(sql_type::BIG, $tbl_types)) {
             return true;
         } else {
             return false;
@@ -503,28 +643,18 @@ class sandbox_list extends base_list
     {
         $result = '';
         if ($this->is_std($tbl_types)) {
-            $result .= sql_table_type::STANDARD->extension();
+            $result .= sql_type::STANDARD->extension();
         }
         if ($this->is_prime($tbl_types)) {
-            $result .= sql_table_type::PRIME->extension();
+            $result .= sql_type::PRIME->extension();
+        }
+        if ($this->is_main($tbl_types)) {
+            $result .= sql_type::MAIN->extension();
         }
         if ($this->is_big($tbl_types)) {
-            $result .= sql_table_type::BIG->extension();
+            $result .= sql_type::BIG->extension();
         }
         return $result;
-    }
-
-    /**
-     * @param array $tbl_types list of sql table types that specifies the current case
-     * @return bool true if the list of types specifies that the value has no user overwrites
-     */
-    protected function is_user(array $tbl_types): bool
-    {
-        if (in_array(sql_table_type::STANDARD, $tbl_types)) {
-            return true;
-        } else {
-            return false;
-        }
     }
 
 }

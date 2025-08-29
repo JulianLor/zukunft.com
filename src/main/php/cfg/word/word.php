@@ -3,7 +3,7 @@
 /*
 
     model/word/word.php - the main word object
-    -------------------
+    -----------------
 
     TODO move plural to a linked word?
 
@@ -15,6 +15,34 @@
         - the row_mapper function is always used map the database field to the object fields
         - a minimal object exists with for display only for one user only e.g. for a word object, just the id and the name
         - a ex- and import object exists, that does not include any internal database ids
+
+    The main sections of this object are
+    - db const:          const for the database link
+    - preserved:         const word names of a words used by the system
+    - object vars:       the variables of this word object
+    - construct and map: set the vars of this word object to the initial value or based on a db row, api or import object
+    - api:               create an api array for the frontend and set the vars based on a frontend api message
+    - im- and export:    create an export array or write the imported object to the database
+    - set and get:       to capsule the vars from unexpected changes
+    - preloaded:         select e.g. types from cache
+    - load:              database access object (DAO) functions
+    - cast:              create an api object and set the vars from an api json
+    - convert:           convert this word e.g. phrase or term
+    - sql fields:        field names for sql
+    - retrieval:         get related objects assigned to this word
+    - modify:            change potentially all variables of this word object
+    - info:              functions to make code easier to read
+    - foaf:              get related words and triples based on the friend of a friend (foaf) concept
+    - ui sort:           user interface optimization e.g. show the user to most relevant words
+    - related:           functions that create and fill related objects
+    - sandbox:           manage the user sandbox
+    - log:               write the changes to the log
+    - save:              manage to update the database
+    - save helper:       helpers for updating the database
+    - del:               manage to remove from the database
+    - sql write fields:  field list for writing to the database
+    - debug:             internal support functions for debugging
+
 
     This file is part of zukunft.com - calc with words
 
@@ -33,102 +61,126 @@
     To contact the authors write to:
     Timon Zielonka <timon@zukunft.com>
 
-    Copyright (c) 1995-2023 zukunft.com AG, Zurich
+    Copyright (c) 1995-2024 zukunft.com AG, Zurich
     Heang Lor <heang@zukunft.com>
 
     http://zukunft.com
 
 */
 
-namespace cfg;
+namespace cfg\word;
 
-include_once SERVICE_EXPORT_PATH . 'sandbox_exp_named.php';
-include_once SERVICE_PATH . 'db_code_link.php';
-include_once API_WORD_PATH . 'word.php';
-include_once MODEL_REF_PATH . 'ref.php';
-include_once SERVICE_EXPORT_PATH . 'word_exp.php';
+use cfg\const\paths;
 
-use api\api;
-use api\word\word as word_api;
+include_once paths::MODEL_SANDBOX . 'sandbox_code_id.php';
+include_once paths::DB . 'sql.php';
+include_once paths::DB . 'sql_creator.php';
+include_once paths::DB . 'sql_db.php';
+include_once paths::DB . 'sql_par.php';
+include_once paths::DB . 'sql_par_field_list.php';
+include_once paths::DB . 'sql_par_type.php';
+include_once paths::DB . 'sql_type_list.php';
+include_once paths::MODEL_FORMULA . 'formula.php';
+include_once paths::MODEL_FORMULA . 'formula_db.php';
+include_once paths::MODEL_FORMULA . 'formula_link.php';
+include_once paths::MODEL_HELPER . 'data_object.php';
+include_once paths::MODEL_HELPER . 'db_object_seq_id.php';
+include_once paths::MODEL_LOG . 'change.php';
+include_once paths::MODEL_LOG . 'change_action.php';
+include_once paths::MODEL_PHRASE . 'phrase.php';
+include_once paths::MODEL_PHRASE . 'phrase_list.php';
+include_once paths::MODEL_PHRASE . 'term.php';
+include_once paths::MODEL_REF . 'ref.php';
+include_once paths::MODEL_REF . 'ref_list.php';
+include_once paths::MODEL_SANDBOX . 'sandbox.php';
+include_once paths::MODEL_USER . 'user_message.php';
+include_once paths::MODEL_VALUE . 'value_list.php';
+include_once paths::MODEL_VERB . 'verb_db.php';
+include_once paths::MODEL_VERB . 'verb_list.php';
+include_once paths::MODEL_USER . 'user.php';
+include_once paths::MODEL_VIEW . 'view.php';
+include_once paths::MODEL_VIEW . 'view_db.php';
+include_once paths::MODEL_WORD . 'triple.php';
+include_once paths::MODEL_WORD . 'triple_list.php';
+include_once paths::SHARED_CONST . 'users.php';
+include_once paths::SHARED_ENUM . 'change_actions.php';
+include_once paths::SHARED_ENUM . 'messages.php';
+include_once paths::SHARED_ENUM . 'foaf_direction.php';
+include_once paths::SHARED_ENUM . 'user_profiles.php';
+include_once paths::SHARED_HELPER . 'CombineObject.php';
+include_once paths::SHARED_TYPES . 'api_type_list.php';
+include_once paths::SHARED_TYPES . 'phrase_type.php';
+include_once paths::SHARED_TYPES . 'verbs.php';
+include_once paths::SHARED_CONST . 'words.php';
+include_once paths::SHARED . 'json_fields.php';
+include_once paths::SHARED . 'library.php';
+
 use cfg\db\sql;
+use cfg\db\sql_creator;
 use cfg\db\sql_db;
 use cfg\db\sql_par;
+use cfg\db\sql_par_field_list;
 use cfg\db\sql_par_type;
-use cfg\group\group_list;
+use cfg\db\sql_type_list;
+use cfg\formula\formula;
+use cfg\formula\formula_db;
+use cfg\formula\formula_link;
+use cfg\helper\data_object;
+use cfg\helper\db_object_seq_id;
 use cfg\log\change;
-use cfg\log\change_log_action;
-use cfg\log\change_log_table;
+use cfg\phrase\phrase;
+use cfg\phrase\phrase_list;
+use cfg\phrase\term;
+use cfg\ref\ref;
+use cfg\ref\ref_list;
+use cfg\sandbox\sandbox;
+use cfg\sandbox\sandbox_code_id;
+use cfg\user\user;
+use cfg\user\user_message;
 use cfg\value\value_list;
-use html\word\word as word_dsp;
-use cfg\export\sandbox_exp;
-use cfg\export\sandbox_exp_named;
-use cfg\export\word_exp;
+use cfg\verb\verb_db;
+use cfg\verb\verb_list;
+use cfg\view\view;
+use cfg\view\view_db;
+use shared\enum\change_actions;
+use shared\enum\foaf_direction;
+use shared\enum\messages as msg_id;
+use shared\helper\CombineObject;
+use shared\json_fields;
+use shared\library;
+use shared\const\words;
+use shared\types\api_type_list;
+use shared\types\phrase_type as phrase_type_shared;
+use shared\types\verbs;
 
-class word extends sandbox_typed
+class word extends sandbox_code_id
 {
 
     /*
-     * database link
+     * db const
      */
 
-    // object specific database and JSON object field names
-    // means: database fields only used for words
-    const FLD_ID = 'word_id';
-    const FLD_NAME = 'word_name';
-    const FLD_PLURAL = 'plural'; // TODO move to language types
-    const FLD_VIEW = 'view_id';
-    const FLD_VALUES = 'values';
-    // the field names used for the im- and export in the json or yaml format
-    const FLD_REFS = 'refs';
+    // comments used for the database creation
+    const TBL_COMMENT = 'for a short text, that can be used to search for values or results with a 64 bit database key because humans will never be able to use more than a few million words';
 
-    // all database field names excluding the id, standard name and user specific fields
-    const FLD_NAMES = array(
-        self::FLD_VALUES
-    );
-    // list of the user specific database field names
-    const FLD_NAMES_USR = array(
-        self::FLD_PLURAL,
-        sandbox_named::FLD_DESCRIPTION
-    );
-    // list of the user specific numeric database field names
-    const FLD_NAMES_NUM_USR = array(
-        phrase::FLD_TYPE,
-        self::FLD_VIEW,
-        sandbox::FLD_EXCLUDED,
-        sandbox::FLD_SHARE,
-        sandbox::FLD_PROTECT
-    );
-    // all database field names excluding the id used to identify if there are some user specific changes
-    const ALL_SANDBOX_FLD_NAMES = array(
-        self::FLD_NAME,
-        self::FLD_VALUES,
-        self::FLD_PLURAL,
-        sandbox_named::FLD_DESCRIPTION,
-        phrase::FLD_TYPE,
-        self::FLD_VIEW,
-        sandbox::FLD_EXCLUDED,
-        sandbox::FLD_SHARE,
-        sandbox::FLD_PROTECT
-    );
-
-
-    /*
-     * const to use the system also for the own system configuration
-     * e.g. the number of decimal places related to the user specific words
-     * system configuration that is not related to user sandbox data is using the flat cfg methods
-     * included in the preserved word names
-     */
-
-    const SYSTEM_CONFIG = 'system configuration';
-
+    // forward the const to enable usage of $this::CONST_NAME
+    const FLD_ID = word_db::FLD_ID;
+    const FLD_LST_MUST_BE_IN_STD = word_db::FLD_LST_MUST_BE_IN_STD;
+    const FLD_LST_MUST_BUT_USER_CAN_CHANGE = word_db::FLD_LST_MUST_BUT_USER_CAN_CHANGE;
+    const FLD_LST_USER_CAN_CHANGE = word_db::FLD_LST_USER_CAN_CHANGE;
+    const FLD_LST_NON_CHANGEABLE = word_db::FLD_LST_NON_CHANGEABLE;
+    const FLD_NAMES = word_db::FLD_NAMES;
+    const FLD_NAMES_USR = word_db::FLD_NAMES_USR;
+    const FLD_NAMES_NUM_USR = word_db::FLD_NAMES_NUM_USR;
+    const ALL_SANDBOX_FLD_NAMES = word_db::ALL_SANDBOX_FLD_NAMES;
 
     /*
      * object vars
      */
 
     // database fields additional to the user sandbox fields
-    public ?string $plural;    // the english plural name as a kind of shortcut; if plural is NULL the database value should not be updated
-    public ?int $values;       // the total number of values linked to this word as an indication how common the word is and to sort the words
+    private ?string $plural;    // the english plural name as a kind of shortcut; if plural is NULL the database value should not be updated
+    private ?int $values;       // the total number of values linked to this word as an indication how common the word is and to sort the words
 
     // in memory only fields
     public ?int $link_type_id; // used in the word list to know based on which relation the word was added to the list
@@ -151,8 +203,6 @@ class word extends sandbox_typed
         $this->reset();
         parent::__construct($usr);
 
-        $lib = new library();
-        $this->obj_name = $lib->class_to_name(word::class);
         $this->rename_can_switch = UI_CAN_CHANGE_WORD_NAME;
     }
 
@@ -168,9 +218,6 @@ class word extends sandbox_typed
 
         $this->link_type_id = null;
 
-        $this->share_id = null;
-        $this->protection_id = null;
-
         $this->view = null;
         $this->ref_lst = [];
     }
@@ -182,7 +229,7 @@ class word extends sandbox_typed
      * the 'exclude check' needs to be done in the calling function
      *
      * @param array|null $db_row with the data directly from the database
-     * @param bool $load_std true if only the standard user sandbox object ist loaded
+     * @param bool $load_std true if only the standard user sandbox object is loaded
      * @param bool $allow_usr_protect false for using the standard protection settings for the default object used for all users
      * @param string $id_fld the name of the id field as defined in this child and given to the parent
      * @param string $name_fld the name of the name field as defined in this child class
@@ -193,25 +240,207 @@ class word extends sandbox_typed
         ?array $db_row,
         bool   $load_std = false,
         bool   $allow_usr_protect = true,
-        string $id_fld = self::FLD_ID,
-        string $name_fld = self::FLD_NAME,
+        string $id_fld = word_db::FLD_ID,
+        string $name_fld = word_db::FLD_NAME,
         string $type_fld = phrase::FLD_TYPE): bool
     {
         $result = parent::row_mapper_sandbox($db_row, $load_std, $allow_usr_protect, $id_fld, $name_fld);
         if ($result) {
-            if (array_key_exists(self::FLD_PLURAL, $db_row)) {
-                $this->plural = $db_row[self::FLD_PLURAL];
+            if (array_key_exists(word_db::FLD_PLURAL, $db_row)) {
+                $this->set_plural($db_row[word_db::FLD_PLURAL]);
             }
             if (array_key_exists($type_fld, $db_row)) {
                 $this->type_id = $db_row[$type_fld];
             }
-            if (array_key_exists(self::FLD_PLURAL, $db_row)) {
-                if ($db_row[self::FLD_VIEW] != null) {
-                    $this->set_view_id($db_row[self::FLD_VIEW]);
+            if (array_key_exists(word_db::FLD_VIEW, $db_row)) {
+                if ($db_row[word_db::FLD_VIEW] != null) {
+                    $this->set_view_id($db_row[word_db::FLD_VIEW]);
                 }
             }
         }
         return $result;
+    }
+
+    /**
+     * map a word api json to this model word object
+     * similar to the import_obj function but using the database id instead of names as the unique key
+     * TODO add a test case to check if an import of a pure name overwrites the existing type setting
+     *      or if loading later adding a word with admin_protection and type does not overwrite the type and protection
+     * @param array $api_json the api array with the word values that should be mapped
+     * @return user_message the message for the user why the action has failed and a suggested solution
+     */
+    function api_mapper(array $api_json): user_message
+    {
+        $usr_msg = parent::api_mapper($api_json);
+
+        // it is expected that the code id is set via import by an admin not via api
+
+        // TODO move plural to language forms
+        if (array_key_exists(json_fields::PLURAL, $api_json)) {
+            if ($api_json[json_fields::PLURAL] <> '') {
+                $this->set_plural($api_json[json_fields::PLURAL]);
+            }
+        }
+
+        if (array_key_exists(json_fields::VIEW, $api_json)) {
+            $msk = new view($this->user());
+            $id = $api_json[json_fields::VIEW];
+            if ($id != 0) {
+                $msk->set_id($id);
+                $this->view = $msk;
+            }
+        }
+
+        return $usr_msg;
+    }
+
+    /**
+     * set the vars of this word object based on the given json without writing to the database
+     *
+     * @param array $in_ex_json an array with the data of the json object
+     * @param user $usr_req the user who has initiated the import mainly used to add tge code id to the database
+     * @param data_object|null $dto cache of the objects imported until now for the primary references
+     * @param object|null $test_obj if not null the unit test object to get a dummy seq id
+     * @return user_message the status of the import and if needed the error messages that should be shown to the user
+     */
+    function import_mapper_user(
+        array       $in_ex_json,
+        user        $usr_req,
+        data_object $dto = null,
+        object      $test_obj = null
+    ): user_message
+    {
+        global $phr_typ_cac;
+
+        // reset all parameters for the word object but keep the user
+        $usr = $this->user();
+        $this->reset();
+        $this->set_user($usr);
+
+        // set the object vars based on the json
+        $usr_msg = parent::import_mapper_user($in_ex_json, $usr_req, $dto, $test_obj);
+
+        if (key_exists(json_fields::TYPE_NAME, $in_ex_json)) {
+            $this->type_id = $phr_typ_cac->id($in_ex_json[json_fields::TYPE_NAME]);
+        }
+        if (key_exists(json_fields::PLURAL, $in_ex_json)) {
+            if ($in_ex_json[json_fields::PLURAL] <> '') {
+                $this->set_plural($in_ex_json[json_fields::PLURAL]);
+            }
+        }
+
+        // remember the references
+        if (key_exists(json_fields::REFS, $in_ex_json)) {
+            if ($in_ex_json[json_fields::REFS] <> '') {
+                $ref_json = $in_ex_json[json_fields::REFS];
+                foreach ($ref_json as $ref_data) {
+                    $ref_obj = new ref($this->user());
+                    $ref_obj->set_phrase($this->phrase());
+                    $usr_msg->add($ref_obj->import_mapper($ref_data, $dto, $test_obj));
+                    // TODO $dto should never be null if no direct import is used
+                    $dto?->add_reference($ref_obj);
+                    if ($usr_msg->is_ok()) {
+                        $this->ref_lst[] = $ref_obj;
+                    }
+                }
+            }
+        }
+
+        // TODO change to view object like in triple
+        if (key_exists(json_fields::VIEW, $in_ex_json)) {
+            $msk_name = $in_ex_json[json_fields::VIEW];
+            $wrd_view = new view($this->user());
+            if (!$test_obj) {
+                $wrd_view->load_by_name($msk_name);
+                if ($wrd_view->id() == 0) {
+                    $usr_msg->add_id_with_vars(msg_id::IMPORT_NOT_FIND_VIEW, [msg_id::VAR_ID => $this->dsp_id(), msg_id::VAR_NAME => $msk_name]);
+                } else {
+                    $this->set_view_id($wrd_view->id());
+                }
+            } else {
+                $wrd_view->set_name($msk_name);
+            }
+            $this->view = $wrd_view;
+        }
+
+        // set the default type if no type is specified
+        if ($this->type_id <= 0) {
+            $this->type_id = $phr_typ_cac->default_id();
+        }
+
+        return $usr_msg;
+    }
+
+
+    /*
+     * api
+     */
+
+    /**
+     * create an array for the api json creation
+     * differs from the export array by using the internal id instead of the names
+     * @param api_type_list $typ_lst configuration for the api message e.g. if phrases should be included
+     * @param user|null $usr the user for whom the api message should be created which can differ from the session user
+     * @return array the filled array used to create the api json message to the frontend
+     */
+    function api_json_array(api_type_list $typ_lst, user|null $usr = null): array
+    {
+        if ($this->is_excluded() and !$typ_lst->test_mode()) {
+            $vars = [];
+            $vars[json_fields::ID] = $this->id();
+            $vars[json_fields::EXCLUDED] = true;
+        } else {
+            $vars = parent::api_json_array($typ_lst, $usr);
+            $vars[json_fields::PLURAL] = $this->plural();
+        }
+
+        return $vars;
+    }
+
+
+    /*
+     * im- and export
+     */
+
+    /**
+     * create an array with the export json fields
+     * @param bool $do_load to switch off the database load for unit tests
+     * @return array the filled array used to create the user export json
+     */
+    function export_json(bool $do_load = true): array
+    {
+        global $phr_typ_cac;
+
+        $vars = parent::export_json($do_load);
+
+        if ($this->plural() <> '') {
+            $vars[json_fields::PLURAL] = $this->plural();
+        }
+        if ($this->type_id > 0) {
+            if ($this->type_id == $phr_typ_cac->default_id()) {
+                unset($vars[json_fields::TYPE_NAME]);
+            }
+        }
+
+        if ($this->view != null) {
+            if ($this->view_id() > 0 and $this->view->name() == '') {
+                if ($do_load) {
+                    $this->load_view();
+                }
+            }
+            if ($this->view->name() != '') {
+                $vars[json_fields::VIEW] = $this->view->name();
+            }
+        }
+        if (count($this->ref_lst) > 0) {
+            $ref_lst = [];
+            foreach ($this->ref_lst as $ref) {
+                $ref_lst[] = $ref->export_json();
+            }
+            $vars[json_fields::REFS] = $ref_lst;
+        }
+
+        return $vars;
     }
 
 
@@ -220,35 +449,32 @@ class word extends sandbox_typed
      */
 
     /**
-     * set the most used object vars with one set statement
-     * @param int $id mainly for test creation the database id of the word
-     * @param string $name mainly for test creation the name of the word
-     * @param string $type_code_id the code id of the predefined phrase type
-     */
-    function set(int $id = 0, string $name = '', string $type_code_id = ''): void
-    {
-        parent::set($id, $name);
-
-        if ($type_code_id != '') {
-            $this->set_type($type_code_id);
-        }
-    }
-
-    /**
      * set the phrase type of this word
      *
-     * @param string $type_code_id the code id that should be added to this word
-     * @return void
+     * @param string $code_id the code id that should be added to this word
+     * @param user $usr_req the user who wants to change the type
+     * @return user_message a warning if the view type code id is not found
      */
-    function set_type(string $type_code_id): void
+    function set_type(string $code_id, user $usr_req = new user()): user_message
     {
-        global $phrase_types;
-        $this->type_id = $phrase_types->id($type_code_id);
+        global $phr_typ_cac;
+        return parent::set_type_by_code_id(
+            $code_id, $phr_typ_cac, msg_id::PHRASE_TYPE_NOT_FOUND, $usr_req);
+    }
+
+    function set_plural(?string $plural): void
+    {
+        $this->plural = $plural;
+    }
+
+    function plural(): ?string
+    {
+        return $this->plural;
     }
 
     /**
      * set the value to rank the words by usage
-     *r
+     *
      * @param int|null $usage a higher value moves the word to the top of the selection list
      * @return void
      */
@@ -266,7 +492,7 @@ class word extends sandbox_typed
     }
 
     /**
-     * @param int $id the id of the default view the should be remembered
+     * @param int $id the id of the default view that should be remembered
      */
     function set_view_id(int $id): void
     {
@@ -277,7 +503,7 @@ class word extends sandbox_typed
     }
 
     /**
-     * @return int the id of the default view for this word or null if no view is preferred
+     * @return int the id of the default view for this word or zero if no view is preferred
      */
     function view_id(): int
     {
@@ -288,14 +514,37 @@ class word extends sandbox_typed
         }
     }
 
-    function set_view(view $dsp): void
+    function set_view(?view $msk): void
     {
-        $this->view = $dsp;
+        $this->view = $msk;
+    }
+
+    /**
+     * get the database id of the word type
+     * also to fix a problem if a phrase list contains a word
+     * @return int|null the id of the word type
+     */
+    function type_id(): ?int
+    {
+        return $this->type_id;
+    }
+
+    function ref_array(): ?array
+    {
+        return $this->ref_lst;
+    }
+    function ref_list(): ref_list
+    {
+        $ref_lst = new ref_list($this->user());
+        foreach ($this->ref_lst as $ref) {
+            $ref_lst->add($ref);
+        }
+        return $ref_lst;
     }
 
 
     /*
-     * get preloaded information
+     * preloaded
      */
 
     /**
@@ -304,8 +553,18 @@ class word extends sandbox_typed
      */
     function type_name(): string
     {
-        global $phrase_types;
-        return $phrase_types->name($this->type_id);
+        global $phr_typ_cac;
+        return $phr_typ_cac->name($this->type_id);
+    }
+
+    /**
+     * get the name of the word type or null if no type is set
+     * @return string|null the name of the word type
+     */
+    function type_name_or_null(): ?string
+    {
+        global $phr_typ_cac;
+        return $phr_typ_cac->name_or_null($this->type_id);
     }
 
     /**
@@ -314,242 +573,62 @@ class word extends sandbox_typed
      */
     function type_code_id(): string
     {
-        global $phrase_types;
-        return $phrase_types->code_id($this->type_id);
+        global $phr_typ_cac;
+        return $phr_typ_cac->code_id($this->type_id);
     }
 
 
     /*
-     * cast
+     * convert
      */
 
     /**
-     * @return word_api the word frontend api object
+     * @returns phrase the word object cast into a phrase object
      */
-    function api_obj(): word_api
+    function phrase(): phrase
     {
-        $api_obj = new word_api();
-        if (!$this->is_excluded()) {
-            parent::fill_api_obj($api_obj);
-        }
-        return $api_obj;
+        $phr = new phrase($this->user());
+        $phr->set_obj($this);
+        log_debug($this->dsp_id());
+        return $phr;
     }
 
     /**
-     * @returns string the api json message for the object as a string
+     * @returns term the word object cast into a term object
      */
-    function api_json(): string
+    function term(): term
     {
-        return $this->api_obj()->get_json();
+        $trm = new term($this->user());
+        $trm->set_id_from_obj($this->id(), self::class);
+        $trm->set_obj($this);
+        log_debug($this->dsp_id());
+        return $trm;
     }
 
     /**
-     * map a word api json to this model word object
-     * similar to the import_obj function but using the database id instead of names as the unique key
-     * @param array $api_json the api array with the word values that should be mapped
+     * return the main word object based on an id text e.g. used in view.php to get the word to display
+     * TODO: check if needed and review
      */
-    function set_by_api_json(array $api_json): user_message
+    function main_wrd_from_txt($id_txt): void
     {
-        global $phrase_types;
-
-        $msg = new user_message();
-
-        // make sure that there are no unexpected leftovers
-        $usr = $this->user();
-        $this->reset();
-        $this->set_user($usr);
-
-        foreach ($api_json as $key => $value) {
-
-            if ($key == api::FLD_ID) {
-                $this->set_id($value);
+        if ($id_txt <> '') {
+            log_debug('from "' . $id_txt . '"');
+            $wrd_ids = explode(",", $id_txt);
+            log_debug('check if "' . $wrd_ids[0] . '" is a number');
+            if (is_numeric($wrd_ids[0])) {
+                $this->load_by_id($wrd_ids[0]);
+                log_debug('from "' . $id_txt . '" got id ' . $this->id());
+            } else {
+                $this->load_by_name($wrd_ids[0]);
+                log_debug('from "' . $id_txt . '" got name ' . $this->name);
             }
-            if ($key == api::FLD_NAME) {
-                $this->set_name($value);
-            }
-            if ($key == api::FLD_DESCRIPTION) {
-                if ($value <> '') {
-                    $this->description = $value;
-                }
-            }
-            if ($key == api::FLD_TYPE) {
-                $this->type_id = $phrase_types->id($value);
-            }
-
-            /* TODO
-            if ($key == self::FLD_PLURAL) {
-                if ($value <> '') {
-                    $this->plural = $value;
-                }
-            }
-            if ($key == share_type::JSON_FLD) {
-                $this->share_id = $share_types->id($value);
-            }
-            if ($key == protection_type::JSON_FLD) {
-                $this->protection_id = $protection_types->id($value);
-            }
-            if ($key == exp_obj::FLD_VIEW) {
-                $wrd_view = new view($this->user());
-                if ($do_save) {
-                    $wrd_view->load_by_name($value, view::class);
-                    if ($wrd_view->id == 0) {
-                        $result->add_message('Cannot find view "' . $value . '" when importing ' . $this->dsp_id());
-                    } else {
-                        $this->view_id = $wrd_view->id;
-                    }
-                } else {
-                    $wrd_view->set_name($value);
-                }
-                $this->view = $wrd_view;
-            }
-
-            if ($key == api::FLD_PHRASES) {
-                $phr_lst = new phrase_list($this->user());
-                $msg->add($phr_lst->db_obj($value));
-                if ($msg->is_ok()) {
-                    $this->grp->phr_lst = $phr_lst;
-                }
-            }
-            */
-
         }
-
-        return $msg;
     }
 
 
     /*
-     * sql create
+     * load
      */
-
-    /**
-     * the sql statement to create the table
-     *
-     * @param sql $sc with the target db_type set
-     * @return string the sql statement to create the table
-     */
-    function sql_table(sql $sc): string
-    {
-        $sc->set_class(word::class);
-        return parent::sql_table($sc);
-    }
-
-    /*
-     * loading / database access object (DAO) functions
-     */
-
-    /**
-     * create the SQL to load the default word always by the id
-     *
-     * @param sql $sc with the target db_type set
-     * @param string $class the name of the child class from where the call has been triggered
-     * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
-     */
-    function load_standard_sql(sql $sc, string $class = self::class): sql_par
-    {
-        $sc->set_class(word::class);
-        $sc->set_fields(array_merge(
-            self::FLD_NAMES,
-            self::FLD_NAMES_USR,
-            self::FLD_NAMES_NUM_USR,
-            array(user::FLD_ID)
-        ));
-
-        return parent::load_standard_sql($sc, $class);
-    }
-
-    /**
-     * load the word parameters for all users
-     * @param sql_par|null $qp placeholder to align the function parameters with the parent
-     * @param string $class the name of this class to be delivered to the parent function
-     * @return bool true if the standard word has been loaded
-     */
-    function load_standard(?sql_par $qp = null, string $class = self::class): bool
-    {
-        global $db_con;
-        $qp = $this->load_standard_sql($db_con->sql_creator());
-        $result = parent::load_standard($qp, $class);
-
-        if ($result) {
-            $result = $this->load_owner();
-        }
-        return $result;
-    }
-
-    /**
-     * create the common part of an SQL statement to retrieve the parameters of a word from the database
-     *
-     * @param sql $sc with the target db_type set
-     * @param string $query_name the name extension to make the query name unique
-     * @param string $class the name of the child class from where the call has been triggered
-     * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
-     */
-    function load_sql(sql $sc, string $query_name, string $class = self::class): sql_par
-    {
-        // TODO check if and where it is needed to exclude the formula words
-        // global $phrase_types;
-        // $qp = parent::load_sql_usr_num($sc, $this, $query_name);
-        // $sc->add_where(phrase::FLD_TYPE, $phrase_types->id(phrase_type::FORMULA_LINK), sql_par_type::CONST_NOT);
-        // return $qp;
-        return parent::load_sql_usr_num($sc, $this, $query_name);
-    }
-
-    /**
-     * create an SQL statement to retrieve a word by id from the database
-     * added to word just to assign the class for the user sandbox object
-     *
-     * @param sql $sc with the target db_type set
-     * @param int $id the id of the user sandbox object
-     * @param string $class the name of the child class from where the call has been triggered
-     * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
-     */
-    function load_sql_by_id(sql $sc, int $id, string $class = self::class): sql_par
-    {
-        return parent::load_sql_by_id($sc, $id, $class);
-    }
-
-    /**
-     * create an SQL statement to retrieve a word representing a formula by name
-     *
-     * @param sql $sc with the target db_type set
-     * @param string $name the name of the formula
-     * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
-     */
-    function load_sql_by_formula_name(sql $sc, string $name): sql_par
-    {
-        global $phrase_types;
-        $qp = parent::load_sql_usr_num($sc, $this, formula::FLD_NAME);
-        $sc->add_where($this->name_field(), $name, sql_par_type::TEXT_USR);
-        $sc->add_where(phrase::FLD_TYPE, $phrase_types->id(phrase_type::FORMULA_LINK), sql_par_type::CONST);
-        $qp->sql = $sc->sql();
-        $qp->par = $sc->get_par();
-
-        return $qp;
-    }
-
-    /**
-     * just set the class name for the user sandbox function
-     * load a word object by database id
-     * @param int $id the id of the word
-     * @param string $class the word class name
-     * @return int the id of the object found and zero if nothing is found
-     */
-    function load_by_id(int $id, string $class = self::class): int
-    {
-        return parent::load_by_id($id, $class);
-    }
-
-    /**
-     * just set the class name for the user sandbox function
-     * load a word object by name
-     * @param string $name the name word
-     * @param string $class the word class name
-     * @return int the id of the object found and zero if nothing is found
-     */
-    function load_by_name(string $name, string $class = self::class): int
-    {
-        return parent::load_by_name($name, $class);
-    }
 
     /**
      * load a word that represents a formula by the name
@@ -568,38 +647,115 @@ class word extends sandbox_typed
         return $this->id();
     }
 
+    /**
+     * load the word parameters for all users
+     * @param sql_par|null $qp placeholder to align the function parameters with the parent
+     * @return bool true if the standard word has been loaded
+     */
+    function load_standard(?sql_par $qp = null): bool
+    {
+        global $db_con;
+        $qp = $this->load_standard_sql($db_con->sql_creator());
+        $result = parent::load_standard($qp);
+
+        if ($result) {
+            $result = $this->load_owner();
+        }
+        return $result;
+    }
+
+
+    /*
+     * load sql
+     */
+
+    /**
+     * create the SQL to load the default word always by the id
+     *
+     * @param sql_creator $sc with the target db_type set
+     * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
+     */
+    function load_standard_sql(sql_creator $sc): sql_par
+    {
+        $sc->set_class($this::class);
+        $sc->set_fields(array_merge(
+            word_db::FLD_NAMES,
+            word_db::FLD_NAMES_USR,
+            word_db::FLD_NAMES_NUM_USR,
+            array(user::FLD_ID)
+        ));
+
+        return parent::load_standard_sql($sc);
+    }
+
+    /**
+     * create an SQL statement to retrieve a word by id from the database
+     * added to word just to assign the class for the user sandbox object
+     *
+     * @param sql_creator $sc with the target db_type set
+     * @param int $id the id of the user sandbox object
+     * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
+     */
+    function load_sql_by_id(sql_creator $sc, int $id): sql_par
+    {
+        return parent::load_sql_by_id($sc, $id);
+    }
+
+    /**
+     * create an SQL statement to retrieve a word representing a formula by name
+     *
+     * @param sql_creator $sc with the target db_type set
+     * @param string $name the name of the formula
+     * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
+     */
+    function load_sql_by_formula_name(sql_creator $sc, string $name): sql_par
+    {
+        global $phr_typ_cac;
+        $qp = parent::load_sql_usr_num($sc, $this, formula_db::FLD_NAME);
+        $sc->add_where($this->name_field(), $name, sql_par_type::TEXT_USR);
+        $sc->add_where(phrase::FLD_TYPE, $phr_typ_cac->id(phrase_type_shared::FORMULA_LINK), sql_par_type::CONST);
+        $qp->sql = $sc->sql();
+        $qp->par = $sc->get_par();
+
+        return $qp;
+    }
+
+    /**
+     * create the common part of an SQL statement to retrieve the parameters of a word from the database
+     *
+     * @param sql_creator $sc with the target db_type set
+     * @param string $query_name the name extension to make the query name unique
+     * @param string $class the name of the child class from where the call has been triggered
+     * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
+     */
+    function load_sql(sql_creator $sc, string $query_name, string $class = self::class): sql_par
+    {
+        // TODO check if and where it is needed to exclude the formula words
+        // global $phr_typ_cac;
+        // $qp = parent::load_sql_usr_num($sc, $this, $query_name);
+        // $sc->add_where(phrase::FLD_TYPE, $phr_typ_cac->id(phrase_type_shared::FORMULA_LINK), sql_par_type::CONST_NOT);
+        // return $qp;
+        return parent::load_sql_usr_num($sc, $this, $query_name);
+    }
+
+
+    /*
+     * sql fields
+     */
+
     function name_field(): string
     {
-        return self::FLD_NAME;
+        return word_db::FLD_NAME;
     }
 
     function all_sandbox_fields(): array
     {
-        return self::ALL_SANDBOX_FLD_NAMES;
+        return word_db::ALL_SANDBOX_FLD_NAMES;
     }
 
-    /**
-     * return the main word object based on an id text e.g. used in view.php to get the word to display
-     * TODO: check if needed and review
-     */
-    function main_wrd_from_txt($id_txt): void
-    {
-        if ($id_txt <> '') {
-            log_debug('from "' . $id_txt . '"');
-            $wrd_ids = explode(",", $id_txt);
-            log_debug('check if "' . $wrd_ids[0] . '" is a number');
-            if (is_numeric($wrd_ids[0])) {
-                $this->load_by_id($wrd_ids[0]);
-                log_debug('from "' . $id_txt . '" got id ' . $this->id);
-            } else {
-                $this->load_by_name($wrd_ids[0]);
-                log_debug('from "' . $id_txt . '" got name ' . $this->name);
-            }
-        }
-    }
 
     /*
-     * data retrieval functions
+     * retrieval
      */
 
     /**
@@ -613,84 +769,6 @@ class word extends sandbox_typed
         $val_lst = new value_list($this->user());
         $val_lst->load_by_phr($this->phrase(), $size, $page);
         return $val_lst;
-    }
-
-    /**
-     * get the view object for this word
-     */
-    function load_view(): ?view
-    {
-        $result = null;
-
-        //$this->load_obj_vars();
-
-        if ($this->view != null) {
-            $result = $this->view;
-        } else {
-            if ($this->view_id() > 0) {
-                $result = new view($this->user());
-                if ($result->load_by_id($this->view_id())) {
-                    $this->view = $result;
-                    log_debug('for ' . $this->dsp_id() . ' is ' . $result->dsp_id());
-                }
-            }
-        }
-
-        return $result;
-    }
-
-    /**
-     * calculate the suggested default view for this word
-     * TODO review, because is it needed? get the view used by most users for this word
-     *
-     * @param sql_db $db_con the db connection object as a function parameter for unit testing
-     * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
-     */
-    function view_sql(sql_db $db_con): sql_par
-    {
-        $db_con->set_class(word::class);
-        $db_con->set_usr($this->user()->id());
-        $db_con->set_fields(array(self::FLD_VIEW));
-        $db_con->set_join_usr_count_fields(array(user::FLD_ID), word::class);
-        $qp = new sql_par(self::class);
-        $qp->name = 'word_view_most_used';
-        $db_con->set_name($qp->name);
-        $qp->sql = $db_con->select_by_set_id();
-        $qp->par = $db_con->get_par();
-
-        return $qp;
-    }
-
-    /**
-     * get the suggested view
-     * @return int the view of the most often used view
-     */
-    function calc_view_id(): int
-    {
-        log_debug('for ' . $this->dsp_id());
-
-        global $db_con;
-
-        $view_id = 0;
-        $qp = $this->view_sql($db_con);
-        $db_row = $db_con->get1($qp);
-        if (isset($db_row)) {
-            $view_id = $db_row[self::FLD_VIEW];
-        }
-
-        log_debug('for ' . $this->dsp_id() . ' got ' . $view_id);
-        return $view_id;
-    }
-
-    /**
-     * get the view used by most other users
-     * @return view the view of the most often used view
-     */
-    function suggested_view(): view
-    {
-        $dsp = new view($this->user());
-        $dsp->load_by_phrase($this->phrase());
-        return $dsp;
     }
 
     /**
@@ -718,229 +796,33 @@ class word extends sandbox_typed
 
         global $db_con;
 
-        $db_con->set_class(sql_db::TBL_FORMULA_LINK);
+        $db_con->set_class(formula_link::class);
         $qp = new sql_par(self::class);
         $qp->name = 'word_formula_by_id';
         $db_con->set_name($qp->name);
-        $db_con->set_link_fields(formula::FLD_ID, phrase::FLD_ID);
-        $db_con->set_where_link_no_fld(0, 0, $this->id);
+        $db_con->set_link_fields(formula_db::FLD_ID, phrase::FLD_ID);
+        $db_con->set_where_link_no_fld(0, 0, $this->id());
         $qp->sql = $db_con->select_by_set_id();
         $qp->par = $db_con->get_par();
         $db_row = $db_con->get1($qp);
         $frm = new formula($this->user());
         if ($db_row !== false) {
-            if ($db_row[formula::FLD_ID] > 0) {
-                $frm->load_by_id($db_row[formula::FLD_ID], formula::class);
+            if ($db_row[formula_db::FLD_ID] > 0) {
+                $frm->load_by_id($db_row[formula_db::FLD_ID]);
             }
         }
 
         return $frm;
     }
 
-
-    /*
-     * im- and export
-     */
-
-    /**
-     * import a word from a json data word object
-     *
-     * @param array $in_ex_json an array with the data of the json object
-     * @param object|null $test_obj if not null the unit test object to get a dummy seq id
-     * @return user_message the status of the import and if needed the error messages that should be shown to the user
-     */
-    function import_obj(array $in_ex_json, object $test_obj = null): user_message
-    {
-        global $phrase_types;
-        global $share_types;
-        global $protection_types;
-
-        log_debug();
-
-        // reset all parameters for the word object but keep the user
-        $usr = $this->user();
-        $this->reset();
-        $this->set_user($usr);
-        $result = parent::import_obj($in_ex_json, $test_obj);
-        foreach ($in_ex_json as $key => $value) {
-            if ($key == sandbox_exp::FLD_TYPE) {
-                $this->type_id = $phrase_types->id($value);
-            }
-            if ($key == self::FLD_PLURAL) {
-                if ($value <> '') {
-                    $this->plural = $value;
-                }
-            }
-            // TODO change to view object like in triple
-            if ($key == sandbox_exp::FLD_VIEW) {
-                $wrd_view = new view($this->user());
-                if (!$test_obj) {
-                    $wrd_view->load_by_name($value, view::class);
-                    if ($wrd_view->id == 0) {
-                        $result->add_message('Cannot find view "' . $value . '" when importing ' . $this->dsp_id());
-                    } else {
-                        $this->set_view_id($wrd_view->id());
-                    }
-                } else {
-                    $wrd_view->set_name($value);
-                }
-                $this->view = $wrd_view;
-            }
-        }
-
-        // set the default type if no type is specified
-        if ($this->type_id <= 0) {
-            $this->type_id = $phrase_types->default_id();
-        }
-        // save the word in the database
-        if (!$test_obj) {
-            if ($result->is_ok()) {
-                $result->add_message($this->save());
-            }
-        }
-
-        // add related parameters to the word object
-        if ($result->is_ok()) {
-            log_debug('saved ' . $this->dsp_id());
-
-            if ($this->id <= 0) {
-                $result->add_message('Word ' . $this->dsp_id() . ' cannot be saved');
-            } else {
-                foreach ($in_ex_json as $key => $value) {
-                    if ($result->is_ok()) {
-                        if ($key == self::FLD_REFS) {
-                            foreach ($value as $ref_data) {
-                                $ref_obj = new ref($this->user());
-                                $ref_obj->phr = $this->phrase();
-                                $result->add($ref_obj->import_obj($ref_data, $test_obj));
-                                $this->ref_lst[] = $ref_obj;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        return $result;
-    }
-
-    /**
-     * create a word object for the export
-     * @param bool $do_load can be set to false for unit testing
-     * @return sandbox_exp_named a reduced word object that can be used to create a JSON message
-     */
-    function export_obj(bool $do_load = true): sandbox_exp_named
-    {
-        global $phrase_types;
-        global $share_types;
-        global $protection_types;
-
-        log_debug();
-        $result = new word_exp();
-
-        if ($this->name <> '') {
-            $result->name = $this->name();
-        }
-        if ($this->plural <> '') {
-            $result->plural = $this->plural;
-        }
-        if ($this->description <> '') {
-            $result->description = $this->description;
-        }
-        if ($this->type_id > 0) {
-            if ($this->type_id <> $phrase_types->default_id()) {
-                $result->type = $this->type_code_id();
-            }
-        }
-
-        // add the share type
-        if ($this->share_id > 0 and $this->share_id <> $share_types->id(share_type::PUBLIC)) {
-            $result->share = $this->share_type_code_id();
-        }
-
-        // add the protection type
-        if ($this->protection_id > 0 and $this->protection_id <> $protection_types->id(protection_type::NO_PROTECT)) {
-            $result->protection = $this->protection_type_code_id();
-        }
-
-        if ($this->view_id() > 0) {
-            if ($do_load) {
-                $this->view = $this->load_view();
-            }
-        }
-        if (isset($this->view)) {
-            $result->view = $this->view->name();
-        }
-        if (isset($this->ref_lst)) {
-            foreach ($this->ref_lst as $ref) {
-                $result->refs[] = $ref->export_obj();
-            }
-        }
-
-        log_debug(json_encode($result));
-        return $result;
-    }
-
-    /**
-     * set the word object vars based on an api json array
-     * similar to import_obj but using the database id instead of the names
-     * the other side of the api_obj function
-     *
-     * @param array $api_json the api array
-     * @return user_message false if a value could not be set
-     */
-    function save_from_api_msg(array $api_json, bool $do_save = true): user_message
-    {
-        log_debug();
-        $result = new user_message();
-
-        foreach ($api_json as $key => $value) {
-
-            if ($key == sandbox_exp::FLD_NAME) {
-                $this->name = $value;
-            }
-            if ($key == sandbox_exp::FLD_DESCRIPTION) {
-                $this->description = $value;
-            }
-            if ($key == sandbox_exp::FLD_TYPE_ID) {
-                $this->type_id = $value;
-            }
-        }
-
-        if ($result->is_ok() and $do_save) {
-            $result->add_message($this->save());
-        }
-
-        return $result;
-    }
-
-
-    /*
-     * display functions
-     */
-
-    /**
-     * return the name (just because all objects should have a name function)
-     */
-    function name_dsp(): string
-    {
-        if ($this->is_excluded()) {
-            return '';
-        } else {
-            return $this->name;
-        }
-    }
-
-    /*
-     * object load
-     */
-
-
     function view(): ?view
     {
         return $this->load_view();
     }
 
+
     /*
+     * TODO review
     // offer the user to export the word and the relations as a xml file
     function config_json_export(string $back = ''): string
     {
@@ -963,14 +845,52 @@ class word extends sandbox_typed
     }
     */
 
-    /**
-     * get the database id of the word type
-     * also to fix a problem if a phrase list contains a word
-     * @return int the id of the word type
+
+    /*
+     * info
      */
-    function type_id(): ?int
+
+    /**
+     * create human-readable messages of the differences between the word objects
+     * TODO Prio 2 move to db_object_seq_id ?
+     * @param word|CombineObject|db_object_seq_id $obj which might be different to this word
+     * @return user_message the human-readable messages of the differences between the word objects
+     */
+    function diff_msg(word|CombineObject|db_object_seq_id $obj): user_message
     {
-        return $this->type_id;
+        $usr_msg = parent::diff_msg($obj);
+        if ($this->id() != $obj->id()) {
+            $usr_msg->add_id_with_vars(msg_id::DIFF_ID, [
+                msg_id::VAR_ID => $obj->dsp_id(),
+                msg_id::VAR_ID_CHK => $this->dsp_id(),
+                msg_id::VAR_WORD_NAME => $this->dsp_id(),
+            ]);
+        }
+        return $usr_msg;
+    }
+
+    /**
+     * check if the word in the database needs to be updated
+     * * e.g. for import  if this word has only the name set, the protection should not be updated in the database
+     * is expected to be similar to the diff_msg function
+     *
+     * @param word|CombineObject|db_object_seq_id $db_obj which might be different to this sandbox object
+     * @return bool true if this word has infos that should be saved in the database
+     */
+    function needs_db_update(word|CombineObject|db_object_seq_id $db_obj): bool
+    {
+        $result = parent::needs_db_update($db_obj);
+        if ($this->plural() != null) {
+            if ($this->plural() != $db_obj->plural()) {
+                $result = true;
+            }
+        }
+        if ($this->values != null) {
+            if ($this->values != $db_obj->values) {
+                $result = true;
+            }
+        }
+        return $result;
     }
 
     /**
@@ -979,12 +899,10 @@ class word extends sandbox_typed
      */
     function is_type(string $type): bool
     {
-        global $phrase_types;
-
-        log_debug($this->dsp_id() . ' is ' . $type);
+        global $phr_typ_cac;
 
         $result = false;
-        if ($this->type_id == $phrase_types->id($type)) {
+        if ($this->type_id == $phr_typ_cac->id($type)) {
             $result = true;
             log_debug($this->dsp_id() . ' is ' . $type);
         }
@@ -996,7 +914,7 @@ class word extends sandbox_typed
      */
     function is_time(): bool
     {
-        return $this->is_type(phrase_type::TIME);
+        return $this->is_type(phrase_type_shared::TIME);
     }
 
     /**
@@ -1004,7 +922,7 @@ class word extends sandbox_typed
      */
     function is_time_jump(): bool
     {
-        return $this->is_type(phrase_type::TIME_JUMP);
+        return $this->is_type(phrase_type_shared::TIME_JUMP);
     }
 
     /**
@@ -1014,7 +932,7 @@ class word extends sandbox_typed
      */
     function is_measure(): bool
     {
-        return $this->is_type(phrase_type::MEASURE);
+        return $this->is_type(phrase_type_shared::MEASURE);
     }
 
     /**
@@ -1023,8 +941,8 @@ class word extends sandbox_typed
     function is_scaling(): bool
     {
         $result = false;
-        if ($this->is_type(phrase_type::SCALING)
-            or $this->is_type(phrase_type::SCALING_HIDDEN)) {
+        if ($this->is_type(phrase_type_shared::SCALING)
+            or $this->is_type(phrase_type_shared::SCALING_HIDDEN)) {
             $result = true;
         }
         return $result;
@@ -1035,8 +953,43 @@ class word extends sandbox_typed
      */
     function is_percent(): bool
     {
-        return $this->is_type(phrase_type::PERCENT);
+        return $this->is_type(phrase_type_shared::PERCENT);
     }
+
+
+    /*
+     * modify
+     */
+
+    /**
+     * fill this word based on the given word
+     * if the id is set in the given word loaded from the database but this import word does not yet have the db id, set the id
+     * if the given description is not set (null) the description is not remove
+     * if the given description is an empty string the description is removed
+     *
+     * @param word|CombineObject|db_object_seq_id $obj word with the values that should have been updated e.g. based on the import
+     * @param user $usr_req the user who has requested the fill
+     * @return user_message a warning in case of a conflict e.g. due to a missing change time
+     */
+    function fill(word|CombineObject|db_object_seq_id $obj, user $usr_req): user_message
+    {
+        $usr_msg = parent::fill($obj, $usr_req);
+        if ($obj->code_id() != null) {
+            $this->set_code_id($obj->code_id(), $usr_req);
+        }
+        if ($obj->plural() != null) {
+            $this->set_plural($obj->plural());
+        }
+        if ($obj->values != null) {
+            $this->values = $obj->values;
+        }
+        return $usr_msg;
+    }
+
+
+    /*
+     * foaf
+     */
 
     /**
      * tree building function
@@ -1047,9 +1000,9 @@ class word extends sandbox_typed
      * children and            parents return the direct parents and children   without the original phrase(s)
      * foaf_children and       foaf_parents return the    all parents and children   without the original phrase(s)
      * are and                 is return the    all parents and children including the original phrase(s) for the specific verb "is a"
-     * contains                        return the    all             children including the original phrase(s) for the specific verb "contains"
-     * is part of return the    all parents                without the original phrase(s) for the specific verb "contains"
-     * next and              prior return the direct parents and children   without the original phrase(s) for the specific verb "follows"
+     * contains                   return the    all             children including the original phrase(s) for the specific verb "contains"
+     * is part of return the                    all parents                without the original phrase(s) for the specific verb "contains"
+     * next and                     prior return the direct parents and children   without the original phrase(s) for the specific verb "follows"
      * followed_by and        follower_of return the    all parents and children   without the original phrase(s) for the specific verb "follows"
      * differentiated_by and differentiator_for return the    all parents and children   without the original phrase(s) for the specific verb "can_contain"
      *
@@ -1093,10 +1046,10 @@ class word extends sandbox_typed
      */
     function parents(): phrase_list
     {
-        global $verbs;
+        global $vrb_cac;
         log_debug('for ' . $this->dsp_id() . ' and user ' . $this->user()->id());
         $phr_lst = $this->lst();
-        $parent_phr_lst = $phr_lst->foaf_parents($verbs->get_verb(verb::IS));
+        $parent_phr_lst = $phr_lst->foaf_parents($vrb_cac->get_verb(verbs::IS));
         log_debug('are ' . $parent_phr_lst->dsp_name() . ' for ' . $this->dsp_id());
         return $parent_phr_lst;
     }
@@ -1137,15 +1090,15 @@ class word extends sandbox_typed
      */
     function add_child(word $child): bool
     {
-        global $verbs;
+        global $vrb_cac;
 
         $result = false;
         $wrd_lst = $this->children();
         if (!$wrd_lst->does_contain($child)) {
             $wrd_lnk = new triple($this->user());
-            $wrd_lnk->fob = $child->phrase();
-            $wrd_lnk->verb = $verbs->get_verb(verb::IS);
-            $wrd_lnk->tob = $this->phrase();
+            $wrd_lnk->set_from($child->phrase());
+            $wrd_lnk->set_verb($vrb_cac->get_verb(verbs::IS));
+            $wrd_lnk->set_to($this->phrase());
             if ($wrd_lnk->save() == '') {
                 $result = true;
             }
@@ -1161,10 +1114,10 @@ class word extends sandbox_typed
      */
     function children(): phrase_list
     {
-        global $verbs;
+        global $vrb_cac;
         log_debug('for ' . $this->dsp_id() . ' and user ' . $this->user()->id());
         $phr_lst = $this->lst();
-        $child_phr_lst = $phr_lst->all_children($verbs->get_verb(verb::IS));
+        $child_phr_lst = $phr_lst->all_children($vrb_cac->get_verb(verbs::IS));
         log_debug('are ' . $child_phr_lst->name() . ' for ' . $this->dsp_id());
         return $child_phr_lst;
     }
@@ -1189,9 +1142,9 @@ class word extends sandbox_typed
      */
     function parts(): phrase_list
     {
-        global $verbs;
+        global $vrb_cac;
         $phr_lst = $this->lst();
-        return $phr_lst->foaf_children($verbs->get_verb(verb::IS_PART_OF));
+        return $phr_lst->foaf_children($vrb_cac->get_verb(verbs::PART_NAME));
     }
 
     /**
@@ -1200,9 +1153,9 @@ class word extends sandbox_typed
      */
     function direct_parts(): phrase_list
     {
-        global $verbs;
+        global $vrb_cac;
         $phr_lst = $this->lst();
-        return $phr_lst->foaf_children($verbs->get_verb(verb::IS_PART_OF), 1);
+        return $phr_lst->foaf_children($vrb_cac->get_verb(verbs::PART_NAME), 1);
     }
 
     /**
@@ -1247,14 +1200,14 @@ class word extends sandbox_typed
         log_debug($this->dsp_id());
 
         global $db_con;
-        global $verbs;
+        global $vrb_cac;
 
         $result = new word($this->user());
 
-        $link_id = $verbs->id(verb::FOLLOW);
+        $link_id = $vrb_cac->id(verbs::FOLLOW);
         $db_con->usr_id = $this->user()->id();
-        $db_con->set_class(sql_db::TBL_TRIPLE);
-        $key_result = $db_con->get_value_2key('from_phrase_id', 'to_phrase_id', $this->id, verb::FLD_ID, $link_id);
+        $db_con->set_class(triple::class);
+        $key_result = $db_con->get_value_2key(triple_db::FLD_FROM, triple_db::FLD_TO, $this->id(), verb_db::FLD_ID, $link_id);
         if (is_numeric($key_result)) {
             $id = intval($key_result);
             if ($id > 0) {
@@ -1273,14 +1226,14 @@ class word extends sandbox_typed
         log_debug($this->dsp_id());
 
         global $db_con;
-        global $verbs;
+        global $vrb_cac;
 
         $result = new word($this->user());
 
-        $link_id = $verbs->id(verb::FOLLOW);
+        $link_id = $vrb_cac->id(verbs::FOLLOW);
         $db_con->usr_id = $this->user()->id();
-        $db_con->set_class(sql_db::TBL_TRIPLE);
-        $key_result = $db_con->get_value_2key('to_phrase_id', 'from_phrase_id', $this->id, verb::FLD_ID, $link_id);
+        $db_con->set_class(triple::class);
+        $key_result = $db_con->get_value_2key(triple_db::FLD_TO, triple_db::FLD_FROM, $this->id(), verb_db::FLD_ID, $link_id);
         if (is_numeric($key_result)) {
             $id = intval($key_result);
             if ($id > 0) {
@@ -1290,6 +1243,89 @@ class word extends sandbox_typed
         return $result;
     }
 
+
+    /*
+     * ui sort
+     */
+
+    /**
+     * get the view used by most other users
+     * @return view the view of the most often used view
+     */
+    function suggested_view(): view
+    {
+        $msk = new view($this->user());
+        $msk->load_by_phrase($this->phrase());
+        return $msk;
+    }
+
+    /**
+     * get the suggested view
+     * @return int the view of the most often used view
+     */
+    function calc_view_id(): int
+    {
+        log_debug('for ' . $this->dsp_id());
+
+        global $db_con;
+
+        $view_id = 0;
+        $qp = $this->view_sql($db_con);
+        $db_row = $db_con->get1($qp);
+        if (isset($db_row)) {
+            if ($db_row[word_db::FLD_VIEW] != null) {
+                $view_id = $db_row[word_db::FLD_VIEW];
+            }
+        }
+
+        log_debug('for ' . $this->dsp_id() . ' got ' . $view_id);
+        return $view_id;
+    }
+
+    /**
+     * get the view object for this word
+     */
+    function load_view(): ?view
+    {
+        $result = null;
+
+        if ($this->view != null) {
+            $result = $this->view;
+        } else {
+            if ($this->view_id() > 0) {
+                $result = new view($this->user());
+                if ($result->load_by_id($this->view_id())) {
+                    $this->view = $result;
+                    log_debug('for ' . $this->dsp_id() . ' is ' . $result->dsp_id());
+                }
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * calculate the suggested default view for this word
+     * TODO review, because is it needed? get the view used by most users for this word
+     *
+     * @param sql_db $db_con the db connection object as a function parameter for unit testing
+     * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
+     */
+    function view_sql(sql_db $db_con): sql_par
+    {
+        $db_con->set_class(word::class);
+        $db_con->set_usr($this->user()->id());
+        $db_con->set_fields(array(word_db::FLD_VIEW));
+        $db_con->set_join_usr_count_fields(array(user::FLD_ID), word::class);
+        $qp = new sql_par(self::class);
+        $qp->name = 'word_view_most_used';
+        $db_con->set_name($qp->name);
+        $qp->sql = $db_con->select_by_set_id();
+        $qp->par = $db_con->get_par();
+
+        return $qp;
+    }
+
     /**
      * calculates how many times a word is used, because this can be helpful for sorting
      */
@@ -1297,12 +1333,15 @@ class word extends sandbox_typed
     {
         global $db_con;
 
+        // TODO recreate based on the group
+        /*
         $sql = 'UPDATE words t
              SET ' . $db_con->sf("values") . ' = ( 
           SELECT COUNT(group_id) 
-            FROM value_phrase_links l
-           WHERE l.phrase_id = t.word_id);';
+            FROM group g
+           WHERE g.phrase_id = t.word_id);';
         $db_con->exe_try('Calculate word usage', $sql);
+        */
         return true;
     }
 
@@ -1314,10 +1353,10 @@ class word extends sandbox_typed
      */
     function is_part(): phrase_list
     {
-        global $verbs;
+        global $vrb_cac;
         log_debug($this->dsp_id() . ', user ' . $this->user()->id());
         $phr_lst = $this->lst();
-        $is_phr_lst = $phr_lst->foaf_parents($verbs->get_verb(verb::IS_PART_OF));
+        $is_phr_lst = $phr_lst->foaf_parents($vrb_cac->get_verb(verbs::PART_NAME));
 
         log_debug($this->dsp_id() . ' is a ' . $is_phr_lst->dsp_name());
         return $is_phr_lst;
@@ -1325,7 +1364,7 @@ class word extends sandbox_typed
 
 
     /*
-     * functions that create and fill related objects
+     * related
      */
 
     /**
@@ -1353,7 +1392,7 @@ class word extends sandbox_typed
     }
 
     /**
-     * return a list of downward related verbs e.g. 'contains' for Mathematical constant because Mathematical constant contains Pi
+     * return a list of downward related verbs e.g. 'contains' for mathematical constant because mathematical constant contains Pi
      */
     private function verb_list_down(): verb_list
     {
@@ -1374,46 +1413,20 @@ class word extends sandbox_typed
 
 
     /*
-     * convert
+     * sandbox
      */
 
     /**
-     * @returns phrase the word object cast into a phrase object
-     */
-    function phrase(): phrase
-    {
-        $phr = new phrase($this->user());
-        $phr->set_obj($this);
-        log_debug($this->dsp_id());
-        return $phr;
-    }
-
-    /**
-     * @returns term the word object cast into a term object
-     */
-    function term(): term
-    {
-        $trm = new term($this->user());
-        $trm->set_id_from_obj($this->id, self::class);
-        $trm->set_obj($this);
-        log_debug($this->dsp_id());
-        return $trm;
-    }
-
-    /*
-     * save / database transfer object functions
-     */
-
-    /**
+     * TODO review
      * true if the word has any none default settings such as a special type
      */
     function has_cfg(): bool
     {
-        global $phrase_types;
+        global $phr_typ_cac;
 
         $has_cfg = false;
-        if (isset($this->plural)) {
-            if ($this->plural <> '') {
+        if ($this->plural() != null) {
+            if ($this->plural() <> '') {
                 $has_cfg = true;
             }
         }
@@ -1423,7 +1436,7 @@ class word extends sandbox_typed
             }
         }
         if (isset($this->type_id)) {
-            if ($this->type_id <> $phrase_types->default_id()) {
+            if ($this->type_id <> $phr_typ_cac->default_id()) {
                 $has_cfg = true;
             }
         }
@@ -1435,7 +1448,7 @@ class word extends sandbox_typed
 
     function not_used(): bool
     {
-        log_debug($this->id);
+        log_debug($this->id());
 
         if (parent::not_used()) {
             $result = true;
@@ -1466,10 +1479,10 @@ class word extends sandbox_typed
      * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
      *                 to check if the word has been changed
      */
-    function not_changed_sql(sql_db $db_con): sql_par
+    function not_changed_sql(sql_creator $sc): sql_par
     {
-        $db_con->set_class(word::class);
-        return $db_con->load_sql_not_changed($this->id, $this->owner_id);
+        $sc->set_class(word::class);
+        return $sc->load_sql_not_changed($this->id(), $this->owner_id());
     }
 
     /**
@@ -1478,12 +1491,12 @@ class word extends sandbox_typed
      */
     function not_changed(): bool
     {
-        log_debug($this->id . ' by someone else than the owner (' . $this->owner_id);
+        log_debug($this->id() . ' by someone else than the owner (' . $this->owner_id());
 
         global $db_con;
         $result = true;
 
-        if ($this->id == 0) {
+        if ($this->id() == 0) {
             log_err('The id must be set to check if the triple has been changed');
         } else {
             $qp = $this->not_changed_sql($db_con);
@@ -1492,53 +1505,14 @@ class word extends sandbox_typed
                 $result = false;
             }
         }
-        log_debug('for ' . $this->id);
+        log_debug('for ' . $this->id());
         return $result;
     }
 
-    /**
-     * true if the user is the owner and no one else has changed the word
-     * because if another user has changed the word and the original value is changed, maybe the user word also needs to be updated
-     */
-    function can_change(): bool
-    {
-        log_debug($this->id . ',u' . $this->user()->id());
-        $can_change = false;
-        if ($this->owner_id == $this->user()->id() or $this->owner_id <= 0) {
-            $wrd_user = $this->changer();
-            if ($wrd_user == $this->user()->id() or $wrd_user <= 0) {
-                $can_change = true;
-            }
-        }
 
-        log_debug(zu_dsp_bool($can_change));
-        return $can_change;
-    }
-
-    /**
-     * true if a record for a user specific configuration already exists in the database
+    /*
+     * log
      */
-    function has_usr_cfg(): bool
-    {
-        $has_cfg = false;
-        if ($this->usr_cfg_id > 0) {
-            $has_cfg = true;
-        }
-        return $has_cfg;
-    }
-
-    /**
-     * create an SQL statement to retrieve the user changes of the current word
-     *
-     * @param sql $sc with the target db_type set
-     * @param string $class the name of the child class from where the call has been triggered
-     * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
-     */
-    function load_sql_user_changes(sql $sc, string $class = self::class): sql_par
-    {
-        $sc->set_class(word::class, true);
-        return parent::load_sql_user_changes($sc, $class);
-    }
 
     /**
      * set the log entry parameters for a value update
@@ -1551,129 +1525,214 @@ class word extends sandbox_typed
         $msk_new->load_by_id($view_id);
 
         $log = new change($this->user());
-        $log->action = change_log_action::UPDATE;
-        $log->set_table(change_log_table::WORD);
-        $log->set_field(self::FLD_VIEW);
+        $log->set_action(change_actions::UPDATE);
+        $log->set_class(word::class);
+        $log->set_field(word_db::FLD_VIEW);
         if ($this->view_id() > 0) {
             $msk_old = new view($this->user());
             $msk_old->load_by_id($this->view_id());
             $log->old_value = $msk_old->name();
-            $log->old_id = $msk_old->id;
+            $log->old_id = $msk_old->id();
         } else {
-            $log->old_value = '';
+            $log->old_value = null;
             $log->old_id = 0;
         }
         $log->new_value = $msk_new->name();
-        $log->new_id = $msk_new->id;
-        $log->row_id = $this->id;
+        $log->new_id = $msk_new->id();
+        $log->row_id = $this->id();
         $log->add();
 
         return $log;
+    }
+
+
+    /*
+     * save
+     */
+
+    /**
+     * set the word object vars based on an api json array
+     * similar to import_obj but using the database id instead of the names
+     * the other side of the api_obj function
+     *
+     * @param array $api_json the api array
+     * @return user_message false if a value could not be set
+     */
+    function save_from_api_msg(array $api_json, bool $do_save = true): user_message
+    {
+        log_debug();
+        $usr_msg = new user_message();
+
+        foreach ($api_json as $key => $value) {
+
+            if ($key == json_fields::NAME) {
+                $this->name = $value;
+            }
+            if ($key == json_fields::DESCRIPTION) {
+                $this->description = $value;
+            }
+            if ($key == json_fields::TYPE) {
+                $this->type_id = $value;
+            }
+        }
+
+        if ($usr_msg->is_ok() and $do_save) {
+            $usr_msg->add($this->save());
+        }
+
+        return $usr_msg;
     }
 
     /**
      * remember the word view, which means to save the view id for this word
      * each user can define set the view individually, so this is user specific
      */
-    function save_view(int $view_id): string
+    function save_view(int $view_id): user_message
     {
 
         global $db_con;
-        $result = '';
+        $usr_msg = new user_message();
 
-        if ($this->id > 0 and $view_id > 0 and $view_id <> $this->view_id()) {
-            log_debug($view_id . ' for ' . $this->dsp_id() . ' and user ' . $this->user()->id());
+        if ($this->id() > 0 and $view_id > 0 and $view_id <> $this->view_id()) {
+            $this->set_view_id($view_id);
             if ($this->log_upd_view($view_id) > 0) {
                 //$db_con = new mysql;
                 $db_con->usr_id = $this->user()->id();
                 if ($this->can_change()) {
-                    $db_con->set_class(word::class);
-                    if (!$db_con->update_old($this->id, "view_id", $view_id)) {
-                        $result = 'setting of view failed';
-                    }
+                    $usr_msg->add($this->update('view of word'));
                 } else {
                     if (!$this->has_usr_cfg()) {
                         if (!$this->add_usr_cfg()) {
-                            $result = 'adding of user configuration failed';
+                            $usr_msg->add_id(msg_id::ADD_USER_CONFIG_FAILED);
                         }
                     }
-                    if ($result == '') {
-                        $db_con->set_class(sql_db::TBL_USER_PREFIX . sql_db::TBL_WORD);
-                        if (!$db_con->update_old($this->id, "view_id", $view_id)) {
-                            $result = 'setting of view for user failed';
-                        }
+                    if ($usr_msg == '') {
+                        $usr_msg->add($this->update('user view of word'));
                     }
                 }
             }
         }
-        return $result;
+        return $usr_msg;
+    }
+
+    /**
+     * set the update parameters for the word code_id
+     * @return user_message the message that should be shown to the user in case something went wrong
+     */
+    private function save_field_code_id(sql_db $db_con, word $db_rec, word $std_rec): user_message
+    {
+        $usr_msg = new user_message();
+        // if the code_id is not set, don't overwrite any db entry
+        if ($this->code_id() <> Null) {
+            if ($this->code_id() <> $db_rec->code_id()) {
+                $log = $this->log_upd();
+                $log->old_value = $db_rec->code_id();
+                $log->new_value = $this->code_id();
+                $log->std_value = $std_rec->code_id();
+                $log->row_id = $this->id();
+                $log->set_field(sql_db::FLD_CODE_ID);
+                $usr_msg->add($this->save_field_user($db_con, $log));
+            }
+        }
+        return $usr_msg;
     }
 
     /**
      * set the update parameters for the word plural
+     * @return user_message the message that should be shown to the user in case something went wrong
      */
-    private function save_field_plural(sql_db $db_con, word $db_rec, word $std_rec): string
+    private function save_field_plural(sql_db $db_con, word $db_rec, word $std_rec): user_message
     {
-        $result = '';
+        $usr_msg = new user_message();
         // if the plural is not set, don't overwrite any db entry
-        if ($this->plural <> Null) {
-            if ($this->plural <> $db_rec->plural) {
+        if ($this->plural() <> Null) {
+            if ($this->plural() <> $db_rec->plural()) {
                 $log = $this->log_upd();
-                $log->old_value = $db_rec->plural;
-                $log->new_value = $this->plural;
-                $log->std_value = $std_rec->plural;
-                $log->row_id = $this->id;
-                $log->set_field(self::FLD_PLURAL);
-                $result = $this->save_field_user($db_con, $log);
+                $log->old_value = $db_rec->plural();
+                $log->new_value = $this->plural();
+                $log->std_value = $std_rec->plural();
+                $log->row_id = $this->id();
+                $log->set_field(word_db::FLD_PLURAL);
+                $usr_msg->add($this->save_field_user($db_con, $log));
             }
         }
-        return $result;
+        return $usr_msg;
     }
 
     /**
      * set the update parameters for the word view_id
      * @param word|sandbox $db_rec the database record before the saving
-     * @return string an error message that should be shown to the user if something fails
+     * @return user_message the message that should be shown to the user in case something went wrong
      * TODO replace string by usr_msg to include more infos e.g. suggested solutions
      */
-    private function save_field_view(word|sandbox $db_rec): string
+    private function save_field_view(word|sandbox $db_rec): user_message
     {
-        $result = '';
+        $usr_msg = new user_message();
         if ($db_rec->view_id() <> $this->view_id()) {
-            $result = $this->save_view($this->view_id());
+            $usr_msg->add($this->save_view($this->view_id()));
         }
-        return $result;
+        return $usr_msg;
     }
 
     /**
      * save all updated word fields
      * @param sql_db $db_con the database connection that can be either the real database connection or a simulation used for testing
-     * @param word|sandbox $db_rec the database record before the saving
-     * @param word|sandbox $std_rec the database record defined as standard because it is used by most users
-     * @return string if not empty the message that should be shown to the user
+     * @param word|sandbox $db_obj the database record before the saving
+     * @param word|sandbox $norm_obj the database record defined as standard because it is used by most users
+     * @return user_message the message that should be shown to the user in case something went wrong
      */
-    function save_fields(sql_db $db_con, word|sandbox $db_rec, word|sandbox $std_rec): string
+    function save_all_fields(sql_db $db_con, word|sandbox $db_obj, word|sandbox $norm_obj): user_message
     {
-        $result = $this->save_field_plural($db_con, $db_rec, $std_rec);
-        $result .= $this->save_field_description($db_con, $db_rec, $std_rec);
-        $result .= $this->save_field_type($db_con, $db_rec, $std_rec);
-        $result .= $this->save_field_view($db_rec);
-        $result .= $this->save_field_excluded($db_con, $db_rec, $std_rec);
+        $result = $this->save_field_code_id($db_con, $db_obj, $norm_obj);
+        $result->add($this->save_field_plural($db_con, $db_obj, $norm_obj));
+        $result->add($this->save_field_description($db_con, $db_obj, $norm_obj));
+        $result->add($this->save_field_type($db_con, $db_obj, $norm_obj));
+        $result->add($this->save_field_view($db_obj));
+        $result->add($this->save_field_excluded($db_con, $db_obj, $norm_obj));
         log_debug('all fields for ' . $this->dsp_id() . ' has been saved');
         return $result;
     }
 
+
+    /*
+     * save helper
+     */
+
     /**
-     * delete the references to this word which includes the phrase groups, the triples and values
+     * @return array with the reserved word names
+     */
+    protected function reserved_names(): array
+    {
+        return words::RESERVED_NAMES;
+    }
+
+    /**
+     * @return array with the fixed word names for db read testing
+     */
+    protected function fixed_names(): array
+    {
+        return words::FIXED_NAMES;
+    }
+
+
+    /*
+     * del
+     */
+
+    /**
+     * delete the references to this word
+     * which includes the phrase groups, the triples and values
+     *
      * @return user_message of the link removal and if needed the error messages that should be shown to the user
      */
     function del_links(): user_message
     {
-        $result = new user_message();
+        $usr_msg = new user_message();
 
         // collect all phrase groups where this word is used
-        $grp_lst = new group_list($this->user());
-        $grp_lst->load_by_phr($this->phrase());
+        // TODO activate
+        //$grp_lst = new group_list($this->user());
+        //$grp_lst->load_by_phr($this->phrase());
 
         // collect all triples where this word is used
         $trp_lst = new triple_list($this->user());
@@ -1685,18 +1744,148 @@ class word extends sandbox_typed
 
         // if there are still values, ask if they really should be deleted
         if ($val_lst->has_values()) {
-            $result->add($val_lst->del());
+            $usr_msg->add($val_lst->del());
         }
 
         // if there are still triples, ask if they really should be deleted
         if ($trp_lst->has_values()) {
-            $result->add($trp_lst->del());
+            $usr_msg->add($trp_lst->del());
         }
 
         // delete the phrase groups
-        $result->add($grp_lst->del());
+        // TODO activate
+        //$usr_msg->add($grp_lst->del());
 
-        return $result;
+        return $usr_msg;
+    }
+
+
+    /*
+     * sql write fields
+     */
+
+    /**
+     * get a list of all database fields that might be changed
+     * excluding the internal fields e.g. the database id
+     * field list must be corresponding to the db_fields_changed fields
+     *
+     * @param sql_type_list $sc_par_lst only used for link objects
+     * @return array list of all database field names that have been updated
+     */
+    function db_fields_all(sql_type_list $sc_par_lst = new sql_type_list()): array
+    {
+        return array_merge(
+            parent::db_fields_all(),
+            [
+                phrase::FLD_TYPE,
+                word_db::FLD_VIEW,
+                word_db::FLD_PLURAL,
+                word_db::FLD_VALUES
+            ],
+            parent::db_fields_all_sandbox()
+        );
+    }
+
+    /**
+     * get a list of database field names, values and types that have been updated
+     *
+     * @param sandbox|word $sbx the compare value to detect the changed fields
+     * @param sql_type_list $sc_par_lst the parameters for the sql statement creation
+     * @return sql_par_field_list list 3 entry arrays with the database field name, the value and the sql type that have been updated
+     */
+    function db_fields_changed(
+        sandbox|word  $sbx,
+        sql_type_list $sc_par_lst = new sql_type_list()
+    ): sql_par_field_list
+    {
+        global $cng_fld_cac;
+
+        $sc = new sql_creator();
+        $do_log = $sc_par_lst->incl_log();
+        $table_id = $sc->table_id($this::class);
+
+        $lst = parent::db_fields_changed($sbx, $sc_par_lst);
+        if ($sbx->type_id() <> $this->type_id()) {
+            if ($do_log) {
+                $lst->add_field(
+                    sql::FLD_LOG_FIELD_PREFIX . phrase::FLD_TYPE,
+                    $cng_fld_cac->id($table_id . phrase::FLD_TYPE),
+                    change::FLD_FIELD_ID_SQL_TYP
+                );
+            }
+            global $phr_typ_cac;
+            $lst->add_type_field(
+                phrase::FLD_TYPE,
+                phrase::FLD_TYPE_NAME,
+                $this->type_id(),
+                $sbx->type_id(),
+                $phr_typ_cac);
+        }
+        if ($sbx->view_id() <> $this->view_id()) {
+            if ($do_log) {
+                $lst->add_field(
+                    sql::FLD_LOG_FIELD_PREFIX . word_db::FLD_VIEW,
+                    $cng_fld_cac->id($table_id . word_db::FLD_VIEW),
+                    change::FLD_FIELD_ID_SQL_TYP
+                );
+            }
+            $lst->add_link_field(
+                word_db::FLD_VIEW,
+                view_db::FLD_NAME,
+                $this->view,
+                $sbx->view
+            );
+        }
+        // TODO move to language forms
+        if ($sbx->plural() <> $this->plural()) {
+            if ($do_log) {
+                $lst->add_field(
+                    sql::FLD_LOG_FIELD_PREFIX . word_db::FLD_PLURAL,
+                    $cng_fld_cac->id($table_id . word_db::FLD_PLURAL),
+                    change::FLD_FIELD_ID_SQL_TYP
+                );
+            }
+            $lst->add_field(
+                word_db::FLD_PLURAL,
+                $this->plural(),
+                word_db::FLD_PLURAL_SQL_TYP,
+                $sbx->plural()
+            );
+        }
+        // TODO rename to usage
+        if ($sbx->values <> $this->values) {
+            if ($do_log) {
+                $lst->add_field(
+                    sql::FLD_LOG_FIELD_PREFIX . word_db::FLD_VALUES,
+                    $cng_fld_cac->id($table_id . word_db::FLD_VALUES),
+                    change::FLD_FIELD_ID_SQL_TYP
+                );
+            }
+            $lst->add_field(
+                word_db::FLD_VALUES,
+                $this->values,
+                word_db::FLD_VALUES_SQL_TYP,
+                $sbx->values
+            );
+        }
+        return $lst->merge($this->db_changed_sandbox_list($sbx, $sc_par_lst));
+    }
+
+
+    /*
+     * debug
+     */
+
+    /**
+     * return the name (just because all objects should have a name function)
+     */
+    function name_dsp(): string
+    {
+        if ($this->is_excluded()) {
+            return '';
+        } else {
+            return $this->name;
+        }
     }
 
 }

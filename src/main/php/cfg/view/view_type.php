@@ -2,8 +2,9 @@
 
 /*
 
-    model/view/view_type.php - ENUM of the view types
-    ------------------------
+    model/view/view_type.php - db based ENUM of the view types
+    ----------------------
+
 
     This file is part of zukunft.com - calc with words
 
@@ -29,11 +30,18 @@
   
 */
 
-namespace cfg;
+namespace cfg\view;
 
-class view_type
+use cfg\const\paths;
+
+include_once paths::MODEL_HELPER . 'type_object.php';
+
+use cfg\helper\type_object;
+
+class view_type extends type_object
 {
 
+    // TODO used the const from the shared view_type
     // list of the view types that have a coded functionality
     const DEFAULT = "default";
     const ENTRY = "entry";
@@ -48,5 +56,13 @@ class view_type
     const SYSTEM_TYPES = array(
         self::SYSTEM
     );
+
+
+    /*
+     * database link
+     */
+
+    // comments used for the database creation
+    const TBL_COMMENT = 'to assign predefined behaviour to a view';
 
 }

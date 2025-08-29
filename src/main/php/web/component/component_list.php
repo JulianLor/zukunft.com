@@ -31,11 +31,15 @@
 
 namespace html\component;
 
-include_once WEB_SANDBOX_PATH . 'list.php';
-include_once WEB_COMPONENT_PATH . 'component.php';
+use cfg\const\paths;
+use html\const\paths as html_paths;
+include_once html_paths::SANDBOX . 'list_dsp.php';
+include_once html_paths::COMPONENT . 'component_exe.php';
+include_once html_paths::USER . 'user_message.php';
 
-use html\list_dsp;
-use html\component\component as component_dsp;
+use html\sandbox\list_dsp;
+use html\component\component_exe as component;
+use html\user\user_message;
 
 class component_list extends list_dsp
 {
@@ -45,43 +49,41 @@ class component_list extends list_dsp
      */
 
     /**
-     * set the vars of a view object based on the given json
-     * @param array $json_array an api single object json message
-     * @return object a view set based on the given json
-     */
-    function set_obj_from_json_array(array $json_array): object
-    {
-        $cmp = new component_dsp();
-        $cmp->set_from_json_array($json_array);
-        return $cmp;
-    }
-
-    /**
      * set the vars of these list display objects bases on the api json array
      * @param array $json_array an api list json message
-     * @return void
+     * @return user_message ok or a warning e.g. if the server version does not match
      */
-    function set_from_json_array(array $json_array): void
+    function api_mapper(array $json_array): user_message
     {
-        foreach ($json_array as $value) {
-            $this->add_obj($this->set_obj_from_json_array($value), true);
-        }
+        return parent::api_mapper_list($json_array, new component());
     }
+
+    /*
+     * load
+     */
+
+    function load_by_view_id(int $id): bool
+    {
+        $url = '';
+        return true;
+
+    }
+
 
 
     /*
-     * display
+     * base
      */
 
     /**
      * @return string with a list of the component names with html links
      * ex. names_linked
      */
-    function display(): string
+    function name_tip(): string
     {
         $components = array();
-        foreach ($this->lst as $cmp) {
-            $components[] = $cmp->name();
+        foreach ($this->lst() as $cmp) {
+            $components[] = $cmp->name_tip();
         }
         return implode(', ', $components);
     }
@@ -91,7 +93,7 @@ class component_list extends list_dsp
      * @return string with a list of the component names with html links
      * ex. names_linked
      */
-    function display_linked(string $back = ''): string
+    function name_link(string $back = ''): string
     {
         return implode(', ', $this->names_linked($back));
     }
@@ -100,11 +102,11 @@ class component_list extends list_dsp
      * @param string $back the back trace url for the undo functionality
      * @return array with a list of the component names with html links
      */
-    function names_linked(string $back = ''): array
+    private function names_linked(string $back = ''): array
     {
         $result = array();
-        foreach ($this->lst as $cmp) {
-            $result[] = $cmp->display_linked($back);
+        foreach ($this->lst() as $cmp) {
+            $result[] = $cmp->name_link($back);
         }
         return $result;
     }

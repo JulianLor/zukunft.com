@@ -30,18 +30,23 @@
 
 */
 
-namespace test;
+namespace unit;
+
+use cfg\const\paths;
+
+include_once paths::SHARED_CONST . 'triples.php';
 
 // TODO combine with triple_unit_test
 
-use api\phrase\phrase as phrase_api;
-use api\word\triple as triple_api;
+use cfg\db\sql_creator;
 use cfg\db\sql_db;
-use cfg\triple;
-use cfg\verb;
-use cfg\word;
+use cfg\verb\verb;
+use cfg\word\triple;
+use cfg\word\word;
+use shared\const\triples;
+use test\test_cleanup;
 
-class triple_unit_tests_old
+class triple_old
 {
     function run(test_cleanup $t): void
     {
@@ -50,27 +55,27 @@ class triple_unit_tests_old
 
         // init
         $db_con = new sql_db();
+        $sc = new sql_creator();
         $t->name = 'triple->';
         $t->resource_path = 'db/triple/';
-        $json_file = 'unit/triple/pi.json';
-        $usr->set_id(1);
 
-        $t->header('Unit tests of the word class (src/main/php/model/word/triple.php)');
+        // start the test section (ts)
+        $ts = 'unit triple ';
+        $t->header($ts);
 
-
-        $t->subheader('SQL statement tests');
+        $t->subheader($ts . 'sql statement');
 
         // sql to load a triple by id
         $trp = new triple($usr);
         $trp->set_id(1);
         $t->assert_sql_by_obj_vars($db_con, $trp);
-        $t->assert_sql_standard($db_con, $trp);
+        $t->assert_sql_standard($sc, $trp);
 
         // sql to load a triple by name
         $trp = new triple($usr);
-        $trp->set_name(triple_api::TN_ZH_COMPANY);
+        $trp->set_name(triples::COMPANY_ZURICH);
         $t->assert_sql_by_obj_vars($db_con, $trp);
-        $t->assert_sql_standard($db_con, $trp);
+        $t->assert_sql_standard($sc, $trp);
 
         // sql to load a triple by link ids
         $trp = new triple($usr);
@@ -80,19 +85,19 @@ class triple_unit_tests_old
         $vrb->set_id(3);
         $wrd_to = new word($usr);
         $wrd_to->set_id(4);
-        $trp->fob = $wrd_from->phrase();
-        $trp->verb = $vrb;
-        $trp->tob = $wrd_to->phrase();
+        $trp->set_from($wrd_from->phrase());
+        $trp->set_verb($vrb);
+        $trp->set_to($wrd_to->phrase());
         $t->assert_sql_by_obj_vars($db_con, $trp);
-        $t->assert_sql_standard($db_con, $trp);
+        $t->assert_sql_standard($sc, $trp);
         $trp->set_id(5);
-        $t->assert_sql_not_changed($db_con, $trp);
-        $t->assert_sql_user_changes($db_con, $trp);
+        $t->assert_sql_not_changed($sc, $trp);
+        $t->assert_sql_user_changes($sc, $trp);
 
         // sql to check the usage of a triple
 
-        $t->subheader('Im- and Export tests');
-
+        $t->subheader($ts . 'im- and export');
+        $json_file = 'unit/triple/pi.json';
         $t->assert_json_file(new triple($usr), $json_file);
     }
 

@@ -32,12 +32,30 @@
 
 namespace html\sandbox;
 
-include_once WEB_SANDBOX_PATH . 'db_object.php';
-include_once API_SANDBOX_PATH . 'sandbox_named.php';
+use cfg\const\paths;
+use html\const\paths as html_paths;
+include_once html_paths::SANDBOX . 'db_object.php';
+include_once html_paths::HTML . 'button.php';
+include_once html_paths::HTML . 'html_base.php';
+include_once paths::SHARED_TYPES . 'view_styles.php';
+include_once html_paths::SANDBOX . 'db_object.php';
+include_once html_paths::USER . 'user.php';
+include_once html_paths::USER . 'user_message.php';
+//include_once html_paths::VIEW . 'view_list.php';
+include_once paths::SHARED_ENUM . 'messages.php';
+include_once paths::SHARED . 'api.php';
+include_once paths::SHARED . 'json_fields.php';
 
+use html\button;
 use html\html_base;
+use shared\enum\messages as msg_id;
+use html\view\view_list;
+use shared\api;
 use html\sandbox\db_object as db_object_dsp;
 use html\user\user as user_dsp;
+use html\user\user_message;
+use shared\types\view_styles;
+use shared\json_fields;
 
 class sandbox extends db_object_dsp
 {
@@ -48,12 +66,196 @@ class sandbox extends db_object_dsp
 
     protected ?user_dsp $owner = null;
 
+    // the id of the default view for this object
+    private ?int $view_id = null;
+
+
+    /*
+     * set and get
+     */
+
+    /**
+     * set the vars of this sandbox object bases on the api json array
+     * do not set the default share and protection type to be able to identify forced updates to the default type
+     *
+     * @param array $json_array an api json message
+     * @return user_message ok or a warning e.g. if the server version does not match
+     */
+    function api_mapper(array $json_array): user_message
+    {
+        $usr_msg = parent::api_mapper($json_array);
+
+        if (array_key_exists(json_fields::SHARE, $json_array)) {
+            $this->share_id = $json_array[json_fields::SHARE];
+        } else {
+            $this->share_id = null;
+        }
+        if (array_key_exists(json_fields::PROTECTION, $json_array)) {
+            $this->protection_id = $json_array[json_fields::PROTECTION];
+        } else {
+            $this->protection_id = null;
+        }
+        return $usr_msg;
+    }
+
+    /**
+     * set the vars of this object bases on the url array
+     * public because it is reused e.g. by the phrase group display object
+     * @param array $url_array an array based on $_GET from a form submit
+     * @return user_message ok or a warning e.g. if the server version does not match
+     */
+    function url_mapper(array $url_array): user_message
+    {
+        $usr_msg = parent::api_mapper($url_array);
+        if (array_key_exists(api::URL_VAR_SHARE, $url_array)) {
+            $this->share_id = $url_array[api::URL_VAR_SHARE];
+        } else {
+            $this->share_id = null;
+        }
+        if (array_key_exists(api::URL_VAR_PROTECTION, $url_array)) {
+            $this->protection_id = $url_array[api::URL_VAR_PROTECTION];
+        } else {
+            $this->protection_id = null;
+        }
+        return $usr_msg;
+    }
+
+    function view_id(): ?int
+    {
+        return $this->view_id;
+    }
+
+
+    /*
+     * api
+     */
+
+    /**
+     * @return array the json message array to send the updated data to the backend
+     * an array is used (instead of a string) to enable combinations of api_array() calls
+     */
+    function api_array(): array
+    {
+        $vars = parent::api_array();
+
+        if ($this->share_id != null) {
+            $vars[json_fields::SHARE] = $this->share_id;
+        }
+        if ($this->protection_id != null) {
+            $vars[json_fields::PROTECTION] = $this->protection_id;
+        }
+        return $vars;
+    }
+
+
+    /*
+     * set and get
+     */
+
+    function share_id(): ?int
+    {
+        return $this->share_id;
+    }
+
+    function protection_id(): ?int
+    {
+        return $this->protection_id;
+    }
+
+
+    /*
+     * buttons
+     */
+
+    /**
+     * create the html code to add a sandbox object for the current user
+     *
+     * @param int|string $msk_id the code id or database id of the view used to add the object
+     * @param msg_id $msg_code_id the code id of the message that should be shown to the user as a tooltip for the button
+     * @param string $back the backtrace for the return page after adding the object and for undo actions
+     * @param string $explain additional text created by the calling child to understand the action better e.g. the phrases used for a new value
+     * @return string the html code for a bottom
+     */
+    function btn_add_sbx(int|string $msk_id, msg_id $msg_code_id, string $back = '', string $explain = ''): string
+    {
+        $btn = $this->btn_sbx($msk_id, $back);
+        return $btn->add($msg_code_id, $explain);
+    }
+
+    /**
+     * html code to change a sandbox object e.g. the name or the type
+     *
+     * @param int|string $msk_id the code id or database id of the view used to add the object
+     * @param msg_id $msg_code_id the code id of the message that should be shown to the user as a tooltip for the button
+     * @param string $back the backtrace for the return page after adding the object and for undo actions
+     * @param string $explain additional text created by the calling child to understand the action better e.g. the phrases used for a new value
+     * @return string the html code for a bottom
+     */
+    function btn_edit_sbx(int|string $msk_id, msg_id $msg_code_id, string $back = '', string $explain = ''): string
+    {
+        $btn = $this->btn_sbx($msk_id, $back);
+        return $btn->edit($msg_code_id, $explain);
+    }
+
+    /**
+     * html code to exclude the sandbox object for the current user
+     * or if no one uses the word delete the complete word
+     *
+     * @param int|string $msk_id the code id or database id of the view used to add the object
+     * @param msg_id $msg_code_id the code id of the message that should be shown to the user as a tooltip for the button
+     * @param string $back the backtrace for the return page after adding the object and for undo actions
+     * @param string $explain additional text created by the calling child to understand the action better e.g. the phrases used for a new value
+     * @return string the html code for a bottom
+     */
+    function btn_del_sbx(int|string $msk_id, msg_id $msg_code_id, string $back = '', string $explain = ''): string
+    {
+        $btn = $this->btn_sbx($msk_id, $back);
+        return $btn->del($msg_code_id, $explain);
+    }
+
+    /**
+     * create the html code for a button
+     *
+     * @param int|string $msk_id the code id or database id of the view used to add the object
+     * @param string $back the backtrace for the return page after adding the object and for undo actions
+     * @return button the filled bottom object
+     */
+    private function btn_sbx(int|string $msk_id, string $back = ''): button
+    {
+        $html = new html_base();
+        $url = $html->url_new($msk_id, $this->id(), '', $back);
+        return new button($url, $back);
+    }
+
+
+    /*
+     * selectors
+     */
+
+    /**
+     * create the HTML code to select a view
+     * @param string $form the name of the html form
+     * @param view_list $msk_lst with the suggested views
+     * @return string the html code to select a view
+     */
+    public function view_selector(string $form, view_list $msk_lst, string $name = null): string
+    {
+        $view_id = $this->view_id();
+        if ($view_id == null) {
+            $view_id = $msk_lst->default_id($this);
+        }
+        if ($name == null) {
+            return $msk_lst->selector($form, $view_id);
+        } else {
+            return $msk_lst->selector($form, $view_id, $name);
+        }
+    }
 
     /**
      * @param string $form_name the name of the html form
      * @return string the html code to select the share type
      */
-    protected function share_type_selector(string $form_name): string
+    public function share_type_selector(string $form_name): string
     {
         global $usr;
         global $html_share_types;
@@ -61,8 +263,8 @@ class sandbox extends db_object_dsp
         if ($used_share_id == null) {
             $used_share_id = $html_share_types->default_id();
         }
-        if ($usr == $this->owner or $this->owner == null) {
-            return $html_share_types->selector($form_name, $used_share_id, 'share', html_base::COL_SM_4, 'share:');
+        if ($usr === $this->owner or $this->owner == null) {
+            return $html_share_types->selector($form_name, $used_share_id, 'share', view_styles::COL_SM_4, 'share:');
         } else {
             return '';
         }
@@ -72,7 +274,7 @@ class sandbox extends db_object_dsp
      * @param string $form_name the name of the html form
      * @return string the html code to select the share type
      */
-    protected function protection_type_selector(string $form_name): string
+    public function protection_type_selector(string $form_name): string
     {
         global $usr;
         global $html_protection_types;
@@ -80,8 +282,8 @@ class sandbox extends db_object_dsp
         if ($used_protection_id == null) {
             $used_protection_id = $html_protection_types->default_id();
         }
-        if ($usr == $this->owner or $this->owner == null) {
-            return $html_protection_types->selector($form_name, $used_protection_id, 'protection', html_base::COL_SM_4, 'protection:');
+        if ($usr === $this->owner or $this->owner == null) {
+            return $html_protection_types->selector($form_name, $used_protection_id, 'protection', view_styles::COL_SM_4, 'protection:');
         } else {
             return '';
         }

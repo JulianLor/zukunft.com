@@ -3,40 +3,205 @@ zukunft.com
 Calculating with RDF data.
 
 This program should
+- be a GGG browser
 - make the Giant Global Graph usable for the real-time delphi-method
+- an exoskeleton for the brain
+- make slow thinking (Kahneman) faster
 - allow each user have her/his own OLAP cube
 - make efficient community learning easy by connecting all user OLAP cubes point to point
 - allow double-sided tree structures within the cubes by using phrases
 - use common sense by using opencyc via conceptnet.io
 - enable data exchange to wikidata and other interlinking databases
 
-Install
--------
+Development installation
+------------------------
 
-To install this version 0.0.3 use a LAMP server (https://wiki.debian.org/LaMp) and
+To install this version 0.0.3 on a debian system (https://wiki.debian.org/) do as root e.g. in /home/your_user/:
+
+1. Clone the repository:
+   ```bash
+   git clone -b develop https://github.com/zukunft/zukunft.com.git
+   ```
+   ```bash
+   chmod 777 zukunft.com/install.sh
+   ```
+
+2. (Optional) Adjust the `.env.sample` file e.g. for customize database credentials:
+   ```bash
+   nano zukunft.com/.env.sample
+   ```
+
+   ```env
+   OS=debian (or "docker")
+   ENV=dev (or "test", "prod")
+   BRANCH=develop (or "release", "master")
+   DB=postgres (or "mysql")
+   PGSQL_USERNAME=zukunft
+   PGSQL_DATABASE=zukunft
+   PGSQL_PASSWORD=your_password_here
+   PGSQL_ADMIN_USERNAME=postgres
+   PGSQL_ADMIN_PASSWORD=admin_password_here
+   PGSQL_HOST=localhost (or "db")
+   ```
+   
+3. Start the application:
+   ```bash
+   sudo ./zukunft.com/install.sh
+   ```
+
+The  
+
+Fix development installation:
+-----------------------------
+
+If you get errors or the message "Only admin users are allowed to reset the database" and the database does not you contain any relevant data the best is probably to recreate the database:
+
+   ```bash
+   sudo -u postgres psql -d postgres -U postgres -c "DROP DATABASE zukunft;"
+   ```
+   ```bash
+   sudo -u postgres psql -d postgres -U postgres -c "CREATE USER zukunft WITH PASSWORD 'zukunft';"
+   ```
+   ```bash
+   sudo -u postgres psql -d postgres -U postgres -c "CREATE DATABASE zukunft WITH OWNER zukunft ENCODING 'UTF8';"
+   ```
+   ```bash
+   php /var/www/html/test/reset_db.php
+   ```
+
+If you get the message that the database cannot be accessed one solution could be to reassign the owner:
+   ```bash
+   sudo -u postgres psql -d postgres -U postgres -c "ALTER DATABASE zukunft OWNER TO zukunft ENCODING 'UTF8';"
+   ```
+   ```bash
+   php /var/www/html/test/reset_db.php
+   ```
+
+To run all build in tests start from bash
+   ```bash
+   php /var/www/html/test/test.php
+   ```
+
+To check the frontpage call
+ 
+[localhost/http/view.php]()
+
+
+Production installation (to be reviewed):
+-----------------------------------------
+
+To install this version 0.0.3 use a LAPP or (LAMP for MySQL) server (https://wiki.debian.org/LaMp) and
 1) copy all files to the www root path (e.g. /var/www/html/)
-2) copy all files of bootstrap 4.1.3 or higher to /var/www/html/lib_external/bootstrap/4.1.3/
-3) copy all files of fontawesome to /var/www/html/lib_external/fontawesome/
-4) create a user "zukunft_db_root" in Postgres or MySQL and remember the password
-5) execute the script "src/main/php/db/.../zukunft_structure.sql" in MySQL to create the database zukunft_structure
-6) change the password "xxx" in db_link/zu_lib_sql_link.php with the password used in 2)
-7) test if the installation is running fine by calling http://yourserver.com/test/test.php
+2) copy all files of bootstrap 4.1.3 or higher to /var/www/html/external_lib/bootstrap/4.1.3/
+3) copy all files of fontawesome to /var/www/html/external_lib/fontawesome/
+4) create a user "zukunft_db_root" in Postgres (or MySQL) and remember the password
+5) change the password "xxx" in .env with the password used in 2)
+6) run the script "src/test/reset_db.php" local on the server and if the result is 0 test errors 0 internal errors delete the script
+7) test if the installation is running fine by calling http://yourserver.com/test/test.php 
+   (until this version 0.0.3 is finished try to run test.php in a terminal in case of errors)
 
-Additional for development
---------------------------
+Docker Installation
+-------------------
 
-on debian systems
+Recommended only for dedicated pod servers due to potential security issues ( https://wiki.debian.org/Docker )
 
+For a quick and easy setup, you can use Docker to run the application. This method ensures consistent environments and easy deployment.
+
+Prerequisites:
+- Docker Engine installed on your system
+- Docker Compose installed on your system
+
+Steps:
+1. Clone the repository:
+   ```bash
+   git clone -b release https://github.com/zukunft/zukunft.com.git
+   cd zukunft.com
+   ```
+
+2. (Optional) Create a `.env` file to customize app credentials:
+   You can specify app and adminer custom ports if 8080 and 8081 are allocated in 
+   your system
+   ```env
+   APP_SERVICE_PORT=8080
+   ADMINER_SERVICE_PORT=8081
+   PGSQL_HOST=db
+   PGSQL_PORT=5432
+   PGSQL_DATABASE=zukunft
+   PGSQL_USERNAME=zukunft
+   PGSQL_PASSWORD=your_secure_password
+   PGSQL_ADMIN_USERNAME=postgres
+   PGSQL_ADMIN_PASSWORD=admin_password
+   ```
+
+3. Start the application:
+   ```bash
+   docker compose up -d
+   ```
+
+4. Initialize the database (first time only):
+   ```bash
+   docker compose exec app php /var/www/html/test/reset_db.php
+   ```
+
+5. Access the application:
+   - Main application: http://localhost
+   - Test page: http://localhost/test/test.php
+
+The Docker setup includes:
+- PHP 8.2 with Apache
+- PostgreSQL 14
+- All required PHP extensions (pgsql, yaml, curl)
+- Automatic database configuration
+- Volume persistence for database data
+
+To stop the application:
+```bash
+docker compose down
+```
+
+To view logs:
+```bash
+docker compose logs -f
+```
+
+Target installation
+-------------------
+
+In the final version the installation on debian should be 
+
+sudo apt-get install zukunftcom
+
+with the options
+
+-p for python (php if not set)
+-j for java / jvm based version
+-c for C++ / rust based version
+
+After "zukunftcom start" a message should be shown including the pod name. Every critical event, 
+such as the connection to other pods, should be shown in the console 
+and beginning with an increasing minute based interval, 
+but at least once a day a status message should be shown with the system usage and a summery if the usage.
+
+
+Pod Installation
+----------------
+
+To install a pod on a server a solution is to use the 
+docker installation that will be created (see issue #134)
 
 
 Planned changes
 ---------------
 
-For versions 0.0.4 these changes are planned
+For versions 0.0.3 these changes are planned
+- JSON import
+- system mask
+
+and for versions 0.0.4
 - fix the unit and integration tests
 
 and for versions 0.0.5
-- fix the setup script
+- improve the setup and update script
 
 Coding Guidelines
 -----------------
@@ -54,20 +219,54 @@ The minimal requirements are a LAMP server (https://wiki.debian.org/LaMp) and an
 If you see anything that does not look simple to you, please request a change on https://github.com/zukunft/zukunft.com or write an email to timon@zukunft.com
 
 
-General coding principles:
-- one point of change (https://en.wikipedia.org/wiki/Don%27t_repeat_yourself)
-- capsule: each method should check the consistency of the input parameters at the beginning
-- least possible dependencies because a chain is only as strong as its weakest link (https://archive.fosdem.org/2021/schedule/event/dep_as_strong_as_the_weakest_link/)
-- best guess: in case of incomplete data best guess assumptions should be used
-- automatic error detection and tracking: in case something unexpected happens the code should try to create an internal error message to enable later debugging
-- init:        each function first collect the global vars, initiate the result variable and create a debug message if requested
-- full unit and integration testing: each function should be tested in test_units.php, test_unit_db.php and test.php
-- debug messages are display immediately using echo (always via the function zu_debug)
-- top down: the most important functions should be on top of each code file
-- all others function usually return html code that is displayed only by one of the 8 main interface scripts
+Target user experience:
+- **one-to-one**: business logic as you would explain it to a human
+  each formula should have 3 to 5, max 8 elements due to the limitation of the human work memory
+- **user sandbox**: the look and feel should never change without confirmation by the user
+- **don't disturb**: suggested changes should never prevent the user from continuing
+- **always sorted**: the messages to the user should be sorted by criticality but taking the reaktion time into account
+- prevent duplicates in the values or formulas to force user to social interaction
 
-Naming conventions:
--------------------
+General coding principles:
+1. **Don't repeat yourself**: one point of change (https://en.wikipedia.org/wiki/Don%27t_repeat_yourself) (but coded repeating by intention can be used)
+2. **test**: each facade function should have a unit test called from test_units.php or test_unit_db.php
+  with zukunft.com/test a complete unit and integration test
+  best: first write the test and then the code
+3. **only needed dependencies**: use the least external code possible because https://archive.fosdem.org/2021/schedule/event/dep_as_strong_as_the_weakest_link/
+4. **best guess**: assume almost everything can happen and in case of incomplete data use best guess assumptions to complete the process but report the assumption to the calling function and create the message to the user if all assumptions are collected
+5. **never change** a running system (until you have a very, very good reason)
+6. **one click update**: allow to update a pod with one click on the fly (https://en.wikipedia.org/wiki/Continuous_delivery)
+7. **log in/out**: all user changes and data im- and export are logged with an undo and redo option
+8. **small code package**: split if function and classes are getting too big or at least the most important functions within a class should be on top of each class
+9. **error detection** and tracking: in case something unexpected happens the code should try to create an internal error message to enable later debugging
+10. **self speaking** error messages
+11. **shared api** with in code auto check
+12. capsule: each class and method should check the consistency of the input parameters at the beginning
+
+Coding team suggestions
+- daily max 15 min physical **standup** where all member confirm the daily target
+- improve the **definition of done** of a story (ticket) until all team members understand it
+- all team members **vote** simultaneously for 1, 2, 3, 5, 8 or max 13 story-points
+- if a story has more points it is split
+- when all agree on the story-points the story is assigned to one member
+- critical: if there is a delay other team member **offer to help** (no blaming)  
+- at the sprint retro one selects a perspective that the other done not know for spontaneous answers
+- **one tool** (not two or more) per purpose: git, tickets, wiki, message e.g. element.io 
+
+Decisions
+- use this program for a mind map with all arguments where each has a weight and value and all changes are logged
+
+Deployment process
+1. do the changes and commits in the feature branch related to the issue e.g. "feature/134-create-a-docker-script-and-a-docu-how-to-use"
+2. review the code and merge it to "develop"
+3. test it and if it is fine, merge it to the staging branch "release"
+4. if the public test is fine, merge it to master and update the production system using the CI/CD Process, which needs to be created
+
+
+naming conventions for vars:
+---------------------------
+
+backend - main
 - wrd (WoRD)               - a word that is used as a subject or object in a resource description framework (RDF / "triple") graph
 and used to retrieve the numeric values
 - val (VALue)              - a numeric value that can be used for calculations
@@ -76,6 +275,7 @@ which can be either in the usr (USeR) format with real words
 or in the db (DataBase) format with database id references
 or in the math (MATHematical) format, which should contain only numeric values
 
+backend - core
 - vrb (VeRB)               - a predicate (mostly just a verb) that defines the type of links two words;
 by default a verb can be used forward and backward e.g. ABB is a company and companies are ABB, ...
 if the reverse name is empty, the verb can only be used the forward way
@@ -91,35 +291,40 @@ verbs are also named as triples
 - elm (ELeMents)           - a structured reference for terms, verbs or formulas mostly used for formula elements (cancel? replace with term?)
 - res (RESult)             - the calculated number of a formula
 - fig (FIGure)             - either a value set by the user or a calculated formula result
-- usr (USeR)               - the person who is logged in
-- log                      - to save all changes in a user readable format
 - src (SouRCe)             - url or description where a value is taken from
+- ref (REFerence)          - url with and external unique id to sync data with external systems
+- msk (MaSK)               - a view that is shown to the user (dsp - DiSPlay until now)
+- cmp (CoMPonent)          - one part of a view so a kind of view component (ex view entry)
 
+backend - admin
+- usr (USeR)               - the person who is logged in
+- pro (PROfile)            - a group of user rights
+- log                      - to save all changes in a user readable format
+- sta (STAtus)             - the status of a lod entry e.g. solved
+- cng (ChaNGe)             - parts of the change log
+- act (ACTion)             - the change log actions
+- tbl (TaBLe)              - the change log tables
+- fld (FieLD)              - the change log fields of a table
+
+backend - internal
 - sbx (SandBoX)            - the user sandbox tables where the adjustments of the users are saved
+- shr (SHaRe)              - the sharing settings
+- ptc (ProTeCt)            - the protection settings
+- lst (LiST)               - an array of objects
+- typ (TYPe)               - field name to connect predefined functionality to a core object
+- pdi (PreDIcate)          - define the connection type between two core objects (verb is a special form of predicate for triples)
+- id (IDentifier)          - internal prime key of a database row
+- ids (IDentifierS)        - a simple array of database table IDs (ids_txt is the text / imploded version of the ids array)
+- sc (Sql Creator)         - for writing SQL statements
+- std (STanDard)           - a value that have not been changed and is public (for results additional "main" is used)
+- nrm (NoRMal)             - data that is used by most users
+- dsl (DSp cmp Link)       - link of a view component to a view
+- sty (STYle)              - the HTML style class used for a view
 - uso (User Sbx Object)    - an object (word, value, formula, ...) that uses the user sandbox
 (useless?)
-- id (IDentifier)          - internal prime key of a database row
-- ids (IDentifierS)        - an simple array of database table IDs (ids_txt is the text / imploded version of the ids array)
-- lst (LiST)               - an array of objects
-- glst (Get LiST)          - is used to name the private internal functions that can also create the user list
-- ulst (User LiST)         - an array of objects that should be shown to the user, so like lst, but without the objects exclude by the user 
-the user list should only be used to display something and never for checking if an item exists
-this is the short for for sbx_lst
-
-- dsp (DiSPlay)            - a view/mask that is shown to the user
-- ui (UserInterface)       - the definition of the user interface, mainly used to display either the JavaScript based single page design, the bootstrap based HTML design, the design based on pure HTML code or a pure text output for testing
-- djs (DiSPlay JavaScript) - functions for the vue.js JavaScript user interface implementation
-- dbs (DiSPlay BootStrap)  - functions for the bootstrap user interface implementation
-- dsp (DiSPlay html)       - functions for the pure html user interface implementation
-a view object or a function that return HTML code that can be displayed
-- dtx (DiSPlay TeXt)       - functions for the text interface implementation mainly for debugging
-- cmp (CoMPonent)          - one part of a view so a kind of view component (ex view entry)
-- dsl (DSp cmp Link)       - link of a view component to a view
-- btn (BuTtoN)             - button
-- tbl (TaBLe)              - HTML code for a table
-
 - cl (Code Link)           - a text used to identify one predefined database entry that triggers to use of some program code
 - sf (Sql Format)          - to convert a text for the database
+- cac (CAChe)              - preload lists
 
 object extensions
 - _min (MINimal)           - the minimal object used for the frontend API and only valid for the session user
@@ -127,12 +332,75 @@ object extensions
 - _dsp (DiSPlay)           - to create the HTML code to display the object
 - _min_dsp                 - the display object based on the API object instead of the backend object
 
+frontend:
+- ui (UserInterface)       - the definition of the user interface, mainly used to display either the JavaScript based single page design, the bootstrap based HTML design, the design based on pure HTML code or a pure text output for testing
+- djs (DiSPlay JavaScript) - functions for the vue.js JavaScript user interface implementation
+- dbs (DiSPlay BootStrap)  - functions for the bootstrap user interface implementation
+- dsp (DiSPlay html)       - functions for the pure html user interface implementation
+a view object or a function that return HTML code that can be displayed
+- dtx (DiSPlay TeXt)       - functions for the text interface implementation mainly for debugging
+- btn (BuTtoN)             - button
+- tbl (TaBLe)              - HTML code for a table
+- lan (LANguage)           - the language used for the frontend
+- for (FORm)               - the language form of a word e.g. plural
+
+to be deprecated:
+- glst (Get LiST)          - is used to name the private internal functions that can also create the user list
+- ulst (User LiST)         - an array of objects that should be shown to the user, so like lst, but without the objects exclude by the user
+  the list should only be used to display something and never for checking if an item exists
+  this is the short for the sbx_lst
+
+main objects
+------------
+
+the logical order of the main objects is
+- word - use single words for better assignments
+- verb - a predicate to connect two words
+- triple - combine two words or triples with a verb
+- source - import only data source
+- ref - im- and export to external systems
+- value - a number for calculation 
+- group - list of words or triples
+- formula - expression for calculation
+- result - numeric result of a formula
+- view - named display mask
+- component - parts of a display mask
+
+object sections
+---------------
+
+most objects have these sections in this order
+- db const - const for the database like field names (moved to a *_db object)
+- preserved - const word names of a words used by the system
+- object vars - the variables of the object in order of the db const
+- construct and map - including the mapping of the db row to the object
+- set and get - interface for the object vars grouped by first set in order of db fields
+- preloaded - select e.g. types from cache
+- load - database access object (DAO) functions
+- load sql - create the sql statements for database loading
+- sql fields - create the field names for sql statements
+- retrieval - get related objects assigned to this component
+- cast - create an api object and set the vars from an api json
+- api - create an api array for the frontend and set the vars based on a frontend api message
+- im- and export - create an export object and set the vars from an import object
+- modify - change potentially all variables of this object
+- save - manage to update the database
+- sql write fields - field list for writing to the database
+- info - functions to make code easier to read
+- internal - private functions to make code easier to read
+- debug - internal support functions for debugging that must include dsp_id()
+
+some sections are move to related classes to reduce the class size
+- db const (*_db) - const for the database like field names (moved to a *_db object)
+- preserved (shared\words) - const word names of a words used by the system
+
+
 database change setup
 ---------------------
 
 User Sandbox: values, formulas, formula_links, views and view elements are included in the user sandbox, which means, each user can exclude or adjust single entries
 
-to avoid confusion words, formula names, triples (verbs) and value_phrase_links are excluded from the user sandbox, but a normal user can change the name, which will hopefully not happen often.
+to avoid confusion words, formula names, triples and verbs may have a limited user sandbox, but a normal user can change the name, which will hopefully not happen often.
 
 for words, formulas and verbs the user can add a specific name in any language
 
@@ -176,7 +444,7 @@ e.g. the global function load_ref_types load all possible reference type to exte
 - dsp_id                - like name, but with some ids for better debugging
 - name                  - to show a useful name of the object to the user e.g. in case of a formula result this includes the phrases
 - name_linked           - like name, but with HTML link to the single objects
-- display               - the result and the name of the object e.g. ABB, Sales: 46'000
+- display               - the result and the name of the object e.g. ABB, sales: 46'000
 - display_linked        - like display, but with HTML links to the related objects
 
 All objects needs to have the functions dsp_id and name. These two functions should never all any debug functionality, because they can be called from the debug functions

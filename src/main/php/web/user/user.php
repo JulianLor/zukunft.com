@@ -2,7 +2,7 @@
 
 /*
 
-    user_dsp.php - functions to create the HTML code to display a the user setup and log information
+    user_dsp.php - functions to create the HTML code to display the user setup and log information
     ------------
 
     This file is part of zukunft.com - calc with words
@@ -31,73 +31,181 @@
 
 namespace html\user;
 
-use api\api;
-use api\user\user as user_api;
-use html\html_base;
-use html\phrase\phrase_group as phrase_group_dsp;
+use cfg\const\paths;
+use html\const\paths as html_paths;
+// get the api const that are shared between the backend and the html frontend
+// get the pure html frontend objects
+include_once html_paths::HTML . 'html_base.php';
+include_once html_paths::SANDBOX . 'db_object.php';
+include_once paths::SHARED_ENUM . 'user_profiles.php';
+include_once paths::SHARED_CONST . 'views.php';
+include_once paths::SHARED . 'json_fields.php';
 
-class user extends user_api
+use html\html_base;
+use html\sandbox\db_object;
+use shared\const\views;
+use shared\enum\user_profiles;
+use shared\json_fields;
+
+class user extends db_object
 {
 
-    const FORM_EDIT = 'user_edit';
+    /*
+     * object vars
+     */
+
+    public ?string $name;
+    public ?string $description;
+    public ?string $profile;
+    // id of the user profile
+    private int $profile_id;
+    public ?string $email;
+    public ?string $first_name;
+    public ?string $last_name;
+
+
+    /*
+     * construct and map
+     */
+
+    function __construct(?string $api_json = null)
+    {
+        $this->reset();
+        parent::__construct($api_json);
+    }
+
+    function reset(): void
+    {
+        $this->name = '';
+        $this->description = null;
+        $this->profile = null;
+        $this->profile_id = 0;
+        $this->email = null;
+        $this->first_name = null;
+        $this->last_name = null;
+    }
 
 
     /*
      * set and get
      */
 
-    /**
-     * set the vars of this object bases on the api json string
-     * @param string $json_api_msg an api json message as a string
-     * @return void
-     */
-    function set_from_json(string $json_api_msg): void
+    function set_profile_id(int $profile_id): void
     {
-        $this->set_from_json_array(json_decode($json_api_msg, true));
+        $this->profile_id = $profile_id;
+    }
+
+    function profile_id(int $profile_id): int
+    {
+        return $this->profile_id;
+    }
+
+    function name(): string
+    {
+        return $this->name;
     }
 
     /**
      * set the vars of this object bases on the api json array
      * @param array $json_array an api json message
-     * @return void
+     * @return user_message ok or a warning e.g. if the server version does not match
      */
-    function set_from_json_array(array $json_array): void
+    function api_mapper(array $json_array): user_message
     {
-        if (array_key_exists(api::FLD_ID, $json_array)) {
-            $this->set_id($json_array[api::FLD_ID]);
+        $usr_msg = new user_message();
+        if (array_key_exists(json_fields::ID, $json_array)) {
+            $this->set_id($json_array[json_fields::ID]);
         } else {
             $this->set_id(0);
-            log_err('Mandatory field id missing in API JSON ' . json_encode($json_array));
+            $usr_msg->add_err('Mandatory field id missing in API JSON ' . json_encode($json_array));
         }
-        if (array_key_exists(api::FLD_NAME, $json_array)) {
-            $this->name = $json_array[api::FLD_NAME];
+        if (array_key_exists(json_fields::NAME, $json_array)) {
+            $this->name = $json_array[json_fields::NAME];
         } else {
             $this->name = null;
         }
-        if (array_key_exists(api::FLD_NAME, $json_array)) {
-            $this->description = $json_array[api::FLD_NAME];
+        if (array_key_exists(json_fields::DESCRIPTION, $json_array)) {
+            $this->description = $json_array[json_fields::DESCRIPTION];
         } else {
             $this->description = null;
         }
-        if (array_key_exists(api::FLD_NAME, $json_array)) {
-            $this->profile = $json_array[api::FLD_NAME];
+        if (array_key_exists(json_fields::PROFILE, $json_array)) {
+            $this->profile = $json_array[json_fields::PROFILE];
         } else {
             $this->profile = null;
         }
-        if (array_key_exists(api::FLD_NAME, $json_array)) {
-            $this->email = $json_array[api::FLD_NAME];
+        if (array_key_exists(json_fields::PROFILE_ID, $json_array)) {
+            $this->set_profile_id($json_array[json_fields::PROFILE_ID]);
+        } else {
+            $this->profile = 0;
+        }
+        if (array_key_exists(json_fields::EMAIL, $json_array)) {
+            $this->email = $json_array[json_fields::EMAIL];
         } else {
             $this->email = null;
         }
-        if (array_key_exists(api::FLD_NAME, $json_array)) {
-            $this->first_name = $json_array[api::FLD_NAME];
+        if (array_key_exists(json_fields::FIRST_NAME, $json_array)) {
+            $this->first_name = $json_array[json_fields::FIRST_NAME];
         } else {
             $this->first_name = null;
         }
-        if (array_key_exists(api::FLD_NAME, $json_array)) {
-            $this->last_name = $json_array[api::FLD_NAME];
+        if (array_key_exists(json_fields::LAST_NAME, $json_array)) {
+            $this->last_name = $json_array[json_fields::LAST_NAME];
         } else {
             $this->last_name = null;
+        }
+        return $usr_msg;
+    }
+
+
+    /*
+     * info
+     */
+
+    /**
+     * @returns bool true if the user has admin rights
+     */
+    function is_admin(): bool
+    {
+        global $usr_pro_cac;
+        log_debug();
+        $result = false;
+
+        if ($this->is_profile_valid()) {
+            if ($this->profile_id == $usr_pro_cac->id(user_profiles::ADMIN)) {
+                $result = true;
+            }
+        }
+        return $result;
+    }
+
+    /**
+     * @returns bool true if the user is a system user e.g. the reserved word names can be used
+     */
+    function is_system(): bool
+    {
+        global $usr_pro_cac;
+        log_debug();
+        $result = false;
+
+        if ($this->is_profile_valid()) {
+            if ($this->profile_id == $usr_pro_cac->id(user_profiles::TEST)
+                or $this->profile_id == $usr_pro_cac->id(user_profiles::SYSTEM)) {
+                $result = true;
+            }
+        }
+        return $result;
+    }
+
+    /**
+     * @return bool false if the profile is not set or is not found
+     */
+    private function is_profile_valid(): bool
+    {
+        if ($this->profile_id > 0) {
+            return true;
+        } else {
+            return false;
         }
     }
 
@@ -112,8 +220,8 @@ class user extends user_api
      */
     function api_array(): array
     {
-        $vars[api::FLD_NAME] = $this->name;
-        $vars[api::FLD_DESCRIPTION] = $this->description;
+        $vars[json_fields::NAME] = $this->name;
+        $vars[json_fields::DESCRIPTION] = $this->description;
         return array_filter($vars, fn($value) => !is_null($value) && $value !== '');
     }
 
@@ -130,10 +238,10 @@ class user extends user_api
         $html = new html_base();
         $result = ''; // reset the html code var
 
-        if ($this->id > 0) {
+        if ($this->id() > 0) {
             // display the user fields using a table and not using px in css to be independent of any screen solution
             $header = $html->text_h2('User "' . $this->name . '"');
-            $hidden_fields = $html->form_hidden("id", $this->id);
+            $hidden_fields = $html->form_hidden("id", $this->id());
             $hidden_fields .= $html->form_hidden("back", $back);
             $detail_fields = $html->form_text("username", $this->name);
             $detail_fields .= $html->form_text("email", $this->email);
@@ -141,7 +249,7 @@ class user extends user_api
             $detail_fields .= $html->form_text("last name", $this->last_name);
             $detail_row = $html->fr($detail_fields) . '<br>';
             $result = $header
-                . $html->form(self::FORM_EDIT, $hidden_fields . $detail_row)
+                . $html->form(views::USER_EDIT, $hidden_fields . $detail_row)
                 . '<br>';
         }
 

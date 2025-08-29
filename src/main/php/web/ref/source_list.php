@@ -31,11 +31,15 @@
 
 namespace html\ref;
 
-include_once WEB_SANDBOX_PATH . 'list.php';
-include_once WEB_REF_PATH . 'source.php';
+use html\const\paths as html_paths;
 
-use html\list_dsp;
+include_once html_paths::SANDBOX . 'list_dsp.php';
+include_once html_paths::REF . 'source.php';
+include_once html_paths::USER . 'user_message.php';
+
+use html\sandbox\list_dsp;
 use html\ref\source as source_dsp;
+use html\user\user_message;
 
 class source_list extends list_dsp
 {
@@ -47,27 +51,11 @@ class source_list extends list_dsp
     /**
      * set the vars of a source object based on the given json
      * @param array $json_array an api single object json message
-     * @return object a source set based on the given json
+     * @return user_message ok or a warning e.g. if the server version does not match
      */
-    function set_obj_from_json_array(array $json_array): object
+    function api_mapper(array $json_array): user_message
     {
-        $src = new source_dsp();
-        $src->set_from_json_array($json_array);
-        return $src;
-    }
-
-
-    /*
-     * modify
-     */
-
-    /**
-     * add a source to the list
-     * @returns bool true if the source has been added
-     */
-    function add(source_dsp $src): bool
-    {
-        return parent::add_obj($src);
+        return parent::api_mapper_list($json_array, new source_dsp());
     }
 
 }

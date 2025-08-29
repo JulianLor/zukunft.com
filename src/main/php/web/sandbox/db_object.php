@@ -34,17 +34,31 @@
 
 namespace html\sandbox;
 
-include_once API_SANDBOX_PATH . 'sandbox.php';
+use cfg\const\paths;
+use html\const\paths as html_paths;
+include_once paths::API_OBJECT . 'api_message.php';
+include_once html_paths::HTML . 'html_base.php';
+include_once html_paths::HTML . 'rest_ctrl.php';
+//include_once html_paths::PHRASE . 'phrase.php';
+//include_once html_paths::PHRASE . 'term.php';
+include_once html_paths::USER . 'user_message.php';
+//include_once html_paths::VIEW . 'view_list.php';
+include_once paths::SHARED_HELPER . 'TextIdObject.php';
+include_once paths::SHARED . 'api.php';
+include_once paths::SHARED . 'json_fields.php';
 
-use api\api;
-use cfg\phrase;
-use controller\controller;
-use html\api as api_dsp;
+use controller\api_message;
+use html\view\view_list;
+use shared\api;
+use html\rest_ctrl as api_dsp;
 use html\html_base;
 use html\phrase\phrase as phrase_dsp;
 use html\phrase\term as term_dsp;
+use html\user\user_message;
+use shared\helper\TextIdObject;
+use shared\json_fields;
 
-class db_object
+class db_object extends TextIdObject
 {
 
     // fields for the backend link
@@ -61,9 +75,29 @@ class db_object
      */
     function __construct(?string $api_json = null)
     {
+        parent::__construct();
         if ($api_json != null) {
             $this->set_from_json($api_json);
         }
+    }
+
+    /**
+     * TODO rename to api mapper (but only for the frontend)
+     * set the vars of this object bases on the url array
+     * public because it is reused e.g. by the phrase group display object
+     * @param array $url_array an array based on $_GET from a form submit
+     * @return user_message ok or a warning e.g. if the server version does not match
+     */
+    function url_mapper(array $url_array): user_message
+    {
+        $usr_msg = new user_message();
+        if (array_key_exists(api::URL_VAR_ID, $url_array)) {
+            $this->set_id($url_array[api::URL_VAR_ID]);
+        } else {
+            $this->set_id(0);
+            $usr_msg->add_err('Mandatory field id missing in form url array ' . json_encode($url_array));
+        }
+        return $usr_msg;
     }
 
 
@@ -74,26 +108,35 @@ class db_object
     /**
      * set the vars of this frontend object bases on the api message
      * @param string $json_api_msg an api json message as a string
-     * @return void
+     * @return user_message ok or a warning e.g. if the server version does not match
      */
-    function set_from_json(string $json_api_msg): void
+    function set_from_json(string $json_api_msg): user_message
     {
-        $this->set_from_json_array(json_decode($json_api_msg, true));
+        return $this->api_mapper(json_decode($json_api_msg, true));
     }
 
     /**
      * set the vars of this object bases on the api json array
+     * this function is expected to be extended by each child object that has additional object vars
+     *
      * @param array $json_array an api json message
-     * @return void
+     * @return user_message ok or a warning e.g. if the server version does not match
      */
-    function set_from_json_array(array $json_array): void
+    function api_mapper(array $json_array): user_message
     {
-        if (array_key_exists(api::FLD_ID, $json_array)) {
-            $this->set_id($json_array[api::FLD_ID]);
+        $usr_msg = new user_message();
+
+        // get body from message
+        $api_msg = new api_message();
+        $json_array = $api_msg->validate($json_array);
+
+        if (array_key_exists(json_fields::ID, $json_array)) {
+            $this->set_id($json_array[json_fields::ID]);
         } else {
             $this->set_id(0);
-            log_err('Mandatory field id missing in API JSON ' . json_encode($json_array));
+            $usr_msg->add_err('Mandatory field id missing in API JSON ' . json_encode($json_array));
         }
+        return $usr_msg;
     }
 
     function set_id(int|string $id): void
@@ -113,19 +156,26 @@ class db_object
 
     /**
      * load the user sandbox object e.g. word by id via api
-     * @param int $id
+     * @param int|string $id the database id of the object that should be loaded
+     * @param array $data additional data that should be included in the get request
      * @return bool
      */
-    function load_by_id(int $id): bool
+    function load_by_id(int|string $id, array $data = []): bool
     {
         $result = false;
 
         $api = new api_dsp();
-        $json_body = $api->api_call_id($this::class, $id);
-        if ($json_body) {
-            $this->set_from_json_array($json_body);
-            if ($this->name() != '') {
-                $result = true;
+        $json_array = $api->api_call_id($this::class, $id, $data);
+        if ($json_array) {
+            $excluded = false;
+            if (array_key_exists(json_fields::EXCLUDED, $json_array)) {
+                $excluded = $json_array[json_fields::EXCLUDED];
+            }
+            if (!$excluded) {
+                $this->api_mapper($json_array);
+                if ($this->name() != '') {
+                    $result = true;
+                }
             }
         }
         return $result;
@@ -143,8 +193,16 @@ class db_object
     function api_array(): array
     {
         $vars = array();
-        $vars[api::FLD_ID] = $this->id();
+        $vars[json_fields::ID] = $this->id();
         return $vars;
+    }
+
+    /**
+     * @return string the jsom message to the backend as a string
+     */
+    function api_json(): string
+    {
+        return json_encode($this->api_array());
     }
 
 
@@ -185,12 +243,17 @@ class db_object
 
     function name(): string
     {
-        return '';
+        return 'name not overwritten by ' . $this::class;
     }
 
     function description(): string
     {
-        return '';
+        return 'description not overwritten by ' . $this::class;
+    }
+
+    function plural(): ?string
+    {
+        return 'plural not overwritten by ' . $this::class;
     }
 
     function phrase(): phrase_dsp
@@ -206,16 +269,111 @@ class db_object
         return new term_dsp();
     }
 
+    /**
+     * @returns string the formula expression in the user readable format and including user formatting
+     */
+    function user_expression(): string
+    {
+        return '';
+    }
+
+    /**
+     * @returns bool true e.g. if all term of the formula expression needs to be set for calculation the result
+     */
+    function need_all(): bool
+    {
+        return false;
+    }
+
+
+    /*
+     * load
+     */
+
+
+    function view_list(?string $pattern = null): view_list
+    {
+        $msk_lst = new view_list();
+        $msk_lst->load_by_pattern($pattern);
+        return $msk_lst;
+    }
+
 
     /*
      * dummy function to be overwritten by the child objects
      */
 
     /**
+     * @param string $form the name of the html form
+     * @return string the html code to select the phrase type
+     */
+    public function phrase_type_selector(string $form): string
+    {
+        $msg = 'phrase type selector not defined for ' . $this::class;
+        log_err($msg);
+        return $msg;
+    }
+
+    /**
+     * @param string $form_name the name of the html form
+     * @return string the html code to select the phrase type
+     */
+    public function source_type_selector(string $form_name): string
+    {
+        $msg = 'source type selector not defined for ' . $this::class;
+        log_err($msg);
+        return $msg;
+    }
+
+    /**
+     * @param string $form_name the name of the html form
+     * @return string the html code to select the phrase type
+     */
+    public function ref_type_selector(string $form_name): string
+    {
+        $msg = 'source type selector not defined for ' . $this::class;
+        log_err($msg);
+        return $msg;
+    }
+
+    /**
+     * @param string $form_name the name of the html form
+     * @return string the html code to select the phrase type
+     */
+    public function formula_type_selector(string $form_name): string
+    {
+        $msg = 'source type selector not defined for ' . $this::class;
+        log_err($msg);
+        return $msg;
+    }
+
+    /**
+     * @param string $form_name the name of the html form
+     * @return string the html code to select the phrase type
+     */
+    public function view_type_selector(string $form_name): string
+    {
+        $msg = 'source type selector not defined for ' . $this::class;
+        log_err($msg);
+        return $msg;
+    }
+
+    /**
+     * @param string $form_name the name of the html form
+     * @return string the html code to select the phrase type
+     */
+    public function component_type_selector(string $form_name): string
+    {
+        $msg = 'source type selector not defined for ' . $this::class;
+        log_err($msg);
+        return $msg;
+    }
+
+    /**
      * @param string $form_name the name of the html form
      * @return string the html code to select the share type
      */
-    protected function share_type_selector(string $form_name): string
+    public function share_type_selector(string $form_name): string
     {
         $msg = 'share type selector not defined for ' . $this::class;
         log_err($msg);
@@ -226,7 +384,7 @@ class db_object
      * @param string $form_name the name of the html form
      * @return string the html code to select the protection type
      */
-    protected function protection_type_selector(string $form_name): string
+    public function protection_type_selector(string $form_name): string
     {
         $msg = 'protection type selector not defined for ' . $this::class;
         log_err($msg);
@@ -235,7 +393,7 @@ class db_object
 
     /**
      * @param string $name the unique name inside the form for this selector
-     * @param string $form_name the name of the html form
+     * @param string $form the name of the html form
      * @param string $label the text show to the user
      * @param string $col_class the formatting code to adjust the formatting
      * @param int $selected the id of the preselected phrase
@@ -243,13 +401,13 @@ class db_object
      * @param phrase_dsp|null $phr phrase to preselect the phrases e.g. use Country to narrow the selection
      * @return string with the HTML code to show the phrase selector
      */
-    protected function phrase_selector(
-        string $name,
-        string $form_name,
-        string $label = '',
-        string $col_class = '',
-        int $selected = 0,
-        string $pattern = '',
+    public function phrase_selector_old(
+        string      $name,
+        string      $form,
+        string      $label = '',
+        string      $col_class = '',
+        int         $selected = 0,
+        string      $pattern = '',
         ?phrase_dsp $phr = null
     ): string
     {
@@ -259,10 +417,23 @@ class db_object
     }
 
     /**
-     * @param string $form_name the name of the html form
+     * create the HTML code to select a view
+     * @param string $form the name of the html form
+     * @param view_list $msk_lst with the suggested views
+     * @return string the html code to select a view
+     */
+    public function view_selector(string $form, view_list $msk_lst): string
+    {
+        $msg = 'view selector not defined for ' . $this::class;
+        log_err($msg);
+        return $msg;
+    }
+
+    /**
+     * @param string $form the name of the html form
      * @return string the html code to select a phrase
      */
-    protected function verb_selector(string $name, string $form_name): string
+    public function verb_selector(string $form): string
     {
         $msg = 'verb selector not defined for ' . $this::class;
         log_err($msg);

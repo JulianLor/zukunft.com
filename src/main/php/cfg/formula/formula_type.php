@@ -2,8 +2,8 @@
 
 /*
 
-    model/formula/phrase_type.php - the formula type object with the ENUM values for hardcoded formulas
-    -----------------------------
+    model/formula/formula_type.php - the formula type object with the ENUM values for hardcoded formulas
+    ------------------------------
 
     This file is part of zukunft.com - calc with words
 
@@ -29,7 +29,13 @@
 
 */
 
-namespace cfg;
+namespace cfg\formula;
+
+use cfg\const\paths;
+
+include_once paths::MODEL_HELPER . 'type_object.php';
+
+use cfg\helper\type_object;
 
 class formula_type extends type_object
 {
@@ -44,5 +50,14 @@ class formula_type extends type_object
     const THIS = "time_this";  // selects the assumed time term
     const PREV = "time_prior"; // time jump backward: replaces a time term with the previous time term based on the verb follower. E.g. "2017" "next" would lead to use "2016"
     const REV = "reversible";  // used to define a const value that is not supposed to be changed like pi
+    const DEFAULT = self::CALC;
+
+
+    /*
+     * database link
+     */
+
+    // comments used for the database creation
+    const TBL_COMMENT = 'to assign predefined behaviour to formulas';
 
 }

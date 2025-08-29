@@ -2,8 +2,9 @@
 
 /*
 
-    /model/dp/sql_field_type.php - enum of the sql field types used
-    ----------------------------
+    model/dp/sql_field_type.php - enum of the sql field types used e.g. for creating the table
+    --------------------------
+
 
     This file is part of zukunft.com - calc with words
 
@@ -36,20 +37,27 @@ enum sql_field_type: string
 
     // prime table index fields
     case KEY_INT = 'intKey'; // a 64-bit integer prime index with auto increase by 1
+    case KEY_INT_SMALL = 'intKeySmall'; // a small integer prime index with auto increase by 1 for a very limited number of entries
     case KEY_INT_NO_AUTO = 'intKeyNoAuto'; // a 64-bit integer prime index without auto increase
     case KEY_512 = '512bitKey'; // a 512-bit prime index without auto increase
     case KEY_TEXT = 'textKey'; // a long string prime index without auto increase
 
     // data field types used
-    case NAME = 'name'; // a unique text up to 255 char long to identify a database row
+    case NAME_UNIQUE = 'unique'; // a unique text up to 255 char long to identify a database row
+    case NAME_UNIQUE_PART = 'uniquePart'; // together with other fields a unique text up to 255 char long to identify a database row
+    case NAME = 'name'; // a text up to 255 char long to identify a database row
+    case CRONTAB = 'crontab'; // a crontab scheduling without the command
+    case IP_ADDR = 'ip_addr'; // an ipv4 or ipv6 address
     case CODE_ID = 'code_id'; // a unique text to select single database rows by the program
     case TEXT = 'text'; // a text with variable length that can be used for a combined index without auto increase
+    case POINT = 'point'; // a geographical point on earth
     case KEY_PART_TEXT = 'textKeyPart'; // a text with variable length that is part of a combined index
     case KEY_PART_512 = '512bitKeyPart'; // a 512-bit text for a combined index without auto increase
     case KEY_PART_INT_SMALL = 'smallIntKeyPart'; // a small integer that is part of a combined index
-    case KEY_PART_INT = 'bigintKeyPart'; // an integer that is part of a combined index
+    case KEY_PART_INT = 'bigintKeyPart'; // an integer that is part of a combined primary index
     case REF_512 = '512bitRef'; // a 512-bit foreign key
     case INT = 'bigint'; // the standard integer type
+    case INT_UNIQUE_PART = 'bigintUniquePart'; // an integer that is part of a combined unique index
     case INT_SMALL = 'smallint'; // the integer type for a very limited number of entries
     case BOOL = 'bool'; // the one bit true/false type
     case TIME = 'time'; // for the iso timestamp format
@@ -60,15 +68,18 @@ enum sql_field_type: string
     {
         return match($this) {
             self::KEY_INT => 'BIGSERIAL',
+            self::KEY_INT_SMALL => 'SERIAL',
             self::KEY_512, self::KEY_PART_512, self::REF_512 => 'char(112)',
-            self::NAME => 'varchar(255)',
+            self::NAME, self::NAME_UNIQUE, self::NAME_UNIQUE_PART => 'varchar(255)',
+            self::CRONTAB => 'varchar(20)',
+            self::IP_ADDR => 'varchar(46)',
             self::CODE_ID => 'varchar(100)',
             self::TEXT, self::KEY_TEXT, self::KEY_PART_TEXT => 'text',
-            self::INT, self::KEY_INT_NO_AUTO, self::KEY_PART_INT => 'bigint',
+            self::INT, self::KEY_INT_NO_AUTO, self::KEY_PART_INT, self::INT_UNIQUE_PART => 'bigint',
             self::INT_SMALL, self::BOOL, self::KEY_PART_INT_SMALL => 'smallint',
             self::NUMERIC_FLOAT => 'double precision',
             self::TIME => 'timestamp',
-            self::GEO => 'point',
+            self::POINT, self::GEO => 'point',
             default => 'postgres type ' . $this->value .' missing',
         };
     }
@@ -76,24 +87,46 @@ enum sql_field_type: string
     public function mysql_type(): string
     {
         return match($this) {
-            self::KEY_INT, self::INT, self::KEY_INT_NO_AUTO, self::KEY_PART_INT => 'bigint',
+            self::INT, self::KEY_INT, self::KEY_INT_NO_AUTO, self::KEY_PART_INT, self::INT_UNIQUE_PART => 'bigint',
             self::KEY_512, self::KEY_PART_512, self::REF_512 => 'char(112)',
             self::KEY_TEXT, self::KEY_PART_TEXT => 'char(255)',
-            self::NAME => 'varchar(255)',
+            self::NAME, self::NAME_UNIQUE, self::NAME_UNIQUE_PART => 'varchar(255)',
+            self::CRONTAB => 'varchar(20)',
+            self::IP_ADDR => 'varchar(46)',
             self::CODE_ID => 'varchar(100)',
             self::TEXT => 'text',
-            self::INT_SMALL, self::BOOL, self::KEY_PART_INT_SMALL => 'smallint',
+            self::INT_SMALL, self::BOOL, self::KEY_INT_SMALL, self::KEY_PART_INT_SMALL => 'smallint',
             self::NUMERIC_FLOAT => 'double',
             self::TIME => 'timestamp',
-            self::GEO => 'point',
+            self::POINT, self::GEO => 'point',
             default => 'MySQL type ' . $this->value .' missing',
+        };
+    }
+
+    public function par_type(): sql_par_type
+    {
+        return match($this) {
+            self::INT, self::KEY_INT, self::KEY_INT_NO_AUTO, self::KEY_PART_INT, self::INT_UNIQUE_PART => sql_par_type::INT,
+            self::INT_SMALL, self::BOOL => sql_par_type::INT_SMALL,
+            self::NUMERIC_FLOAT => sql_par_type::FLOAT,
+            self::TIME => sql_par_type::TIME,
+            self::POINT => sql_par_type::POINT,
+            default => sql_par_type::TEXT,
         };
     }
 
     public function is_key(): bool
     {
         return match($this) {
-            self::KEY_INT, self::KEY_INT_NO_AUTO, self::KEY_512, self::KEY_TEXT => true,
+            self::KEY_INT, self::KEY_INT_SMALL, self::KEY_INT_NO_AUTO, self::KEY_512, self::KEY_TEXT => true,
+            default => false,
+        };
+    }
+
+    public function is_auto_increment(): bool
+    {
+        return match($this) {
+            self::KEY_INT, self::KEY_INT_SMALL => true,
             default => false,
         };
     }
@@ -102,6 +135,22 @@ enum sql_field_type: string
     {
         return match($this) {
             self::KEY_PART_512, self::KEY_PART_INT, self::KEY_PART_INT_SMALL, self::KEY_PART_TEXT => true,
+            default => false,
+        };
+    }
+
+    public function is_unique_part(): bool
+    {
+        return match($this) {
+            self::NAME_UNIQUE_PART, self::INT_UNIQUE_PART => true,
+            default => false,
+        };
+    }
+
+    public function is_unique(): bool
+    {
+        return match($this) {
+            self::NAME_UNIQUE => true,
             default => false,
         };
     }

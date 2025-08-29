@@ -30,27 +30,18 @@
   
 */
 
-namespace cfg;
+namespace cfg\language;
 
-use cfg\db\sql_db;
+use cfg\const\paths;
 
-include_once DB_PATH . 'sql_db.php';
-include_once MODEL_LANGUAGE_PATH . 'language_form.php';
+include_once paths::MODEL_HELPER . 'type_list.php';
+include_once paths::DB . 'sql_db.php';
+include_once paths::MODEL_LANGUAGE . 'language_form.php';
 
-global $language_forms;
+use cfg\helper\type_list;
 
 class language_form_list extends type_list
 {
-
-    /**
-     * overwrite the general user type list load function to keep the link to the table type capsuled
-     * @param sql_db $db_con the database connection that can be either the real database connection or a simulation used for testing
-     * @return bool true if load was successful
-     */
-    function load(sql_db $db_con, string $db_type = sql_db::TBL_LANGUAGE_FORM): bool
-    {
-        return parent::load($db_con, $db_type);
-    }
 
     /**
      * create dummy type list for the unit tests without database connection
@@ -58,9 +49,8 @@ class language_form_list extends type_list
     function load_dummy(): void
     {
         $this->reset();
-        $type = new type_object(language_form::PLURAL, language_form::PLURAL, '', 2);
-        $this->add($type);
-
+        // read the corresponding names and description from the internal config csv files
+        $this->read_from_config_csv($this);
     }
 
     /**

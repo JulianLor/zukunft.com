@@ -5,6 +5,7 @@
     model/verb/verb_list.php - al list of verb objects
     ------------------------
 
+
     This file is part of zukunft.com - calc with words
 
     zukunft.com is free software: you can redistribute it and/or modify it
@@ -29,26 +30,42 @@
   
 */
 
-namespace cfg;
+namespace cfg\verb;
 
-include_once DB_PATH . 'sql_db.php';
-include_once DB_PATH . 'sql_par.php';
-include_once DB_PATH . 'sql_par_type.php';
-include_once MODEL_HELPER_PATH . 'type_list.php';
-include_once MODEL_HELPER_PATH . 'library.php';
-include_once MODEL_SANDBOX_PATH . 'sandbox.php';
-include_once MODEL_USER_PATH . 'user.php';
-include_once MODEL_WORD_PATH . 'word.php';
-include_once MODEL_WORD_PATH . 'triple.php';
-include_once MODEL_PHRASE_PATH . 'phrase.php';
+use cfg\const\paths;
 
-use cfg\db\sql;
+include_once paths::MODEL_HELPER . 'type_list.php';
+include_once paths::DB . 'sql_db.php';
+include_once paths::DB . 'sql_par.php';
+include_once paths::DB . 'sql_par_type.php';
+include_once paths::MODEL_HELPER . 'type_list.php';
+include_once paths::MODEL_PHRASE . 'phrase.php';
+//include_once paths::MODEL_PHRASE . 'term_list.php';
+include_once paths::MODEL_SANDBOX . 'sandbox.php';
+include_once paths::MODEL_SYSTEM . 'system_time_type.php';
+include_once paths::MODEL_USER . 'user.php';
+include_once paths::MODEL_USER . 'user_message.php';
+include_once paths::MODEL_WORD . 'word.php';
+include_once paths::MODEL_WORD . 'triple.php';
+include_once paths::MODEL_WORD . 'triple_db.php';
+include_once paths::SHARED_ENUM . 'foaf_direction.php';
+include_once paths::SHARED_TYPES . 'verbs.php';
+
 use cfg\db\sql_db;
 use cfg\db\sql_par;
 use cfg\db\sql_par_type;
-use html\html_base;
-
-global $verbs;
+use cfg\helper\type_list;
+use cfg\phrase\phrase;
+use cfg\phrase\term_list;
+use cfg\sandbox\sandbox;
+use cfg\system\system_time_type;
+use cfg\user\user;
+use cfg\user\user_message;
+use cfg\word\triple;
+use cfg\word\triple_db;
+use cfg\word\word;
+use shared\enum\foaf_direction;
+use shared\types\verbs;
 
 class verb_list extends type_list
 {
@@ -59,6 +76,7 @@ class verb_list extends type_list
     public ?word $wrd = null;  // to load a list related to this word
     public ?array $ids = array(); // list of the verb ids to load a list from the database
 
+
     /*
      * construct and map
      */
@@ -66,9 +84,11 @@ class verb_list extends type_list
     /**
      * define the settings for this verb list object
      * @param user|null $usr the user who requested to see the verb list
+     * @param bool $usr_can_add true by default to allow searching by name for new added verbs
      */
-    function __construct(?user $usr = null)
+    function __construct(?user $usr = null, bool $usr_can_add = true)
     {
+        parent::__construct($usr_can_add);
         $this->set_user($usr);
     }
 
@@ -125,19 +145,19 @@ class verb_list extends type_list
         }
 
         if ($qp->name != '') {
-            $db_con->set_class(sql_db::TBL_TRIPLE);
+            $db_con->set_class(triple::class);
             $db_con->set_name($qp->name);
             $db_con->set_usr($this->user()->id());
-            $db_con->set_usr_num_fields(array(sandbox::FLD_EXCLUDED));
-            $db_con->set_join_fields(array_merge(verb::FLD_NAMES, array(verb::FLD_NAME)), sql_db::TBL_VERB);
-            $db_con->set_fields(array(verb::FLD_ID));
+            $db_con->set_usr_num_fields(array(sql_db::FLD_EXCLUDED));
+            $db_con->set_join_fields(array_merge(verb_db::FLD_NAMES, array(verb_db::FLD_NAME)), verb::class);
+            $db_con->set_fields(array(verb_db::FLD_ID));
             // set the where clause depending on the values given
             // definition of up: if "Zurich" is a City, then "Zurich" is "from" and "City" is "to", so staring from "Zurich" and "up", the result should include "is a"
             $db_con->add_par(sql_par_type::INT, $phr->id());
             if ($direction == foaf_direction::UP) {
-                $qp->sql = $db_con->select_by_field(triple::FLD_FROM);
+                $qp->sql = $db_con->select_by_field(triple_db::FLD_FROM);
             } else {
-                $qp->sql = $db_con->select_by_field(triple::FLD_TO);
+                $qp->sql = $db_con->select_by_field(triple_db::FLD_TO);
             }
             $qp->par = $db_con->get_par();
         }
@@ -172,7 +192,7 @@ class verb_list extends type_list
                 $db_vrb_lst = $db_con->get($qp);
                 if ($db_vrb_lst != null) {
                     foreach ($db_vrb_lst as $db_vrb) {
-                        if (!in_array($db_vrb[verb::FLD_ID], $vrb_id_lst)) {
+                        if (!in_array($db_vrb[verb_db::FLD_ID], $vrb_id_lst)) {
                             $vrb = new verb;
                             $vrb->row_mapper_verb($db_vrb);
                             $vrb->set_user($this->usr);
@@ -192,61 +212,16 @@ class verb_list extends type_list
     }
 
     /**
-     * common part to create an SQL statement to load all verbs from the database
-     *
-     * @param sql $sc with the target db_type set
-     * @param string $class the class name to be compatible with the user sandbox load_sql functions
-     * @param string $query_name the name extension to make the query name unique
-     * @param string $order_field set if the type list should e.g. be sorted by the name instead of the id
-     * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
-     */
-    function load_sql(
-        sql    $sc,
-        string $class = self::class,
-        string $query_name = 'all',
-        string $order_field = verb::FLD_ID): sql_par
-    {
-        $sc->set_class(verb::class);
-        $qp = new sql_par($class);
-        $qp->name = $class . '_' . $query_name;
-
-        $sc->set_name($qp->name);
-        //TODO check if $db_con->set_usr($this->user()->id()); is needed
-        $sc->set_fields(verb::FLD_NAMES);
-        $sc->set_order($order_field);
-
-        return $qp;
-    }
-
-
-    /**
-     * create an SQL statement to load all verbs from the database
-     *
-     * @param sql $sc with the target db_type set
-     * @param string $db_type the class name to be compatible with the user sandbox load_sql functions
-     * @return sql_par the SQL statement, the name of the SQL statement and the parameter list
-     */
-    function load_sql_all(sql $sc, string $db_type): sql_par
-    {
-        $qp = $this->load_sql($sc, $db_type);
-        $sc->set_page(sql_db::ROW_MAX, 0);
-        $qp->sql = $sc->sql();
-        $qp->par = $sc->get_par();
-
-        return $qp;
-    }
-
-    /**
      * force to reload the complete list of verbs from the database
      *
      * @param sql_db $db_con the database connection that can be either the real database connection or a simulation used for testing
-     * @param string $db_type the database name e.g. the table name without s
+     * @param string $class the database name e.g. the table name without s
      * @return array the list of types
      */
-    private function load_list(sql_db $db_con, string $db_type): array
+    protected function load_list(sql_db $db_con, string $class): array
     {
         $this->reset();
-        $qp = $this->load_sql_all($db_con->sql_creator(), $db_type);
+        $qp = $this->load_sql_all($db_con->sql_creator(), $class);
         $db_lst = $db_con->get($qp);
         if ($db_lst != null) {
             foreach ($db_lst as $db_row) {
@@ -259,53 +234,123 @@ class verb_list extends type_list
     }
 
     /**
-     * force to reload the complete list of verbs from the database
-     *
-     * @param sql_db $db_con the database connection that can be either the real database connection or a simulation used for testing
-     * @param string $db_type the database name e.g. the table name without s
-     * @return bool true if at least one verb has been loaded
-     */
-    function load(sql_db $db_con, string $db_type = sql_db::TBL_VERB): bool
-    {
-        $result = false;
-        $this->set_lst($this->load_list($db_con, $db_type));
-        if ($this->count() > 0) {
-            $result = true;
-        }
-        return $result;
-
-    }
-
-    /**
      * adding the verbs used for unit tests to the dummy list
+     * TODO use always the verb_api name const
      */
     function load_dummy(): void
     {
         $vrb = new verb();
-        $vrb->set_id(1);
-        $vrb->set_name(verb::NOT_SET);
-        $vrb->code_id = verb::NOT_SET;
+        $vrb->set_id(verbs::NOT_SET_ID);
+        $vrb->set_name(verbs::NOT_SET_NAME);
+        $vrb->set_code_id_db(verbs::NOT_SET);
         $this->add_verb($vrb);
         $vrb = new verb();
-        $vrb->set_id(2);
-        $vrb->set_name(verb::IS);
-        $vrb->code_id = verb::IS;
+        $vrb->set_id(verbs::IS_ID);
+        $vrb->set_name(verbs::IS_NAME);
+        $vrb->set_code_id_db(verbs::IS);
         $this->add_verb($vrb);
         $vrb = new verb();
-        $vrb->set_id(3);
-        $vrb->set_name(verb::IS_PART_OF);
-        $vrb->code_id = verb::IS_PART_OF;
+        $vrb->set_id(verbs::OF_ID);
+        $vrb->set_name(verbs::OF_NAME);
+        $vrb->set_code_id_db(verbs::OF);
         $this->add_verb($vrb);
         $vrb = new verb();
-        $vrb->set_id(4);
-        $vrb->set_name(verb::IS_WITH);
-        $vrb->code_id = verb::IS_WITH;
+        $vrb->set_id(verbs::PART_ID);
+        $vrb->set_name(verbs::PART_NAME);
+        $vrb->set_code_id_db(verbs::PART);
         $this->add_verb($vrb);
         $vrb = new verb();
-        $vrb->set_id(9);
-        $vrb->set_name(verb::FOLLOW);
-        $vrb->code_id = verb::FOLLOW;
+        $vrb->set_id(verbs::WITH_ID);
+        $vrb->set_name(verbs::WITH_NAME);
+        $vrb->set_code_id_db(verbs::WITH_NAME);
         $this->add_verb($vrb);
+        $vrb = new verb();
+        $vrb->set_id(verbs::FOLLOW_ID);
+        $vrb->set_name(verbs::FOLLOW_NAME);
+        $vrb->set_code_id_db(verbs::FOLLOW);
+        $this->add_verb($vrb);
+        $vrb = new verb();
+        $vrb->set_id(verbs::MEASURE_ID);
+        $vrb->set_name(verbs::MEASURE_NAME);
+        $vrb->set_code_id_db(verbs::MEASURE);
+        $this->add_verb($vrb);
+        $vrb = new verb();
+        $vrb->set_id(verbs::ALIAS_ID);
+        $vrb->set_name(verbs::ALIAS_NAME);
+        $vrb->set_code_id_db(verbs::ALIAS);
+        $this->add_verb($vrb);
+        $vrb = new verb();
+        $vrb->set_id(verbs::CAN_BE_ID);
+        $vrb->set_name(verbs::CAN_BE_NAME);
+        $vrb->set_code_id_db(verbs::CAN_BE);
+        $this->add_verb($vrb);
+        $vrb = new verb();
+        $vrb->set_id(verbs::CAN_GET_ID);
+        $vrb->set_name(verbs::CAN_GET_NAME);
+        $vrb->set_code_id_db(verbs::CAN_GET);
+        $this->add_verb($vrb);
+        $vrb = new verb();
+        $vrb->set_id(verbs::CAN_USE_ID);
+        $vrb->set_name(verbs::CAN_USE_NAME);
+        $vrb->set_code_id_db(verbs::CAN_USE);
+        $this->add_verb($vrb);
+        $vrb = new verb();
+        $vrb->set_id(verbs::CAN_CAUSE_ID);
+        $vrb->set_name(verbs::CAN_CAUSE_NAME);
+        $vrb->set_code_id_db(verbs::CAN_CAUSE);
+        $this->add_verb($vrb);
+        $vrb = new verb();
+        $vrb->set_id(verbs::PER_ID);
+        $vrb->set_name(verbs::PER_NAME);
+        $vrb->set_code_id_db(verbs::PER);
+        $this->add_verb($vrb);
+        $vrb = new verb();
+        $vrb->set_id(verbs::SYMBOL_ID);
+        $vrb->set_name(verbs::SYMBOL_NAME);
+        $vrb->set_code_id_db(verbs::SYMBOL);
+        $this->add_verb($vrb);
+        $vrb = new verb();
+        $vrb->set_id(verbs::AND_ID);
+        $vrb->set_name(verbs::AND_NAME);
+        $vrb->set_code_id_db(verbs::AND);
+        $this->add_verb($vrb);
+    }
+
+
+    /*
+     * cast
+     */
+
+    function term_list(): term_list
+    {
+        $trm_lst = new term_list($this->usr);
+        foreach ($this->lst() as $vrb) {
+            $trm_lst->add($vrb->term());
+        }
+        return $trm_lst;
+    }
+
+    /*
+     * info
+     */
+
+    /**
+     * convert this verb list object into a term list object
+     * and use the name as the unique key instead of the database id
+     * used for the data_object based import
+     * @return term_list with all verbs of this list as a term
+     */
+    function term_lst_of_names(user $usr): term_list
+    {
+        $trm_lst = new term_list($usr);
+        foreach ($this->lst() as $vrb) {
+            if ($vrb::class != verb::class) {
+                log_err('unexpected class ' . $vrb::class . ' in verb list');
+            } else {
+                $trm_lst->add_by_name($vrb->term());
+            }
+        }
+        return $trm_lst;
     }
 
 
@@ -324,6 +369,21 @@ class verb_list extends type_list
     }
 
     /**
+     * add a verb to the list that does not yet have an id but has a name
+     * @param verb $to_add the named verb that should be added
+     * @returns bool true if the object has been added
+     */
+    function add_by_name(verb $to_add): bool
+    {
+        $result = false;
+        if (!in_array($to_add->name(), array_keys($this->names()))) {
+            $this->add_direct($to_add);
+            $result = true;
+        }
+        return $result;
+    }
+
+    /**
      * calculates how many times a word is used, because this can be helpful for sorting
      * @returns string error message for the user or an empty string
      */
@@ -332,6 +392,7 @@ class verb_list extends type_list
         log_debug('verb_list->calc_usage');
 
         global $db_con;
+        global $sys_times;
 
         $sql = "UPDATE verbs v
                    SET words = ( SELECT COUNT(to_phrase_id) 
@@ -339,8 +400,12 @@ class verb_list extends type_list
                                   WHERE v.verb_id = l.verb_id)
                  WHERE verb_id > 0;";
         $db_con->usr_id = $this->user()->id();
-        return $db_con->exe_try('Calculation of the verb usage', $sql);
+        $sys_times->switch(system_time_type::DB_WRITE);
+        $result = $db_con->exe_try('Calculation of the verb usage', $sql);
+        $sys_times->switch();
+        return $result;
     }
+
 
     /*
      * extract
@@ -384,8 +449,8 @@ class verb_list extends type_list
      * get a single verb from this list selected by the code id
      * a kind of replacement for the user_type_list->get() function but for the verb object
      *
-     * @param string $code_id
-     * @return verb the verb object or null if no match is found
+     * @param string $code_id the code id of the requested verb
+     * @return verb|null the verb object or null if no match is found
      */
     function get_verb(string $code_id): ?verb
     {
@@ -442,18 +507,18 @@ class verb_list extends type_list
                     $select_row = array();
                     $select_name = $vrb->name();
                     /* has been an idea, but has actually caused more confusion
-                    if ($vrb->reverse != '' and $select_name != '') {
-                        $select_name .= ' (' . $vrb->reverse . ')';
+                    if ($vrb->reverse() != '' and $select_name != '') {
+                        $select_name .= ' (' . $vrb->reverse() . ')';
                     }
                     */
                     $id = $vrb->id();
                     $select_row[] = $id;
                     $select_row[] = $select_name;
-                    $select_row[] = $vrb->usage;
+                    $select_row[] = $vrb->usage();
                     $combined_list[$id] = $select_row;
 
                     $select_row = array();
-                    $select_name = $vrb->reverse;
+                    $select_name = $vrb->reverse();
                     /* like above ...
                     if ($vrb->name() != '' and $select_name != '') {
                         $select_name .= ' (' . $vrb->name() . ')';
@@ -463,7 +528,7 @@ class verb_list extends type_list
                         $id = $vrb->id() * -1;
                         $select_row[] = $id;
                         $select_row[] = $select_name;
-                        $select_row[] = $vrb->usage; // TODO separate the backward usage or separate the reverse form
+                        $select_row[] = $vrb->usage(); // TODO separate the backward usage or separate the reverse form
                         $combined_list[$id] = $select_row;
                     }
                 }
@@ -508,26 +573,28 @@ class verb_list extends type_list
 
 
     /*
-      display functions
-      -----------------
-    */
+     * save
+     */
 
     /**
-     * @return string list of the verb ids as a sql compatible text
+     * simple loop to save all verbs of the list
+     * because there are hopefully never many verbs to save
+     *
+     * @return user_message in case of an issue the problem description what has failed and a suggested solution
      */
-    function ids_txt(): string
+    function save(): user_message
     {
-        $lib = new library();
-        return $lib->sql_array($this->ids());
-    }
+        $usr_msg = new user_message();
 
-    /**
-     * @return string html code to display all verbs and allow an admin to change it
-     */
-    function dsp_list(): string
-    {
-        $html = new html_base();
-        return $html->dsp_list($this->lst(), "link_type");
+        if ($this->is_empty()) {
+            $usr_msg->add_info_text('no verbs to save');
+        } else {
+            foreach ($this->lst() as $vrb) {
+                $usr_msg->add($vrb->save());
+            }
+        }
+
+        return $usr_msg;
     }
 
 }

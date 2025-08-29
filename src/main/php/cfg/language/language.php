@@ -29,20 +29,52 @@
 
 */
 
-namespace cfg;
+namespace cfg\language;
 
+use cfg\const\paths;
 
-use JsonSerializable;
+include_once paths::MODEL_HELPER . 'type_object.php';
+include_once paths::DB . 'sql.php';
+include_once paths::DB . 'sql_db.php';
+include_once paths::DB . 'sql_field_default.php';
+include_once paths::DB . 'sql_field_type.php';
+include_once paths::MODEL_USER . 'user.php';
+include_once paths::SHARED_TYPES . 'api_type_list.php';
+include_once paths::SHARED . 'json_fields.php';
+include_once paths::SHARED . 'library.php';
 
-class language extends type_object implements JsonSerializable
+use cfg\db\sql;
+use cfg\db\sql_db;
+use cfg\db\sql_field_default;
+use cfg\db\sql_field_type;
+use cfg\helper\type_object;
+use cfg\user\user;
+use shared\json_fields;
+use shared\library;
+use shared\types\api_type_list;
+
+class language extends type_object
 {
 
     /*
-     * database link
+     * db const
      */
 
     // database and JSON object field names
+    const TBL_COMMENT = 'for table languages';
+    const FLD_ID = 'language_id';
     const FLD_NAME = 'language_name';
+    const FLD_WIKI_CODE = 'wikimedia_code';
+
+    // field lists for the table creation
+    const FLD_LST_NAME = array(
+        [self::FLD_NAME, sql_field_type::NAME_UNIQUE, sql_field_default::NOT_NULL, sql::INDEX, '', ''],
+    );
+    const FLD_LST_ALL = array(
+        [sql_db::FLD_CODE_ID, sql_field_type::CODE_ID, sql_field_default::NULL, '', '', ''],
+        [sql_db::FLD_DESCRIPTION, sql_db::FLD_DESCRIPTION_SQL_TYP, sql_field_default::NULL, '', '', ''],
+        [self::FLD_WIKI_CODE, sql_field_type::CODE_ID, sql_field_default::NULL, '', '', ''],
+    );
 
 
     /*
@@ -51,39 +83,27 @@ class language extends type_object implements JsonSerializable
 
     // list of the languages that have a coded functionality
     const DEFAULT = "english";
+    const DEFAULT_ID = 1;
     const TN_READ = "English";
 
 
     /*
-     * interface
+     * api
      */
 
     /**
-     * @returns string the api json message for the object as a string
+     * create an array for the api json creation
+     * differs from the export array by using the internal id instead of the names
+     * @param api_type_list $typ_lst configuration for the api message e.g. if phrases should be included
+     * @param user|null $usr the user for whom the api message should be created which can differ from the session user
+     * @return array the filled array used to create the api json message to the frontend
      */
-    function api_json(): string
+    function api_json_array(api_type_list $typ_lst, user|null $usr = null): array
     {
-        return $this->get_json();
-    }
-
-    /**
-     * @return string the json api message as a text string
-     */
-    function get_json(): string
-    {
-        return json_encode($this->jsonSerialize());
-    }
-
-    /**
-     * @return array with the sandbox vars without empty values that are not needed
-     * the message from the backend to the frontend does not need to include empty fields
-     * the message from the frontend to the backend on the other side must include empty fields
-     * to be able to unset fields in the backend
-     */
-    function jsonSerialize(): array
-    {
-        $vars = get_object_vars($this);
-        return array_filter($vars, fn($value) => !is_null($value) && $value !== '');
+        $vars = parent::api_json_array($typ_lst, $usr);
+        $vars = array_merge($vars, get_object_vars($this));
+        $vars[json_fields::ID] = $this->id();
+        return $vars;
     }
 
 
@@ -96,18 +116,15 @@ class language extends type_object implements JsonSerializable
      * mainly set the class name for the type object function
      *
      * @param int $id the id of the language
-     * @param string $class the language class name
      * @return int the id of the object found and zero if nothing is found
      */
-    function load_by_id(int $id, string $class = self::class): int
+    function load_by_id(int $id): int
     {
         global $db_con;
 
         log_debug($id);
-        $lib = new library();
-        $dp_type = $lib->class_to_name($class);
-        $qp = $this->load_sql_by_id($db_con->sql_creator(), $id, $dp_type);
-        return $this->load_typ_obj($qp, $dp_type);
+        $qp = $this->load_sql_by_id($db_con->sql_creator(), $id, $this::class);
+        return $this->load_typ_obj($qp, $this::class);
     }
 
     /**
@@ -115,18 +132,17 @@ class language extends type_object implements JsonSerializable
      * mainly set the class name for the type object function
      *
      * @param string $name the name of the language
-     * @param string $class the language class name
      * @return int the id of the object found and zero if nothing is found
      */
-    function load_by_name(string $name, string $class = self::class): int
+    function load_by_name(string $name): int
     {
         global $db_con;
 
         log_debug($name);
         $lib = new library();
-        $dp_type = $lib->class_to_name($class);
+        $dp_type = $lib->class_to_name($this::class);
         $qp = $this->load_sql_by_name($db_con->sql_creator(), $name, $dp_type);
-        return $this->load_typ_obj($qp, $dp_type);
+        return $this->load_typ_obj($qp, $this::class);
     }
 
 }

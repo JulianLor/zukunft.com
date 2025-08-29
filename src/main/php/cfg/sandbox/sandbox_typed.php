@@ -5,6 +5,20 @@
     model/sandbox/sandbox_description.php - adding the description field to the _sandbox superclass
     -------------------------------------
 
+    This superclass should be used by the classes words, formula, ... su that users can link predefined behavior
+
+    The main sections of this object are
+    - object vars:       the variables of this word object
+    - construct and map: including the mapping of the db row to this word object
+    - api:               create an api array for the frontend and set the vars based on a frontend api message
+    - set and get:       to capsule the variables from unexpected changes
+    - preloaded:         get preloaded information such as the type code id
+    - info:              functions to make code easier to read
+    - modify:            change potentially all variables of this sandbox object
+    - cast:              create an api object and set the vars from an api json
+    - save:              manage to update the database
+
+
     This file is part of zukunft.com - calc with words
 
     zukunft.com is free software: you can redistribute it and/or modify it
@@ -22,18 +36,44 @@
     To contact the authors write to:
     Timon Zielonka <timon@zukunft.com>
 
-    Copyright (c) 1995-2023 zukunft.com AG, Zurich
+    Copyright (c) 1995-2024 zukunft.com AG, Zurich
     Heang Lor <heang@zukunft.com>
 
     http://zukunft.com
 
 */
 
-namespace cfg;
+namespace cfg\sandbox;
 
+use cfg\const\paths;
+
+include_once paths::MODEL_SANDBOX . 'sandbox_named.php';
+include_once paths::DB . 'sql.php';
+include_once paths::DB . 'sql_db.php';
+include_once paths::MODEL_HELPER . 'db_object_seq_id.php';
+//include_once paths::MODEL_HELPER . 'type_list.php';
+//include_once paths::MODEL_REF . 'source.php';
+include_once paths::MODEL_USER . 'user.php';
+include_once paths::MODEL_USER . 'user_message.php';
+//include_once paths::MODEL_WORD . 'word.php';
+include_once paths::SHARED_ENUM . 'messages.php';
+include_once paths::SHARED_HELPER . 'CombineObject.php';
+include_once paths::SHARED_TYPES . 'api_type_list.php';
+include_once paths::SHARED . 'json_fields.php';
+include_once paths::SHARED . 'library.php';
+
+use cfg\db\sql;
 use cfg\db\sql_db;
-
-include_once MODEL_SANDBOX_PATH . 'sandbox_named.php';
+use cfg\helper\db_object_seq_id;
+use cfg\helper\type_list;
+use cfg\ref\source;
+use cfg\user\user;
+use cfg\user\user_message;
+use shared\enum\messages as msg_id;
+use shared\helper\CombineObject;
+use shared\types\api_type_list;
+use shared\json_fields;
+use shared\library;
 
 class sandbox_typed extends sandbox_named
 {
@@ -62,6 +102,42 @@ class sandbox_typed extends sandbox_named
         $this->type_id = null;
     }
 
+    /**
+     * set the type based on the api json
+     * @param array $api_json the api json array with the values that should be mapped
+     */
+    function api_mapper(array $api_json): user_message
+    {
+        global $usr;
+        $msg = parent::api_mapper($api_json);
+
+        if (key_exists(json_fields::TYPE, $api_json)) {
+            $this->set_type_id($api_json[json_fields::TYPE], $usr);
+        }
+        return $msg;
+    }
+
+
+    /*
+     * api
+     */
+
+    /**
+     * create an array for the api json creation
+     * differs from the export array by using the internal id instead of the names
+     * @param api_type_list $typ_lst configuration for the api message e.g. if phrases should be included
+     * @param user|null $usr the user for whom the api message should be created which can differ from the session user
+     * @return array the filled array used to create the api json message to the frontend
+     */
+    function api_json_array(api_type_list $typ_lst, user|null $usr = null): array
+    {
+        $vars = parent::api_json_array($typ_lst, $usr);
+
+        $vars[json_fields::TYPE] = $this->type_id();
+
+        return $vars;
+    }
+
 
     /*
      * set and get
@@ -71,11 +147,56 @@ class sandbox_typed extends sandbox_named
      * set the database id of the type
      *
      * @param int|null $type_id the database id of the type
-     * @return void
+     * @param user $usr_req the user who wants to change the type
+     * @return user_message warning message for the user if the permissions are missing
      */
-    function set_type_id(?int $type_id): void
+    function set_type_id(?int $type_id, user $usr_req = new user()): user_message
     {
-        $this->type_id = $type_id;
+        $usr_msg = new user_message();
+        if ($usr_req->can_set_type_id()) {
+            $this->type_id = $type_id;
+        } else {
+            $lib = new library();
+            $usr_msg->add_id_with_vars(msg_id::NOT_ALLOWED_TO, [
+                msg_id::VAR_USER_NAME => $usr_req->name(),
+                msg_id::VAR_USER_PROFILE => $usr_req->profile_code_id(),
+                msg_id::VAR_NAME => sql_db::FLD_TYPE_NAME,
+                msg_id::VAR_CLASS_NAME => $lib->class_to_name($this::class)
+            ]);
+        }
+        return $usr_msg;
+    }
+
+    /**
+     * set the type based on the given code id and type list
+     *
+     * @param string|null $code_id the code id that should be added to this view
+     * @param type_list $typ_lst the parent object specific preloaded list of types
+     * @param msg_id $msg_id the id of the message used to report a missing type
+     * @param user $usr_req the user who wants to change the type
+     * @return user_message a warning if the view type code id is not found
+     */
+    function set_type_by_code_id(
+        ?string   $code_id,
+        type_list $typ_lst,
+        msg_id    $msg_id,
+        user      $usr_req = new user()
+    ): user_message
+    {
+        $usr_msg = new user_message();
+        if ($code_id == null) {
+            $this->type_id = null;
+        } else {
+            if ($typ_lst->has_code_id($code_id)) {
+                $this->set_type_id($typ_lst->id($code_id), $usr_req);
+            } else {
+                $usr_msg->add_id_with_vars($msg_id, [
+                    msg_id::VAR_NAME => $code_id
+                ]);
+                $this->type_id = null;
+            }
+        }
+        return $usr_msg;
     }
 
     /**
@@ -98,6 +219,21 @@ class sandbox_typed extends sandbox_named
 
 
     /*
+     * preloaded
+     */
+
+    /**
+     * the code id of the type for the export json
+     * must be overwritten by the child objects
+     * @return string with the code id of the type
+     */
+    private function type_code_id(): string
+    {
+        return 'type_code_id() function not overwritten by the ' . $this::class . ' object';
+    }
+
+
+    /*
      * cast
      */
 
@@ -111,14 +247,90 @@ class sandbox_typed extends sandbox_named
         $api_obj->set_type_id($this->type_id());
     }
 
-    /**
-     * @param object $dsp_obj frontend API objects that should be filled with unique object name
-     */
-    function fill_dsp_obj(object $dsp_obj): void
-    {
-        parent::fill_api_obj($dsp_obj);
 
-        $dsp_obj->set_type_id($this->type_id());
+    /*
+     * im- and export
+     */
+
+    /**
+     * create an array with the export json fields
+     * @param bool $do_load true if any missing data should be loaded while creating the array
+     * @return array with the json fields
+     */
+    function export_json(bool $do_load = true): array
+    {
+        $vars = parent::export_json($do_load);
+
+        // TODO check for which object the code id should be used and why
+        if ($this->type_name() <> '') {
+            $vars[json_fields::TYPE_NAME] = $this->type_name();
+        }
+        return $vars;
+    }
+
+
+    /*
+     * info
+     */
+
+    /**
+     * create human-readable messages of the differences between the named sandbox objects
+     * @param sandbox_typed|CombineObject|db_object_seq_id $obj which might be different to this named sandbox
+     * @return user_message the human-readable messages of the differences between the named sandbox objects
+     */
+    function diff_msg(sandbox_typed|CombineObject|db_object_seq_id $obj): user_message
+    {
+        $usr_msg = parent::diff_msg($obj);
+        if ($this->type_id() != $obj->type_id()) {
+            $lib = new library();
+            $usr_msg->add_id_with_vars(msg_id::DIFF_TYPE, [
+                msg_id::VAR_TYPE => $obj->type_name(),
+                msg_id::VAR_TYPE_CHK => $this->type_name(),
+                msg_id::VAR_CLASS_NAME => $lib->class_to_name($this::class),
+                msg_id::VAR_NAME => $this->name(),
+            ]);
+        }
+        return $usr_msg;
+    }
+
+    /**
+     * check if the typed object in the database needs to be updated
+     *
+     * @param sandbox_typed|CombineObject|db_object_seq_id $db_obj the word as saved in the database
+     * @return bool true if this word has infos that should be saved in the database
+     */
+    function needs_db_update(sandbox_typed|CombineObject|db_object_seq_id $db_obj): bool
+    {
+        $result = parent::needs_db_update($db_obj);
+        if ($this->type_id != null) {
+            if ($this->type_id != $db_obj->type_id) {
+                $result = true;
+            }
+        }
+        return $result;
+    }
+
+
+    /*
+     * modify
+     */
+
+    /**
+     * fill this sandbox object based on the given object
+     * if the given type is not set (null) the type is not removed
+     * if the given type is zero (not null) the type is removed
+     *
+     * @param sandbox_typed|CombineObject|db_object_seq_id $obj sandbox object with the values that should be updated e.g. based on the import
+     * @param user $usr_req the user who has requested the fill
+     * @return user_message a warning in case of a conflict e.g. due to a missing change time
+     */
+    function fill(sandbox_typed|CombineObject|db_object_seq_id $obj, user $usr_req): user_message
+    {
+        $usr_msg = parent::fill($obj, $usr_req);
+        if ($obj->type_id() != null) {
+            $this->set_type_id($obj->type_id(), $usr_req);
+        }
+        return $usr_msg;
     }
 
 
@@ -131,13 +343,13 @@ class sandbox_typed extends sandbox_named
      * @param sql_db $db_con the database connection that can be either the real database connection or a simulation used for testing
      * @param source $db_rec the database record before the saving
      * @param source $std_rec the database record defined as standard because it is used by most users
-     * @return string if not empty the message that should be shown to the user
+     * @return user_message the message that should be shown to the user in case something went wrong
      */
-    function save_fields_typed(sql_db $db_con, sandbox_typed $db_rec, sandbox_typed $std_rec): string
+    function save_fields_typed(sql_db $db_con, sandbox_typed $db_rec, sandbox_typed $std_rec): user_message
     {
-        $result = parent::save_fields_named($db_con, $db_rec, $std_rec);
-        $result .= $this->save_field_type($db_con, $db_rec, $std_rec);
-        return $result;
+        $usr_msg = parent::save_fields_named($db_con, $db_rec, $std_rec);
+        $usr_msg->add($this->save_field_type($db_con, $db_rec, $std_rec));
+        return $usr_msg;
     }
 
 }

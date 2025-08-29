@@ -5,8 +5,17 @@
     service/config.php - functions to handle the database based system configuration
     ------------------
 
+    TODO use single words with code_id for the system configuration
+    TODO check on system start that the system configuration is complete
+    TODO move all possible values to the phrase based configuration
+
     the values in the config table can only be changed by the system admin
     expose the config class functions as simple functions for simple coding
+
+    application.yaml vs config.yaml:
+    - the application.yaml contains the settings that cannot be changed without code change
+    - the config.yaml contains all settings that the admin can adjust without code change
+
 
     This file is part of zukunft.com - calc with words
 
@@ -34,17 +43,26 @@
 
 namespace cfg;
 
+use cfg\const\paths;
+
+include_once paths::MODEL_HELPER . 'db_object_seq_id.php';
+include_once paths::DB . 'sql_db.php';
+include_once paths::DB . 'sql_par.php';
+include_once paths::DB . 'sql_par_type.php';
+include_once paths::DB . 'sql.php';
+include_once paths::MODEL_USER . 'user.php';
+
+use cfg\db\sql;
+use cfg\db\sql_creator;
 use cfg\db\sql_db;
+use cfg\db\sql_field_default;
+use cfg\db\sql_field_type;
 use cfg\db\sql_par;
 use cfg\db\sql_par_type;
+use cfg\helper\db_object_seq_id;
+use cfg\sandbox\sandbox_named;
 
-include_once DB_PATH . 'sql_db.php';
-include_once DB_PATH . 'sql_par.php';
-include_once DB_PATH . 'sql_par_type.php';
-include_once MODEL_USER_PATH . 'user.php';
-include_once MODEL_FORMULA_PATH . 'formula.php';
-
-class config
+class config extends db_object_seq_id
 {
 
     // reserved word and triple names used for the system configuration
@@ -53,6 +71,7 @@ class config
     const YEARS_AUTO_CREATE_DSP = 'years to create';
     const DB_RETRY_MIN = 'system config database retry start delay in sec';
     const DB_RETRY_MAX = 'system config database retry max delay in sec';
+    const AVG_CALC_TIME_SEC = 1000; // the default time in milliseconds for updating all results of on formula
 
     // program configuration names
     const SITE_NAME = 'site_name';                           // the name of the pod
@@ -62,6 +81,63 @@ class config
     const TEST_YEARS = 'test_years';                         // the number of years around the current year created automatically
     const MIN_PCT_OF_PHRASES_TO_PRESELECT = 0.3;             // if 30% or more of the phrases of a list are the same to probability is high that the next phrase is the same
 
+    /*
+     * database link
+     */
+
+    // comment used for the database creation
+    const TBL_COMMENT = 'for the core configuration of this pod e.g. the program version or pod url';
+    const FLD_NAME_COM = 'short name of the configuration entry to be shown to the admin';
+    const FLD_NAME = 'config_name';
+    const FLD_CODE_ID_COM = 'unique id text to select a configuration value from the code';
+    const FLD_VALUE_COM = 'the configuration value as a string';
+    const FLD_VALUE = 'value';
+    const FLD_DESCRIPTION_COM = 'text to explain the config value to an admin user';
+
+    // field lists for the table creation
+    const FLD_LST_ALL = array(
+        [self::FLD_NAME, sql_field_type::NAME_UNIQUE, sql_field_default::NULL, sql::INDEX, '', self::FLD_NAME_COM],
+        [sql_db::FLD_CODE_ID, sql_field_type::NAME_UNIQUE, sql_field_default::NOT_NULL, sql::INDEX, '', self::FLD_CODE_ID_COM],
+        [sql_db::FLD_VALUE, sql_field_type::NAME, sql_field_default::NULL, '', '', self::FLD_VALUE_COM],
+        [sql_db::FLD_DESCRIPTION, sql_db::FLD_DESCRIPTION_SQL_TYP, sql_field_default::NULL, '', '', self::FLD_DESCRIPTION_COM],
+    );
+
+
+    /*
+     * sql create
+     */
+
+    /**
+     * the sql statement to create the tables of a config table
+     *
+     * @param sql_creator $sc with the target db_type set
+     * @return string the sql statement to create the table
+     */
+    function sql_table(sql_creator $sc): string
+    {
+        $sql = $sc->sql_separator();
+        $sql .= $this->sql_table_create($sc);
+        return $sql;
+    }
+
+    /**
+     * the sql statement to create the database indices of a config table
+     *
+     * @param sql_creator $sc with the target db_type set
+     * @return string the sql statement to create the indices
+     */
+    function sql_index(sql_creator $sc): string
+    {
+        $sql = $sc->sql_separator();
+        $sql .= $this->sql_index_create($sc);
+        return $sql;
+    }
+
+
+    /*
+     * load
+     */
+
     function get_sql(sql_db $db_con, string $code_id): sql_par
     {
         // check the parameters to capsule this function
@@ -69,11 +145,11 @@ class config
             log_err("The code id must be set", "config->get_sql");
         }
 
-        $db_con->set_class(sql_db::TBL_CONFIG);
+        $db_con->set_class(config::class);
         $qp = new sql_par(self::class);
         $qp->name .= 'get';
         $db_con->set_name($qp->name);
-        $db_con->set_fields(array(sql_db::FLD_CODE_ID, sql_db::FLD_VALUE, sandbox_named::FLD_DESCRIPTION));
+        $db_con->set_fields(array(sql_db::FLD_CODE_ID, sql_db::FLD_VALUE, sql_db::FLD_DESCRIPTION));
         $db_con->add_par(sql_par_type::TEXT, $code_id);
         $qp->sql = $db_con->select_by_code_id();
         $qp->par = $db_con->get_par();
@@ -155,7 +231,7 @@ class config
             // automatically add the config entry
             $result = $this->add($code_id, $value, $description, $db_con);
         } else {
-            if ($value != $db_row[sql_db::FLD_VALUE] or $description != $db_row[sandbox_named::FLD_DESCRIPTION]) {
+            if ($value != $db_row[sql_db::FLD_VALUE] or $description != $db_row[sql_db::FLD_DESCRIPTION]) {
                 $result = $this->update($code_id, $value, $description, $db_con);
             }
         }
@@ -193,11 +269,12 @@ class config
 
         $db_value = $this->default_value($code_id);
         $db_description = $this->default_description($code_id);
+        $db_con->set_class(self::class);
         $db_id = $db_con->insert_old(
             array(
                 sql_db::FLD_CODE_ID,
                 sql_db::FLD_VALUE,
-                sandbox_named::FLD_DESCRIPTION),
+                sql_db::FLD_DESCRIPTION),
             array(
                 $code_id,
                 $db_value,
@@ -219,11 +296,12 @@ class config
     private function add(string $code_id, string $value, string $description, sql_db $db_con): bool
     {
         $result = false;
+        $db_con->set_class(self::class);
         $db_id = $db_con->insert_old(
             array(
                 sql_db::FLD_CODE_ID,
                 sql_db::FLD_VALUE,
-                sandbox_named::FLD_DESCRIPTION),
+                sql_db::FLD_DESCRIPTION),
             array(
                 $code_id,
                 $value,
@@ -249,7 +327,7 @@ class config
             $code_id,
             array(
                 sql_db::FLD_VALUE,
-                sandbox_named::FLD_DESCRIPTION),
+                sql_db::FLD_DESCRIPTION),
             array(
                 $value,
                 $description),
@@ -282,7 +360,7 @@ class config
                 $result = FIRST_VERSION;
                 break;
             case self::AVG_CALC_TIME:
-                $result = formula::AVG_CALC_TIME;
+                $result = self::AVG_CALC_TIME_SEC;
                 break;
         }
 

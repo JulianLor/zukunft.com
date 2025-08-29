@@ -2,8 +2,8 @@
 
 /*
 
-  triple.php - display a RDF triple
-  ----------
+    triple.php - display a RDF triple
+    ----------
 
 
     This file is part of zukunft.com - calc with words
@@ -30,12 +30,12 @@
 
 */
 
-use cfg\triple;
-use cfg\user;
-use controller\controller;
+use cfg\word\triple;
+use cfg\user\user;
+use shared\api;
 
 $debug = $_GET['debug'] ?? 0;
-const ROOT_PATH = __DIR__ . '/../';
+const ROOT_PATH = __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR;
 include_once ROOT_PATH . 'src/main/php/zu_lib.php';
 
 $result = ''; // reset the html code var
@@ -46,7 +46,7 @@ $db_con = prg_start("triple");
 if (!$db_con->connected()) {
     $result = log_fatal("Cannot connect to " . SQL_DB_TYPE . " database with user " . SQL_DB_USER_MYSQL, "find.php");
 } else {
-    $back = $_GET[controller::API_BACK];
+    $back = $_GET[api::URL_VAR_BACK] = '';
     $id = $_GET['triples'];
 
     // load the session user parameters
